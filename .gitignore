@@ -1,0 +1,8 @@
+dist/
+helper/.build/
+node_modules/
+.DS_Store
+preview/
+.env
+releases/
+video/

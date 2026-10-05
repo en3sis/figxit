@@ -1,0 +1,237 @@
+import { chmodSync, mkdirSync, unlinkSync } from "node:fs";
+import { dirname } from "node:path";
+import type { Socket } from "bun";
+import { tmuxGrid, tmuxQuery, type Grid, type TmuxTarget } from "./geometry";
+import { Helper } from "./helper";
+import { History } from "./history";
+import { ENGINE_SOCK } from "./paths";
+import type { Candidate } from "./sources";
+import { suggest, type Suggestion } from "./suggest";
+
+const SOCK = ENGINE_SOCK;
+const SEP = "\x1f";
+const VISIBLE = 8;
+const SETTLE_MS = 12;
+const FOCUS_MS = 250;
+const FOCUS_FORMAT = "#{window_active} #{pane_active} #{pane_in_mode}";
+
+interface Session {
+  socket: Socket<Session>;
+  decoder: TextDecoder;
+  pending: string;
+  tmux: TmuxTarget | null;
+  items: Candidate[];
+  selected: number;
+  scroll: number;
+  remove: number;
+  visible: boolean;
+  anchorKey: string | null;
+  anchor: Grid | null;
+  seq: number;
+}
+
+const history = new History();
+const helper = new Helper();
+let active: Session | null = null;
+
+function setVisible(s: Session, visible: boolean) {
+  if (visible) active = s;
+  else if (active === s) active = null;
+  if (s.visible === visible) return;
+  s.visible = visible;
+  s.socket.write(`S${SEP}${visible ? 1 : 0}\n`);
+}
+
+function hide(s: Session) {
+  s.seq++;
+  s.items = [];
+  if (s.visible || active === s) helper.send({ cmd: "hide" });
+  setVisible(s, false);
+}
+
+function render(s: Session) {
+  if (!s.anchor || s.items.length === 0) return;
+  if (s.selected < s.scroll) s.scroll = s.selected;
+  if (s.selected >= s.scroll + VISIBLE) s.scroll = s.selected - VISIBLE + 1;
+  const items = s.items.slice(s.scroll, s.scroll + VISIBLE).map(({ label, detail, icon, tint }) => ({ label, detail, icon, tint }));
+  helper.send({ cmd: "show", grid: s.anchor, items, selected: s.selected - s.scroll });
+  setVisible(s, true);
+}
+
+function present(s: Session, result: Suggestion, keep: boolean) {
+  const previous = keep ? s.items[s.selected]?.label : undefined;
+  s.items = result.items;
+  s.remove = result.remove;
+  const index = previous === undefined ? -1 : result.items.findIndex((item) => item.label === previous);
+  s.selected = Math.max(index, 0);
+  s.scroll = 0;
+}
+
+async function anchor(s: Session, seq: number, result: Suggestion, cwd: string, buffer: string): Promise<boolean> {
+  const key = `${cwd}\n${buffer.slice(0, result.tokenStart)}`;
+  if (s.anchorKey === key && s.anchor) return true;
+  await Bun.sleep(SETTLE_MS);
+  if (seq !== s.seq || !s.tmux) return false;
+  const grid = await tmuxGrid(s.tmux);
+  if (seq !== s.seq) return false;
+  if (!grid) {
+    hide(s);
+    return false;
+  }
+  grid.col = Math.max(0, grid.col - result.remove);
+  s.anchorKey = key;
+  s.anchor = grid;
+  return true;
+}
+
+async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
+  if (!s.tmux) return hide(s);
+  const seq = ++s.seq;
+  const result = await suggest(buffer, cursor, cwd, history);
+  if (seq !== s.seq) return;
+  if (!result.now && !result.more) return hide(s);
+
+  if (result.now) {
+    present(s, result.now, false);
+    if (!(await anchor(s, seq, result.now, cwd, buffer))) return;
+    render(s);
+  } else if (s.visible) {
+    s.items = [];
+    helper.send({ cmd: "hide" });
+    setVisible(s, false);
+  }
+
+  if (!result.more) return;
+  const full = await result.more;
+  if (seq !== s.seq) return;
+  if (!full) {
+    if (!result.now) hide(s);
+    return;
+  }
+  present(s, full, result.now !== null);
+  if (!(await anchor(s, seq, full, cwd, buffer))) return;
+  render(s);
+}
+
+helper.onHidden = () => {
+  const s = active;
+  if (!s) return;
+  s.seq++;
+  s.items = [];
+  setVisible(s, false);
+};
+
+let focusBusy = false;
+async function checkFocus() {
+  const s = active;
+  if (!s || !s.visible || !s.tmux || focusBusy) return;
+  focusBusy = true;
+  const state = await tmuxQuery(s.tmux, FOCUS_FORMAT);
+  focusBusy = false;
+  if (active !== s || !s.visible) return;
+  if (state === null || state.trim() !== "1 1 0") hide(s);
+}
+
+function navigate(s: Session, direction: string) {
+  if (!s.visible || s.items.length === 0) return;
+  const step = direction === "up" ? -1 : 1;
+  s.selected = (s.selected + step + s.items.length) % s.items.length;
+  render(s);
+}
+
+function accept(s: Session) {
+  const item = s.visible ? s.items[s.selected] : undefined;
+  if (!item) {
+    s.socket.write(`A${SEP}-1${SEP}\n`);
+    return;
+  }
+  s.socket.write(`A${SEP}${s.remove}${SEP}${item.insert ?? item.label + " "}\n`);
+  hide(s);
+}
+
+function onLine(s: Session, line: string) {
+  const f = line.split(SEP);
+  if ((f[0] === "E" || f[0] === "L") && active && active !== s) hide(active);
+  switch (f[0]) {
+    case "H":
+      s.tmux = f[2] && f[3] ? { socket: f[2], pane: f[3] } : null;
+      if (f[4]) process.env.PATH = f[4];
+      break;
+    case "L":
+      history.refresh();
+      s.anchorKey = null;
+      hide(s);
+      break;
+    case "E":
+      edit(s, Number(f[1]) || 0, f[2] ?? "", (f[3] ?? "").replaceAll("\x1e", "\n"));
+      break;
+    case "K":
+      navigate(s, f[1] ?? "down");
+      break;
+    case "A":
+      accept(s);
+      break;
+    case "X":
+      s.anchorKey = null;
+      hide(s);
+      break;
+  }
+}
+
+export async function daemon() {
+  mkdirSync(dirname(SOCK), { recursive: true, mode: 0o700 });
+  chmodSync(dirname(SOCK), 0o700);
+  try {
+    const probe = await Bun.connect({ unix: SOCK, socket: { data() {} } });
+    probe.end();
+    process.exit(0);
+  } catch {}
+  try {
+    unlinkSync(SOCK);
+  } catch {}
+
+  history.refresh(0);
+
+  Bun.listen<Session>({
+    unix: SOCK,
+    socket: {
+      open(socket) {
+        socket.data = {
+          socket,
+          decoder: new TextDecoder(),
+          pending: "",
+          tmux: null,
+          items: [],
+          selected: 0,
+          scroll: 0,
+          remove: 0,
+          visible: false,
+          anchorKey: null,
+          anchor: null,
+          seq: 0,
+        };
+      },
+      data(socket, chunk) {
+        const s = socket.data;
+        s.pending += s.decoder.decode(chunk, { stream: true });
+        let newline: number;
+        while ((newline = s.pending.indexOf("\n")) >= 0) {
+          const line = s.pending.slice(0, newline);
+          s.pending = s.pending.slice(newline + 1);
+          if (line) onLine(s, line);
+        }
+      },
+      close(socket) {
+        const s = socket.data;
+        s.seq++;
+        if (active === s) {
+          active = null;
+          helper.send({ cmd: "hide" });
+        }
+      },
+      error() {},
+    },
+  });
+  chmodSync(SOCK, 0o600);
+  setInterval(checkFocus, FOCUS_MS);
+}

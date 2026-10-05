@@ -1,0 +1,162 @@
+import { brandIcon, ICONS, type Icon } from "./brands";
+import { fileCandidates, lookup, type GenContext, type Lookup } from "./generators";
+import type { History } from "./history";
+import { projectCandidates, repoRoot, type Candidate } from "./sources";
+import { emit, loadSpec, locate, toCandidate, type Emitted } from "./specs";
+import { commandWords, scan } from "./tokenize";
+
+export interface Suggestion {
+  items: Candidate[];
+  remove: number;
+  tokenStart: number;
+}
+
+export interface Result {
+  now: Suggestion | null;
+  more: Promise<Suggestion | null> | null;
+}
+
+const MAX_ITEMS = 40;
+const MAX_TOKEN = 48;
+const UNSAFE = /['"`$\\*?<>!{}\[\]]/;
+const SHELL = /['"`$\\*?<>!{}\[\];&|()\n]/;
+const SECRET =
+  /(key|token|secret|passw|pwd|auth|bearer|credential)[\w.-]*[=:]|^(gh[pousr]_|github_pat_|sk-|xox[abprs]-|AKIA|eyJ)|^[A-Za-z0-9+_=-]{32,}$/i;
+const SECRET_FLAG = /^--?(password|passwd|pass|token|secret|key|apikey|api-key|auth|bearer)$/i;
+
+export function secretLike(token: string, previous?: string): boolean {
+  return SECRET.test(token) || (previous !== undefined && SECRET_FLAG.test(previous));
+}
+const EMPTY: Result = { now: null, more: null };
+
+export function matchScore(label: string, prefix: string): number {
+  if (prefix === "") return 1;
+  const a = label.toLowerCase();
+  const b = prefix.toLowerCase();
+  if (a.startsWith(b)) return label.startsWith(prefix) ? 1 : 0.9;
+  if (a.includes(b)) return 0.45;
+  let index = 0;
+  for (const c of a) {
+    if (c === b[index]) index++;
+    if (index === b.length) return 0.2;
+  }
+  return 0;
+}
+
+function pathLike(token: string): boolean {
+  return token.includes("/") || token.startsWith(".") || token.startsWith("~");
+}
+
+function iconFor(label: string, depth: number, command: string | undefined): Icon {
+  if (depth === 0) return brandIcon(label) ?? (label === "make" ? ICONS.target : ICONS.command);
+  if (label.startsWith("-")) return ICONS.flag;
+  if (pathLike(label)) return label.endsWith("/") ? ICONS.folder : ICONS.file;
+  return brandIcon(command) ?? ICONS.history;
+}
+
+export async function suggest(
+  buffer: string,
+  cursor: number,
+  cwd: string,
+  history: History,
+  now = Date.now(),
+): Promise<Result> {
+  const after = buffer[cursor];
+  if (after !== undefined && after !== " " && after !== "\n") return EMPTY;
+
+  const parsed = scan(buffer.slice(0, cursor));
+  if (parsed.quoted) return EMPTY;
+  const words = commandWords(parsed.segments[parsed.segments.length - 1]!);
+  const prefix = parsed.prefix;
+  const depth = words.length;
+  if (depth === 0 && prefix === "") return EMPTY;
+  if (UNSAFE.test(prefix)) return EMPTY;
+
+  const command = words[0];
+  const spec = command && !command.includes("/") ? await loadSpec(command) : null;
+  const project = projectCandidates(words, prefix, cwd, spec !== null);
+  const emitted: Emitted | null = spec ? emit(await locate(spec, words), prefix) : null;
+  const stats = history.nextTokens(words, cwd, repoRoot(cwd), now);
+  const covered = project.authoritative || spec !== null;
+  const brand = brandIcon(command) ?? ICONS.command;
+
+  const files: Candidate[] = [];
+  const slots: Lookup[] = [];
+  if (emitted && !project.authoritative) {
+    if (emitted.templates.size > 0) {
+      files.push(...fileCandidates(prefix, cwd, !emitted.templates.has("filepaths")));
+    }
+    if (project.candidates.length === 0 && !words.some((word) => SHELL.test(word))) {
+      const ctx: GenContext = { tokens: [...words, prefix], cwd, prefix };
+      for (const generator of emitted.generators) slots.push(lookup(generator, ctx, now));
+    }
+  }
+
+  const assemble = (dynamic: unknown[]): Suggestion | null => {
+    const merged = new Map<string, Candidate>();
+    const add = (candidate: Candidate | null) => {
+      if (candidate && !merged.has(candidate.label)) merged.set(candidate.label, { ...candidate });
+    };
+    project.candidates.forEach(add);
+    emitted?.statics.forEach(add);
+    for (const item of dynamic) {
+      const candidate = toCandidate(item as never, brand, "suggestion");
+      if (!candidate) continue;
+      if (candidate.icon === ICONS.folder.icon || candidate.icon === ICONS.file.icon) {
+        const dotted = candidate.label.startsWith(".") && !candidate.label.startsWith("../");
+        if (dotted && !prefix.startsWith(".")) continue;
+        candidate.score = Math.min(candidate.score, 0.65);
+      }
+      add(candidate);
+    }
+    files.forEach(add);
+
+    const claimed = new Set<string>();
+    for (const candidate of merged.values()) {
+      for (const name of candidate.aliases ?? [candidate.label]) {
+        const stat = stats.get(name);
+        if (!stat || claimed.has(name)) continue;
+        claimed.add(name);
+        candidate.score += stat.score;
+      }
+    }
+
+    for (const [token, stat] of stats) {
+      if (claimed.has(token) || project.authoritative) continue;
+      if (covered && stat.local === 0) continue;
+      if (token.length > MAX_TOKEN || UNSAFE.test(token)) continue;
+      if (secretLike(token, words[depth - 1])) continue;
+      if (token.startsWith("-") !== prefix.startsWith("-")) continue;
+      if (pathLike(token) && stat.local === 0) continue;
+      if (depth === 0 && stat.count < 2) continue;
+      add({
+        label: token,
+        detail: depth === 0 ? "command" : "history",
+        score: stat.score,
+        ...iconFor(token, depth, command),
+      });
+    }
+
+    const items: Candidate[] = [];
+    for (const candidate of merged.values()) {
+      if (candidate.insert === undefined && (candidate.label === prefix || UNSAFE.test(candidate.label))) continue;
+      let match = matchScore(candidate.label, prefix);
+      for (const name of candidate.aliases ?? []) match = Math.max(match, matchScore(name, prefix));
+      if (match === 0 || (depth === 0 && match < 0.9)) continue;
+      items.push({ ...candidate, score: candidate.score * match });
+    }
+    if (items.length === 0) return null;
+
+    items.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
+    return { items: items.slice(0, MAX_ITEMS), remove: cursor - parsed.tokenStart, tokenStart: parsed.tokenStart };
+  };
+
+  const cached = slots.flatMap((slot) => slot.value ?? []);
+  const pending = slots.some((slot) => slot.refresh);
+  return {
+    now: assemble(cached),
+    more: pending
+      ? Promise.all(slots.map((slot) => slot.refresh ?? slot.value ?? [])).then((lists) => assemble(lists.flat()))
+      : null,
+  };
+}

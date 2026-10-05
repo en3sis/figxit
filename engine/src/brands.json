@@ -1,0 +1,606 @@
+{
+  "adb": {
+    "slug": "android",
+    "hex": "3DDC84"
+  },
+  "ansible": {
+    "slug": "ansible",
+    "hex": "EE0000"
+  },
+  "ansible-playbook": {
+    "slug": "ansible",
+    "hex": "EE0000"
+  },
+  "argocd": {
+    "slug": "argo",
+    "hex": "EF7B4D"
+  },
+  "bash": {
+    "slug": "gnubash",
+    "hex": "4EAA25"
+  },
+  "bazel": {
+    "slug": "bazel",
+    "hex": "43A047"
+  },
+  "brew": {
+    "slug": "homebrew",
+    "hex": "FBB040"
+  },
+  "bun": {
+    "slug": "bun",
+    "hex": "000000"
+  },
+  "bundle": {
+    "slug": "ruby",
+    "hex": "CC342D"
+  },
+  "bunx": {
+    "slug": "bun",
+    "hex": "000000"
+  },
+  "cargo": {
+    "slug": "rust",
+    "hex": "000000"
+  },
+  "claude": {
+    "slug": "claude",
+    "hex": "D97757"
+  },
+  "cloudflared": {
+    "slug": "cloudflare",
+    "hex": "F38020"
+  },
+  "cmake": {
+    "slug": "cmake",
+    "hex": "064F8C"
+  },
+  "codesign": {
+    "slug": "apple",
+    "hex": "000000"
+  },
+  "composer": {
+    "slug": "composer",
+    "hex": "885630"
+  },
+  "conda": {
+    "slug": "anaconda",
+    "hex": "44A833"
+  },
+  "createdb": {
+    "slug": "postgresql",
+    "hex": "4169E1"
+  },
+  "curl": {
+    "slug": "curl",
+    "hex": "073551"
+  },
+  "dart": {
+    "slug": "dart",
+    "hex": "0175C2"
+  },
+  "defaults": {
+    "slug": "apple",
+    "hex": "000000"
+  },
+  "deno": {
+    "slug": "deno",
+    "hex": "000000"
+  },
+  "docker": {
+    "slug": "docker",
+    "hex": "2496ED"
+  },
+  "docker-compose": {
+    "slug": "docker",
+    "hex": "2496ED"
+  },
+  "dotnet": {
+    "slug": "dotnet",
+    "hex": "512BD4"
+  },
+  "duckdb": {
+    "slug": "duckdb",
+    "hex": "FFF000"
+  },
+  "eas": {
+    "slug": "expo",
+    "hex": "1C2024"
+  },
+  "elixir": {
+    "slug": "elixir",
+    "hex": "4B275F"
+  },
+  "emulator": {
+    "slug": "android",
+    "hex": "3DDC84"
+  },
+  "eslint": {
+    "slug": "eslint",
+    "hex": "4B32C3"
+  },
+  "expo": {
+    "slug": "expo",
+    "hex": "1C2024"
+  },
+  "fastlane": {
+    "slug": "fastlane",
+    "hex": "00F200"
+  },
+  "ffmpeg": {
+    "slug": "ffmpeg",
+    "hex": "007808"
+  },
+  "ffprobe": {
+    "slug": "ffmpeg",
+    "hex": "007808"
+  },
+  "firebase": {
+    "slug": "firebase",
+    "hex": "DD2C00"
+  },
+  "fish": {
+    "slug": "fishshell",
+    "hex": "34C534"
+  },
+  "flutter": {
+    "slug": "flutter",
+    "hex": "02569B"
+  },
+  "fly": {
+    "slug": "flydotio",
+    "hex": "24175B"
+  },
+  "flyctl": {
+    "slug": "flydotio",
+    "hex": "24175B"
+  },
+  "fnm": {
+    "slug": "nodedotjs",
+    "hex": "5FA04E"
+  },
+  "gcloud": {
+    "slug": "googlecloud",
+    "hex": "4285F4"
+  },
+  "gem": {
+    "slug": "ruby",
+    "hex": "CC342D"
+  },
+  "gh": {
+    "slug": "github",
+    "hex": "181717"
+  },
+  "ghostty": {
+    "slug": "ghostty",
+    "hex": "3551F3"
+  },
+  "git": {
+    "slug": "git",
+    "hex": "F03C2E"
+  },
+  "glab": {
+    "slug": "gitlab",
+    "hex": "FC6D26"
+  },
+  "gleam": {
+    "slug": "gleam",
+    "hex": "FFAFF3"
+  },
+  "go": {
+    "slug": "go",
+    "hex": "00ADD8"
+  },
+  "gradle": {
+    "slug": "gradle",
+    "hex": "02303A"
+  },
+  "gradlew": {
+    "slug": "gradle",
+    "hex": "02303A"
+  },
+  "gsutil": {
+    "slug": "googlecloud",
+    "hex": "4285F4"
+  },
+  "helm": {
+    "slug": "helm",
+    "hex": "0F1689"
+  },
+  "hf": {
+    "slug": "huggingface",
+    "hex": "FFD21E"
+  },
+  "hub": {
+    "slug": "github",
+    "hex": "181717"
+  },
+  "huggingface-cli": {
+    "slug": "huggingface",
+    "hex": "FFD21E"
+  },
+  "hugo": {
+    "slug": "hugo",
+    "hex": "FF4088"
+  },
+  "iex": {
+    "slug": "elixir",
+    "hex": "4B275F"
+  },
+  "irb": {
+    "slug": "ruby",
+    "hex": "CC342D"
+  },
+  "java": {
+    "slug": "openjdk",
+    "hex": "000000"
+  },
+  "javac": {
+    "slug": "openjdk",
+    "hex": "000000"
+  },
+  "jest": {
+    "slug": "jest",
+    "hex": "C21325"
+  },
+  "jupyter": {
+    "slug": "jupyter",
+    "hex": "F37626"
+  },
+  "just": {
+    "slug": "just",
+    "hex": "000000"
+  },
+  "kotlin": {
+    "slug": "kotlin",
+    "hex": "7F52FF"
+  },
+  "kotlinc": {
+    "slug": "kotlin",
+    "hex": "7F52FF"
+  },
+  "kubectl": {
+    "slug": "kubernetes",
+    "hex": "326CE5"
+  },
+  "kubectx": {
+    "slug": "kubernetes",
+    "hex": "326CE5"
+  },
+  "kubens": {
+    "slug": "kubernetes",
+    "hex": "326CE5"
+  },
+  "lms": {
+    "slug": "lmstudio",
+    "hex": "000000"
+  },
+  "lua": {
+    "slug": "lua",
+    "hex": "000080"
+  },
+  "mix": {
+    "slug": "elixir",
+    "hex": "4B275F"
+  },
+  "mongod": {
+    "slug": "mongodb",
+    "hex": "47A248"
+  },
+  "mongosh": {
+    "slug": "mongodb",
+    "hex": "47A248"
+  },
+  "mvn": {
+    "slug": "apachemaven",
+    "hex": "C71A36"
+  },
+  "mysql": {
+    "slug": "mysql",
+    "hex": "4479A1"
+  },
+  "mysqldump": {
+    "slug": "mysql",
+    "hex": "4479A1"
+  },
+  "netlify": {
+    "slug": "netlify",
+    "hex": "00C7B7"
+  },
+  "nginx": {
+    "slug": "nginx",
+    "hex": "009639"
+  },
+  "nix": {
+    "slug": "nixos",
+    "hex": "5277C3"
+  },
+  "nix-shell": {
+    "slug": "nixos",
+    "hex": "5277C3"
+  },
+  "node": {
+    "slug": "nodedotjs",
+    "hex": "5FA04E"
+  },
+  "npm": {
+    "slug": "npm",
+    "hex": "CB3837"
+  },
+  "npx": {
+    "slug": "npm",
+    "hex": "CB3837"
+  },
+  "nvim": {
+    "slug": "neovim",
+    "hex": "57A143"
+  },
+  "nvm": {
+    "slug": "nodedotjs",
+    "hex": "5FA04E"
+  },
+  "nx": {
+    "slug": "nx",
+    "hex": "143055"
+  },
+  "ollama": {
+    "slug": "ollama",
+    "hex": "000000"
+  },
+  "op": {
+    "slug": "1password",
+    "hex": "145FE4"
+  },
+  "open": {
+    "slug": "apple",
+    "hex": "000000"
+  },
+  "osascript": {
+    "slug": "apple",
+    "hex": "000000"
+  },
+  "packer": {
+    "slug": "packer",
+    "hex": "02A8EF"
+  },
+  "pbcopy": {
+    "slug": "apple",
+    "hex": "000000"
+  },
+  "pbpaste": {
+    "slug": "apple",
+    "hex": "000000"
+  },
+  "pg_dump": {
+    "slug": "postgresql",
+    "hex": "4169E1"
+  },
+  "pg_restore": {
+    "slug": "postgresql",
+    "hex": "4169E1"
+  },
+  "php": {
+    "slug": "php",
+    "hex": "777BB4"
+  },
+  "pip": {
+    "slug": "python",
+    "hex": "3776AB"
+  },
+  "pip3": {
+    "slug": "python",
+    "hex": "3776AB"
+  },
+  "pipx": {
+    "slug": "python",
+    "hex": "3776AB"
+  },
+  "pm2": {
+    "slug": "pm2",
+    "hex": "2B037A"
+  },
+  "pnpm": {
+    "slug": "pnpm",
+    "hex": "F69220"
+  },
+  "pnpx": {
+    "slug": "pnpm",
+    "hex": "F69220"
+  },
+  "pod": {
+    "slug": "cocoapods",
+    "hex": "EE3322"
+  },
+  "podman": {
+    "slug": "podman",
+    "hex": "892CA0"
+  },
+  "poetry": {
+    "slug": "poetry",
+    "hex": "60A5FA"
+  },
+  "prettier": {
+    "slug": "prettier",
+    "hex": "F7B93E"
+  },
+  "psql": {
+    "slug": "postgresql",
+    "hex": "4169E1"
+  },
+  "pulumi": {
+    "slug": "pulumi",
+    "hex": "8A3391"
+  },
+  "python": {
+    "slug": "python",
+    "hex": "3776AB"
+  },
+  "python3": {
+    "slug": "python",
+    "hex": "3776AB"
+  },
+  "rails": {
+    "slug": "rubyonrails",
+    "hex": "D30001"
+  },
+  "railway": {
+    "slug": "railway",
+    "hex": "0B0D0E"
+  },
+  "redis-cli": {
+    "slug": "redis",
+    "hex": "FF4438"
+  },
+  "redis-server": {
+    "slug": "redis",
+    "hex": "FF4438"
+  },
+  "ruby": {
+    "slug": "ruby",
+    "hex": "CC342D"
+  },
+  "rustc": {
+    "slug": "rust",
+    "hex": "000000"
+  },
+  "rustup": {
+    "slug": "rust",
+    "hex": "000000"
+  },
+  "sdkmanager": {
+    "slug": "android",
+    "hex": "3DDC84"
+  },
+  "sentry-cli": {
+    "slug": "sentry",
+    "hex": "362D59"
+  },
+  "sh": {
+    "slug": "gnubash",
+    "hex": "4EAA25"
+  },
+  "sqlite3": {
+    "slug": "sqlite",
+    "hex": "003B57"
+  },
+  "starship": {
+    "slug": "starship",
+    "hex": "DD0B78"
+  },
+  "stripe": {
+    "slug": "stripe",
+    "hex": "635BFF"
+  },
+  "supabase": {
+    "slug": "supabase",
+    "hex": "3FCF8E"
+  },
+  "swift": {
+    "slug": "swift",
+    "hex": "F05138"
+  },
+  "swiftc": {
+    "slug": "swift",
+    "hex": "F05138"
+  },
+  "tailscale": {
+    "slug": "tailscale",
+    "hex": "242424"
+  },
+  "terraform": {
+    "slug": "terraform",
+    "hex": "844FBA"
+  },
+  "tmux": {
+    "slug": "tmux",
+    "hex": "1BB91F"
+  },
+  "tofu": {
+    "slug": "opentofu",
+    "hex": "FFDA18"
+  },
+  "ts-node": {
+    "slug": "typescript",
+    "hex": "3178C6"
+  },
+  "tsc": {
+    "slug": "typescript",
+    "hex": "3178C6"
+  },
+  "tsx": {
+    "slug": "typescript",
+    "hex": "3178C6"
+  },
+  "turbo": {
+    "slug": "turborepo",
+    "hex": "FF1E56"
+  },
+  "uv": {
+    "slug": "uv",
+    "hex": "DE5FE9"
+  },
+  "uvx": {
+    "slug": "uv",
+    "hex": "DE5FE9"
+  },
+  "vagrant": {
+    "slug": "vagrant",
+    "hex": "1868F2"
+  },
+  "vault": {
+    "slug": "vault",
+    "hex": "FFEC6E"
+  },
+  "vercel": {
+    "slug": "vercel",
+    "hex": "000000"
+  },
+  "vi": {
+    "slug": "vim",
+    "hex": "019733"
+  },
+  "vim": {
+    "slug": "vim",
+    "hex": "019733"
+  },
+  "vite": {
+    "slug": "vite",
+    "hex": "9135FF"
+  },
+  "vitest": {
+    "slug": "vitest",
+    "hex": "00FF74"
+  },
+  "wrangler": {
+    "slug": "cloudflare",
+    "hex": "F38020"
+  },
+  "xcode-select": {
+    "slug": "xcode",
+    "hex": "147EFB"
+  },
+  "xcodebuild": {
+    "slug": "xcode",
+    "hex": "147EFB"
+  },
+  "xcrun": {
+    "slug": "xcode",
+    "hex": "147EFB"
+  },
+  "yarn": {
+    "slug": "yarn",
+    "hex": "2C8EBB"
+  },
+  "zed": {
+    "slug": "zedindustries",
+    "hex": "084CCF"
+  },
+  "zig": {
+    "slug": "zig",
+    "hex": "F7A41D"
+  },
+  "zsh": {
+    "slug": "zsh",
+    "hex": "F15A24"
+  }
+}
