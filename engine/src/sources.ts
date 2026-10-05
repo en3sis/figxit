@@ -140,7 +140,9 @@ export function projectCandidates(words: string[], prefix: string, cwd: string, 
   if (command === "make" && depth >= 1) {
     for (const name of MAKEFILES) {
       const path = join(cwd, name);
-      if (existsSync(path)) return { candidates: cached(path, parseMakefile), authoritative: true };
+      if (!existsSync(path)) continue;
+      const given = words.slice(1).some((word) => !word.startsWith("-") && !word.includes("="));
+      return { candidates: given ? [] : cached(path, parseMakefile), authoritative: true };
     }
     return none;
   }

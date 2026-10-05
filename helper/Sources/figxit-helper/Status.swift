@@ -24,6 +24,12 @@ enum Install {
         (AppDelegate.socketPath as NSString).deletingLastPathComponent + "/stopped"
     }
 
+    static var shellCount: Int {
+        let path = (stoppedFlag as NSString).deletingLastPathComponent + "/shells"
+        let text = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
+        return engineRunning ? Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0 : 0
+    }
+
     static func markStopped(_ stopped: Bool) {
         if stopped {
             FileManager.default.createFile(atPath: stoppedFlag, contents: nil)
@@ -88,6 +94,7 @@ enum Checks {
         let tmux = find("tmux")
         let history = NSHomeDirectory() + "/.local/share/atuin/history.db"
         let hasHistory = FileManager.default.fileExists(atPath: history)
+        let shells = Install.shellCount
         return [
             Check(state: shellLoaded ? .ok : .missing, title: "Shell integration",
                   detail: shellLoaded ? "Found in ~/.zshrc." : "Not in ~/.zshrc yet. Add the line below."),
@@ -98,6 +105,9 @@ enum Checks {
                       : "Not found. Optional. Without it, rows are not ranked by your history."),
             Check(state: Install.engineRunning ? .ok : .missing, title: "Engine",
                   detail: Install.engineRunning ? "Running." : "Not running. Select Resume Suggestions or Restart Engine in the menu."),
+            Check(state: shells > 0 ? .ok : .missing, title: "Open terminals",
+                  detail: shells > 0 ? "\(shells) connected."
+                      : "None connected. A terminal that was open before this setup does not have Figxit yet. Run exec zsh in it, or open a new tmux pane."),
         ]
     }
 }
@@ -107,6 +117,7 @@ final class SetupWindow: NSObject {
     private let rows = NSStackView()
     private let status = NSTextField(labelWithString: "")
     private let lineBox = NSStackView()
+    private var timer: Timer?
 
     func show() {
         if window == nil { build() }
@@ -115,6 +126,11 @@ final class SetupWindow: NSObject {
         NSApp.activate(ignoringOtherApps: true)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
+            guard let self = self, self.window?.isVisible == true else { return timer.invalidate() }
+            self.reload()
+        }
     }
 
     private func row(_ check: Check) -> NSView {
@@ -188,9 +204,12 @@ final class SetupWindow: NSObject {
         hint.textColor = .secondaryLabelColor
         hint.font = .systemFont(ofSize: 12)
         let again = NSButton(title: "Check Again", target: self, action: #selector(checkAgain))
+        let reloadShell = NSButton(title: "Copy exec zsh", target: self, action: #selector(copyReload))
+        let actions = NSStackView(views: [again, reloadShell])
+        actions.spacing = 10
         status.textColor = .secondaryLabelColor
 
-        let stack = NSStackView(views: [title, rows, lineBox, hint, again, status])
+        let stack = NSStackView(views: [title, rows, lineBox, hint, actions, status])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 14
@@ -208,6 +227,12 @@ final class SetupWindow: NSObject {
         ])
         window.contentView = content
         self.window = window
+    }
+
+    @objc private func copyReload() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("exec zsh", forType: .string)
+        status.stringValue = "Copied. Paste it in each open terminal."
     }
 
     @objc private func checkAgain() {
@@ -306,7 +331,8 @@ final class StatusController: NSObject, NSMenuDelegate {
     private func refresh() {
         let running = Install.engineRunning
         item.button?.appearsDisabled = !running
-        stateItem.title = running ? "Engine is running" : (engine?.paused == true ? "Suggestions are paused" : "Engine is not running")
+        let shells = Install.shellCount
+        stateItem.title = running ? (shells > 0 ? "Running, \(shells) \(shells == 1 ? "terminal" : "terminals") connected" : "Running, no terminal connected") : (engine?.paused == true ? "Suggestions are paused" : "Engine is not running")
         pauseItem.title = engine?.paused == true ? "Resume Suggestions" : "Pause Suggestions"
         restartItem.isEnabled = engine?.paused == false
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off

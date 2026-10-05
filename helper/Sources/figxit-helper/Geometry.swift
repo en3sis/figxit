@@ -156,9 +156,7 @@ enum Geometry {
     }
 
     static func probe(grid: Grid?) -> ProbeReply {
-        let trusted = AXIsProcessTrustedWithOptions(
-            [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        )
+        let trusted = AXIsProcessTrusted()
         guard let terminal = frontTerminal() else {
             return ProbeReply(app: nil, bundleId: nil, axTrusted: trusted, scale: 0, cgWindow: nil,
                               axWindow: nil, axFocused: nil, axTree: [], placement: nil)
