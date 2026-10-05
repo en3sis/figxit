@@ -8,6 +8,7 @@ export interface Scan {
 const SEPARATORS = new Set([";", "|", "&", "(", ")", "\n"]);
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const WRAPPERS = new Set(["sudo", "command", "noglob", "nocorrect", "time", "do", "then", "else", "elif", "if", "while", "until", "!", "{"]);
+const KEYWORDS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "{"]);
 export const RESERVED = new Set(["done", "fi", "esac", "for", "in", "case", "select", "function", "}", "[[", "]]"]);
 
 export function scan(text: string): Scan {
@@ -82,4 +83,8 @@ export function historySegments(command: string): string[][] {
   const segments = result.segments.map((words) => words.slice());
   if (result.prefix !== "") segments[segments.length - 1]!.push(result.prefix);
   return segments.map(commandWords).filter((words) => words.length > 0);
+}
+
+export function keyword(word: string): boolean {
+  return KEYWORDS.has(word) || RESERVED.has(word);
 }
