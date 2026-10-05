@@ -85,6 +85,36 @@ For a command that has a spec, history from other folders is not shown. This kee
 
 When the popup is closed, the keys do what they did before. Tab still opens your normal completion and Up still searches your history.
 
+## Conventions
+
+Figxit reads a few naming habits that many projects have already. None is required.
+
+### Makefile help
+
+| You write | Figxit shows |
+|---|---|
+| `dev: ## Start the stack` | The text after `##` as the description of `dev` |
+| `##@ Development` | A section name in front of the descriptions below it |
+| `release: ## [prod] Publish the app` | A red icon on `release`. The tag is not shown in the popup |
+
+The tags are `[prod]`, `[production]`, `[danger]`, and `[caution]`. A help command made with the usual `awk` line still works, and prints the tag.
+
+### Icons from the name
+
+The verb in a target or script name selects the icon: `dev`, `start`, and `serve` share one, `test` another, `build` another. The list of 12 verbs is in `engine/src/verbs.ts`.
+
+### Red icon: be careful
+
+A red icon marks a row that touches production. A row gets it in one of three ways:
+
+| Rule | Examples |
+|---|---|
+| The name is written in capitals | SSH host `PROD`, target `DEPLOY`, script `MIGRATE` |
+| The name has the word `prod` or `production` | `deploy:prod`, `build:production`, `api-prod`, `prod-db-1` |
+| A Makefile target has a tag in its help text | `release: ## [prod] Publish the app` |
+
+The rule applies to Makefile targets, `package.json` scripts, and live values such as SSH hosts and Docker contexts. It does not apply to files, to subcommands and options, or to words from your history. Only the icon colour changes.
+
 ## Requirements
 
 - A Mac with Apple Silicon.

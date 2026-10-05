@@ -201,6 +201,23 @@ describe("project targets", () => {
 });
 
 describe("commands", () => {
+  test("shell keywords are not commands, and the command after them counts", async () => {
+    const cwd = project({});
+    const loop = "for f in a b; do deploytool push; done";
+    const history = historyOf([
+      [loop, cwd, 1],
+      [loop, cwd, 2],
+      ["if deploytool check; then deploytool push; fi", cwd, 3],
+      ["dig example.com", cwd, 4],
+      ["dig example.com", cwd, 5],
+    ]);
+    const result = await suggest("d", 1, cwd, history, NOW);
+    expect(result?.items.map((i) => i.label).sort()).toEqual(["deploytool", "dig"]);
+    expect(result?.items.every((i) => i.pick)).toBe(true);
+    const next = await suggest("deploytool ", 11, cwd, history, NOW);
+    expect(next?.items.map((i) => i.label).sort()).toEqual(["check", "push"]);
+  });
+
   test("no list opens when the typed word is already a complete command", async () => {
     const cwd = project({});
     const history = historyOf([
@@ -236,6 +253,37 @@ describe("commands", () => {
     expect(alias?.items.map((i) => [i.label, i.run === true])).toEqual([["cps", true]]);
     expect(await suggest("box exec", 8, "/", historyOf([]), NOW)).toBeNull();
     expect(await suggest("box prune", 9, "/", historyOf([]), NOW)).toBeNull();
+  });
+});
+
+describe("caution colour", () => {
+  const red = (items: { label: string; tint?: string }[]) => items.filter((i) => i.tint === "D70015").map((i) => i.label).sort();
+
+  test("a generated name in capitals or with prod gets the red tile", async () => {
+    registerSpec("hop", {
+      name: "hop",
+      args: {
+        name: "host",
+        generators: [
+          { custom: async () => ["PROD", "DB-EU_1", "api-prod", "kara", "A", "Mixed", "product"].map((name) => ({ name })) },
+        ],
+      },
+    });
+    const result = await suggest("hop ", 4, "/", historyOf([]), NOW);
+    expect(red(result!.items)).toEqual(["DB-EU_1", "PROD", "api-prod"]);
+  });
+
+  test("make targets: capitals, prod in the name, or a tag in the help text", () => {
+    const targets = parseMakefile(
+      "dev: ## Start\nDEPLOY: ## Ship\ndeploy-prod: ## Ship\nrelease: ## [prod] Publish the app\nreset: ## [danger] Drop the data\nproduct: ## List\n",
+    );
+    expect(red(targets)).toEqual(["DEPLOY", "deploy-prod", "release", "reset"]);
+    expect(targets.find((t) => t.label === "release")?.detail).toBe("Publish the app");
+  });
+
+  test("package scripts: capitals or prod in the name", () => {
+    const scripts = parseScripts(JSON.stringify({ scripts: { dev: "vite", "deploy:prod": "x", "build:production": "x", MIGRATE: "x", "live-reload": "x" } }));
+    expect(red(scripts)).toEqual(["MIGRATE", "build:production", "deploy:prod"]);
   });
 });
 
