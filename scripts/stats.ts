@@ -1,7 +1,7 @@
 import { join } from "node:path";
 
 const WORKER = "figxit-stats";
-const DATASET = "figxit_stats";
+const DATASET = "figxit";
 const API = "https://api.cloudflare.com/client/v4";
 
 const account = process.env.CF_ACCOUNT;
@@ -13,15 +13,20 @@ if (!account || !token) {
   process.exit(1);
 }
 
-async function api(path: string, init: RequestInit = {}): Promise<any> {
+async function call(path: string, init: RequestInit = {}): Promise<{ body: any; error: string }> {
   const response = await fetch(`${API}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, ...(init.headers as Record<string, string> | undefined) },
   });
   const body = (await response.json().catch(() => null)) as any;
-  if (!response.ok || body?.success === false) {
-    const reason = body?.errors?.map((error: { message: string }) => error.message).join("; ") || response.statusText;
-    console.error(`${init.method ?? "GET"} ${path}: ${reason}`);
+  if (response.ok && body?.success !== false) return { body, error: "" };
+  return { body, error: body?.errors?.map((error: { message: string }) => error.message).join("; ") || response.statusText };
+}
+
+async function api(path: string, init: RequestInit = {}): Promise<any> {
+  const { body, error } = await call(path, init);
+  if (error) {
+    console.error(`${init.method ?? "GET"} ${path}: ${error}`);
     process.exit(1);
   }
   return body;
@@ -30,16 +35,24 @@ async function api(path: string, init: RequestInit = {}): Promise<any> {
 async function deploy() {
   const source = await Bun.file(join(import.meta.dir, "../worker/stats.ts")).text();
   const code = new Bun.Transpiler({ loader: "ts" }).transformSync(source);
-  const metadata = {
-    main_module: "stats.js",
-    compatibility_date: "2026-01-01",
-    bindings: [{ type: "analytics_engine", name: "STATS", dataset: DATASET }],
+  const upload = (bindings: object[]) => {
+    const metadata = { main_module: "stats.js", compatibility_date: "2026-01-01", bindings };
+    const form = new FormData();
+    form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+    form.append("stats.js", new Blob([code], { type: "application/javascript+module" }), "stats.js");
+    return call(`/accounts/${account}/workers/scripts/${WORKER}`, { method: "PUT", body: form });
   };
-  const form = new FormData();
-  form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-  form.append("stats.js", new Blob([code], { type: "application/javascript+module" }), "stats.js");
-  await api(`/accounts/${account}/workers/scripts/${WORKER}`, { method: "PUT", body: form });
-  console.log(`uploaded ${WORKER}`);
+  let bound = true;
+  let { error } = await upload([{ type: "analytics_engine", name: "STATS", dataset: DATASET }]);
+  if (error.includes("enable Analytics Engine")) {
+    bound = false;
+    ({ error } = await upload([]));
+  }
+  if (error) {
+    console.error(`upload of ${WORKER}: ${error}`);
+    process.exit(1);
+  }
+  console.log(`uploaded ${WORKER}${bound ? "" : " without the data set binding"}`);
 
   const zone = (await api(`/zones?name=${host}`)).result?.[0]?.id;
   if (!zone) {
@@ -58,6 +71,14 @@ async function deploy() {
       body: JSON.stringify({ pattern, script: WORKER }),
     });
     console.log(`route ${pattern} added`);
+  }
+  if (!bound) {
+    console.log(`
+Analytics Engine is not enabled for this account, and only the dashboard can enable it.
+1. Open https://dash.cloudflare.com/${account}/workers/services/view/${WORKER}/production/bindings
+2. Add a binding: Analytics Engine, variable name STATS, dataset ${DATASET}. Deploy it there.
+3. Run make stats-deploy again.
+Downloads and updates work now. Counting starts after step 3.`);
   }
 }
 

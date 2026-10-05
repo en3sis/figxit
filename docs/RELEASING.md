@@ -111,7 +111,7 @@ The app reads `https://figxit.com/appcast.xml` (`SUFeedURL` in `helper/Info.plis
 
 The app has no telemetry: it does not report what the user types or does. The counts come from two requests that exist with or without the counter: the daily update check and the download of the app file.
 
-A Cloudflare Worker, `worker/stats.ts`, runs on two routes of figxit.com: `/appcast.xml` and `/download/*`. It passes each request to R2 with no change and writes one data point to Workers Analytics Engine, dataset `figxit_stats`.
+A Cloudflare Worker, `worker/stats.ts`, runs on two routes of figxit.com: `/appcast.xml` and `/download/*`. It passes each request to R2 with no change and writes one data point to Workers Analytics Engine, dataset `figxit`.
 
 | Kind | When | What is stored |
 |---|---|---|
