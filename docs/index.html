@@ -413,10 +413,11 @@ kbd .icon { width: 17px; height: 17px; }
 .reqs .icon { width: 15px; height: 15px; color: var(--link); }
 .support .reqs { margin-top: 22px; }
 .support .reqs .icon { color: var(--text); }
-.works dl { display: grid; grid-template-columns: max-content 1fr; gap: 14px 28px; align-items: center; margin: 0; }
-.works dt { font-size: 14px; font-weight: 600; color: var(--text); }
-.works dd { margin: 0; }
-.support .works .reqs { margin-top: 0; }
+.support .works { align-items: center; gap: 8px; }
+.works span { padding: 7px 12px; }
+.works i { width: 1px; height: 22px; margin: 0 8px; background: var(--line); }
+.works .untested { border-style: dashed; background: none; color: var(--dim); }
+.support .works .untested .icon { color: var(--dim); }
 
 .closing { position: relative; margin-top: 120px; padding: 72px 28px; border: 1px solid var(--line); border-radius: 28px; text-align: center; overflow: hidden; background: var(--card); }
 .closing::before {
@@ -443,8 +444,6 @@ footer a { color: var(--muted); }
 
 @media (max-width: 900px) {
   .s2, .s3, .s4 { grid-column: span 6; }
-  .works dl { grid-template-columns: 1fr; gap: 8px; }
-  .works dd { margin-bottom: 10px; }
   .shots { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .keys { grid-template-columns: minmax(0, 1fr); }
   .flow { grid-template-columns: minmax(0, 1fr); }
@@ -568,32 +567,20 @@ footer a { color: var(--muted); }
   <section id="support" class="support">
     <span class="eyebrow"><svg class="icon"><use href="#i-check"/></svg>Support</span>
     <h2>Works with</h2>
-    <div class="card works">
-      <dl>
-        <dt>Shells</dt>
-        <dd class="reqs">
-          <span><svg class="icon solid"><use href="#b-zsh"/></svg>zsh</span>
-          <span><svg class="icon solid"><use href="#b-bash"/></svg>bash 5</span>
-          <span><svg class="icon solid"><use href="#b-fish"/></svg>fish 4</span>
-        </dd>
-        <dt>Terminals</dt>
-        <dd class="reqs">
-          <span><svg class="icon solid"><use href="#b-ghostty"/></svg>Ghostty</span>
-          <span><svg class="icon solid"><use href="#b-iterm2"/></svg>iTerm2</span>
-          <span><svg class="icon"><use href="#i-terminal"/></svg>Terminal</span>
-        </dd>
-        <dt>Multiplexer</dt>
-        <dd class="reqs">
-          <span><svg class="icon solid"><use href="#b-tmux"/></svg>tmux, optional</span>
-        </dd>
-        <dt>System</dt>
-        <dd class="reqs">
-          <span><svg class="icon solid"><use href="#b-apple"/></svg>macOS 13 or later</span>
-          <span><svg class="icon"><use href="#i-cpu"/></svg>Apple Silicon</span>
-        </dd>
-      </dl>
-      <p class="note">In tmux, each terminal app works. Without tmux, WezTerm and Alacritty are not tested yet, and a native split of the terminal app gets no popup.</p>
+    <div class="reqs works">
+      <span><svg class="icon solid"><use href="#b-zsh"/></svg>zsh</span>
+      <span><svg class="icon solid"><use href="#b-bash"/></svg>bash 5</span>
+      <span><svg class="icon solid"><use href="#b-fish"/></svg>fish 4</span>
+      <i></i>
+      <span><svg class="icon solid"><use href="#b-ghostty"/></svg>Ghostty</span>
+      <span><svg class="icon solid"><use href="#b-iterm2"/></svg>iTerm2</span>
+      <span><svg class="icon"><use href="#i-terminal"/></svg>Terminal</span>
+      <span class="untested" title="Not tested yet without tmux"><svg class="icon solid"><use href="#b-wezterm"/></svg>WezTerm</span>
+      <span class="untested" title="Not tested yet without tmux"><svg class="icon solid"><use href="#b-alacritty"/></svg>Alacritty</span>
+      <i></i>
+      <span><svg class="icon solid"><use href="#b-tmux"/></svg>tmux, optional</span>
     </div>
+    <p class="note">Gray: not tested yet without tmux. In tmux, each terminal app works.</p>
   </section>
 
   <section id="features">
