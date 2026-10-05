@@ -16,13 +16,15 @@ make release BUMP=major
 
 `make build` is optional before `make release`. The release always builds again, because the version number goes into the app.
 
-The Makefile only names the tasks. The logic is in `scripts/`:
+The Makefile only names the tasks. `make` with no argument lists them. The logic is in `scripts/`:
 
 | Script | Task |
 |---|---|
 | `release.sh` | The full release, `make release` |
 | `r2.sh` | R2 login and uploads, `make site`, `make r2-ls`, `make cf-forget` |
 | `stats.ts` | Install counts, `make stats`, `make stats-deploy` |
+| `build.sh` | Builds the app bundle, `make build` |
+| `dev.sh` | Runs the helper and the engine from source, `make dev` |
 | `sign.sh` | Code signing of the app, used by each build |
 | `dmg.sh` | The disk image, `make dmg` |
 | `appicon.sh` | The app icon files, `make appicon` |
