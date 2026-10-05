@@ -106,7 +106,7 @@ R2 uploads use `aws s3` with the R2 endpoint. R2 accepts an API token as S3 keys
 
 The app reads `https://figxit.com/appcast.xml` (`SUFeedURL` in `helper/Info.plist`) one time each day and when the user selects **Check for Updates**. If the feed has a newer version, Sparkle downloads the disk image, checks its signature against `SUPublicEDKey`, and replaces the app.
 
-Each released version has its own folder, `dist/Figxit-<version>/`, with its disk image and the delta files that update older versions to it. Keep these folders. The feed is built from all of them, and Sparkle makes the delta files from the older disk images. `dist/` is git-ignored, and `make clean` removes only the build output, not the version folders. The GitHub releases are the backup.
+Each released version has its own folder, `dist/Figxit-<version>/`, with its disk image and the delta files that update older versions to it. Keep these folders. The feed is built from all of them, and Sparkle makes the delta files from the older disk images. `dist/` is git-ignored, and `make clean` removes only the build output, not the version folders. R2 has a copy of every disk image and delta file under `download/`. GitHub shows only the latest release.
 
 ```
 dist/
