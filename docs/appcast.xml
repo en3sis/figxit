@@ -3,6 +3,20 @@
     <channel>
         <title>Figxit</title>
         <item>
+            <title>0.1.3</title>
+            <pubDate>Mon, 05 Oct 2026 23:03:18 +1100</pubDate>
+            <sparkle:version>0.1.3</sparkle:version>
+            <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://figxit.com/download/Figxit-0.1.3.dmg" length="27507884" type="application/octet-stream" sparkle:edSignature="8fH8tMg0csyGwJyPVepUh656mN2r8oLRj2xjTMQZQ8e/cpOmvj64tQgj7Yv7gB/Zass6rDxb/0w1g76XZqQpBQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://figxit.com/download/Figxit0.1.3-0.1.2.delta" sparkle:deltaFrom="0.1.2" length="49390" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976432" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="/Q/QeUlsOnbHwmFj3zPAs8nMy5aoe4AlUeXfRBDIidcSYfWENW8/40CzeVkY4/fHMz4JBMvhXt5VkVQAhQUtAA=="/>
+                <enclosure url="https://figxit.com/download/Figxit0.1.3-0.1.1.delta" sparkle:deltaFrom="0.1.1" length="51886" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976432" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Aq4dxAODaflHGKBHWRlvZMudDAxnb9QwydWKazf6Rdze/q31ckCocevSP69Yfkug0SzSS39dmOd1Bq0sDyHpAg=="/>
+                <enclosure url="https://figxit.com/download/Figxit0.1.3-0.1.0.delta" sparkle:deltaFrom="0.1.0" length="56974" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976432" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="OUnnNBRQY4Od2JGH8epLj3djA3szdiwCrZVNEYfYwFrTDAj54deGTJUx8TGPbLWDPYQq3WV99psPnUOifWOaDw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>0.1.2</title>
             <pubDate>Mon, 05 Oct 2026 22:09:33 +1100</pubDate>
             <sparkle:version>0.1.2</sparkle:version>
@@ -26,15 +40,6 @@
             <sparkle:deltas>
                 <enclosure url="https://figxit.com/download/Figxit0.1.1-0.1.0.delta" sparkle:deltaFrom="0.1.0" length="45618" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="976432" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="2xNbX2ttVW/w3CcMKlBSQdn2ccwrqqtUmEsGnkvczWvjzo9CMvOwYF4xQo/+wvWeDlYM4KkYscvpca61FPVMBA=="/>
             </sparkle:deltas>
-        </item>
-        <item>
-            <title>0.1.0</title>
-            <pubDate>Mon, 05 Oct 2026 20:42:00 +1100</pubDate>
-            <sparkle:version>0.1.0</sparkle:version>
-            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://figxit.com/download/Figxit-0.1.0.dmg" length="27496364" type="application/octet-stream" sparkle:edSignature="4Q8ZSASRPlye0uHjtshMEZj8xrVJ6dVCTv+Zpd4lNKacOnag5TAOfcic7ydtJpA1DSH4dcduenTQr853GFwsBw=="/>
         </item>
     </channel>
 </rss>
