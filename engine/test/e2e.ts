@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dir, "../..");
@@ -12,12 +12,29 @@ const failures: string[] = [];
 
 await Bun.$`mkdir -p ${project}`;
 writeFileSync(join(project, "Makefile"), "admin-url:\nbuild:\ndeploy:\ndev: ## Start the stack\n");
-Bun.spawnSync(["sh", "-c", "git init -q -b main && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init && git branch feature-x"], { cwd: project });
+Bun.spawnSync(["sh", "-c", "git init -q -b main && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m init && git branch feature-x"], { cwd: project });
 writeFileSync(join(project, "a.txt"), "");
 writeFileSync(join(project, "b.txt"), "");
 const real = process.env.FIGXIT_E2E_REAL === "1";
+const plain = process.env.FIGXIT_E2E_PLAIN === "1";
+const name = process.env.FIGXIT_E2E_SHELL ?? "zsh";
+const engine = process.env.FIGXIT_E2E_ENGINE ?? `bun run ${root}/engine/src/main.ts`;
+const bash = existsSync("/opt/homebrew/bin/bash") ? "/opt/homebrew/bin/bash" : "bash";
+const launch: Record<string, string[]> = {
+  zsh: ["zsh", "-i"],
+  bash: [bash, "--noprofile", "--rcfile", join(work, ".bashrc"), "-i"],
+  fish: ["fish", "-i"],
+};
+if (!launch[name]) throw new Error(`unknown shell ${name}`);
+const shell = plain ? ["env", "-u", "TMUX", "-u", "TMUX_PANE", ...launch[name]] : launch[name];
 const rc = real ? `source $HOME/.zshrc` : `PS1='> '`;
 writeFileSync(join(work, ".zshrc"), `${rc}\nsource ${root}/shell/zsh/figxit.zsh\n`);
+mkdirSync(join(work, "config/fish"), { recursive: true });
+writeFileSync(
+  join(work, "config/fish/config.fish"),
+  `set -g fish_greeting\nset -g fish_autosuggestion_enabled 0\nfunction fish_prompt; echo -n '> '; end\nsource ${root}/shell/fish/figxit.fish\n`,
+);
+writeFileSync(join(work, ".bashrc"), `HISTFILE=${work}/history\nPS1='> '\nsource ${root}/shell/bash/figxit.bash\n`);
 
 let pending = "";
 const helperClients = new Set<any>();
@@ -34,7 +51,7 @@ const fakeHelper = Bun.listen({
       pending += chunk.toString();
       let newline: number;
       while ((newline = pending.indexOf("\n")) >= 0) {
-        messages.push(JSON.parse(pending.slice(0, newline)));
+        messages.push({ ...JSON.parse(pending.slice(0, newline)), at: performance.now() });
         pending = pending.slice(newline + 1);
         socket.write('{"ok":true}\n');
       }
@@ -49,7 +66,10 @@ const env: Record<string, string | undefined> = {
   FIGXIT_AUTOSTART: "1",
   FIGXIT_SOCK: engineSock,
   FIGXIT_HELPER_SOCK: helperSock,
-  FIGXIT_ENGINE: `${process.env.FIGXIT_E2E_ENGINE ?? `bun run ${root}/engine/src/main.ts`} daemon ${work}`,
+  FIGXIT_ENGINE: `${engine} daemon ${work}`,
+  FIGXIT_BRIDGE: `${engine} bridge ${work}`,
+  INPUTRC: "/dev/null",
+  ...(name === "fish" ? { XDG_CONFIG_HOME: join(work, "config"), XDG_DATA_HOME: join(work, "data") } : {}),
 };
 delete env.TMUX;
 delete env.TMUX_PANE;
@@ -67,8 +87,9 @@ const check = (name: string, ok: boolean, detail?: unknown) => {
   if (!ok) failures.push(name);
 };
 
+console.log(`${name}, ${plain ? "no tmux geometry" : "tmux"}`);
 try {
-  tmux("new-session", "-d", "-s", "main", "-x", "120", "-y", "30", "-c", project, "zsh", "-i");
+  tmux("new-session", "-d", "-s", "main", "-x", "120", "-y", "30", "-c", project, ...shell);
   await Bun.sleep(real ? 4000 : 1500);
   await keys("", "Enter");
   await Bun.sleep(2500);
@@ -89,6 +110,14 @@ try {
   const filtered: string[] = show?.items.map((i: any) => i.label) ?? [];
   check("typing filters the list", filtered.slice().sort().join() === "deploy,dev", show?.items);
   check("the anchor column does not move", show?.grid.col === anchorCol, show?.grid);
+  if (plain) {
+    check("the shell reports the cursor cell", show?.grid.pane === true && (real || show?.grid.row === 2) && show?.grid.cols === 120 && show?.grid.rows === 30, show?.grid);
+    await keys("C-u");
+    await keys("make dev extra words typed in one burst");
+    check("a burst of keys arrives complete and in order", /^\S+ make dev extra words typed in one burst( |$)/.test(screen().split("\n").at(-1) ?? ""), screen());
+    await keys("C-u");
+    await keys("make de");
+  }
 
   await keys("Down");
   check("Down moves the selection", lastShow()?.selected === 1, lastShow());
@@ -112,7 +141,7 @@ try {
   check("no second list after a target", messages.at(-1)?.cmd === "hide", messages.slice(-3));
   await keys("C-u");
 
-  await keys(" echo hi");
+  await keys(name === "fish" ? "echo hi" : " echo hi");
   const before = messages.length;
   await keys("Enter");
   check("Enter runs the line", screen().includes("\nhi"), screen());
@@ -164,21 +193,57 @@ try {
   check("keys leave the popup alone after the helper hid it", messages.length === count, messages.slice(count));
   await keys("C-c");
 
-  await keys("make ");
-  check("popup is open before the window switch", messages.at(-1)?.cmd === "show", messages.at(-1));
-  tmux("new-window", "-t", "main", "-c", project, "sleep", "30");
-  await Bun.sleep(800);
-  check("a tmux window switch hides the popup", messages.at(-1)?.cmd === "hide", messages.slice(-2));
-  tmux("kill-window", "-t", "main");
-  await Bun.sleep(300);
-  await keys("C-u");
+  if (!plain) {
+    await keys("make ");
+    check("popup is open before the window switch", messages.at(-1)?.cmd === "show", messages.at(-1));
+    tmux("new-window", "-t", "main", "-c", project, "sleep", "30");
+    await Bun.sleep(800);
+    check("a tmux window switch hides the popup", messages.at(-1)?.cmd === "hide", messages.slice(-2));
+    tmux("kill-window", "-t", "main");
+    await Bun.sleep(300);
+    await keys("C-u");
+  }
 
   await keys("make ");
   check("popup is open before the pane switch", messages.at(-1)?.cmd === "show", messages.at(-1));
-  tmux("split-window", "-t", "main", "-c", project, "zsh", "-i");
+  tmux("split-window", "-t", "main", "-c", project, ...shell);
   await Bun.sleep(real ? 4000 : 1500);
   await keys("zq");
   check("typing in another pane hides the first popup", messages.at(-1)?.cmd === "hide", messages.slice(-3));
+  await keys("C-u");
+
+  if (name !== "zsh") {
+    Bun.spawnSync(["pkill", "-9", "-f", `bridge ${work}`]);
+    await Bun.sleep(300);
+    await keys("echo still here");
+    await keys("Enter");
+    const after = screen();
+    check("typing and Enter work after the bridge is killed", /^still here$/m.test(after) && !/pipe|warning|error/i.test(after), after);
+    await Bun.sleep(3200);
+    await keys("", "Enter");
+    await Bun.sleep(1500);
+    await keys("make ");
+    check("the popup returns when the bridge starts again", messages.at(-1)?.cmd === "show", messages.slice(-2));
+    await keys("C-u");
+  }
+
+  const word: number[] = [];
+  const letter: number[] = [];
+  const timed = async (key: string, into: number[]) => {
+    const from = messages.length;
+    const start = performance.now();
+    await keys(key);
+    const shown = messages.slice(from).find((m) => m.cmd === "show");
+    if (shown) into.push(shown.at - start);
+  };
+  for (let round = 0; round < 7; round++) {
+    await keys("make");
+    await timed("Space", word);
+    await timed("d", letter);
+    await keys("C-u");
+  }
+  const median = (values: number[]) => values.sort((a, b) => a - b)[values.length >> 1]?.toFixed(1);
+  console.log(`     key to show, median of 7, includes tmux send-keys: new word ${median(word)} ms, next letter ${median(letter)} ms`);
 } finally {
   tmux("kill-server");
   Bun.spawnSync(["pkill", "-f", `daemon ${work}`]);

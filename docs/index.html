@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Figxit: autocomplete popup for your terminal</title>
-<meta name="description" content="A native macOS autocomplete popup for zsh. It lists commands, subcommands, options, scripts, and Makefile targets as you type, ranked by your own history. Local only.">
+<meta name="description" content="A native macOS autocomplete popup for zsh, bash, and fish. It lists commands, subcommands, options, scripts, and Makefile targets as you type, ranked by your own history. Local only.">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 <meta name="author" content="en3sis">
 <link rel="author" href="https://en3sis.com">
@@ -38,11 +38,11 @@
       "@id": "https://figxit.com/#app",
       "name": "Figxit",
       "url": "https://figxit.com/",
-      "description": "A native macOS autocomplete popup for zsh. It lists commands, subcommands, options, scripts, and Makefile targets as you type, ranked by your own history. Local only.",
+      "description": "A native macOS autocomplete popup for zsh, bash, and fish. It lists commands, subcommands, options, scripts, and Makefile targets as you type, ranked by your own history. Local only.",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "macOS 13 or later",
       "processorRequirements": "Apple Silicon",
-      "softwareRequirements": "zsh inside tmux",
+      "softwareRequirements": "zsh, bash 5, or fish 4. tmux is optional.",
       "softwareVersion": "0.1.0",
       "downloadUrl": "https://figxit.com/download/Figxit.dmg",
       "installUrl": "https://figxit.com/#install",
@@ -534,12 +534,12 @@ footer a { color: var(--muted); }
       <a class="button" href="https://github.com/en3sis/figxit"><svg class="icon solid"><use href="#b-github"/></svg>View on GitHub</a>
       <button class="button" type="button" id="trailer-open"><svg class="icon"><use href="#i-play"/></svg>Watch the trailer</button>
     </div>
-    <p class="note">Apple Silicon, macOS 13 or later, zsh inside tmux. No account, no AI chat, no telemetry.</p>
+    <p class="note">Apple Silicon, macOS 13 or later. zsh, bash 5, or fish 4. tmux is optional. No account, no AI chat, no telemetry.</p>
 
     <div class="stage">
       <div class="glow"></div>
       <div class="term">
-        <div class="term-bar"><i></i><i></i><i></i><span>zsh in tmux</span></div>
+        <div class="term-bar"><i></i><i></i><i></i><span>zsh</span></div>
         <div class="term-body">
           <p class="prompt"><span class="path">~/shop</span> <span class="mark">❯</span> <span id="typed">make </span><span class="cursor"></span></p>
           <div class="frames" id="frames">
@@ -563,28 +563,29 @@ footer a { color: var(--muted); }
 
   <section id="support" class="support">
     <span class="eyebrow"><svg class="icon"><use href="#i-check"/></svg>Support</span>
-    <h2>zsh in tmux today, more terminals next</h2>
+    <h2>zsh, bash, and fish, with or without tmux</h2>
     <div class="bento">
       <article class="card s3">
         <h3>Works today</h3>
-        <p>zsh inside tmux, on a Mac with Apple Silicon. The terminal app does not matter when tmux runs in it: Ghostty, iTerm2, Terminal, WezTerm, and Alacritty all work.</p>
+        <p>zsh, bash 5, and fish 4, on a Mac with Apple Silicon. In tmux, each terminal app works, and so do tmux splits. Without tmux, the popup works in a terminal app that reports its cursor position. It is tested in Ghostty and Terminal.</p>
         <div class="reqs">
           <span><svg class="icon solid"><use href="#b-zsh"/></svg>zsh</span>
-          <span><svg class="icon solid"><use href="#b-tmux"/></svg>tmux</span>
+          <span><svg class="icon solid"><use href="#b-bash"/></svg>bash 5</span>
+          <span><svg class="icon solid"><use href="#b-fish"/></svg>fish 4</span>
+          <span><svg class="icon solid"><use href="#b-tmux"/></svg>tmux, optional</span>
+          <span><svg class="icon solid"><use href="#b-ghostty"/></svg>Ghostty</span>
+          <span><svg class="icon"><use href="#i-terminal"/></svg>Terminal</span>
           <span><svg class="icon solid"><use href="#b-apple"/></svg>macOS 13 or later</span>
         </div>
       </article>
       <article class="card s3 soon">
         <h3>Coming next</h3>
-        <p>The popup with no tmux, directly in the terminal app. After that, more shells. There are no dates yet.</p>
+        <p>Tests without tmux in more terminal apps, and the popup in a native split of the terminal app. Today a native split gets no popup. Use tmux for splits. There are no dates yet.</p>
         <div class="reqs">
-          <span><svg class="icon solid"><use href="#b-ghostty"/></svg>Ghostty</span>
           <span><svg class="icon solid"><use href="#b-iterm2"/></svg>iTerm2</span>
-          <span><svg class="icon"><use href="#i-terminal"/></svg>Terminal</span>
           <span><svg class="icon solid"><use href="#b-wezterm"/></svg>WezTerm</span>
           <span><svg class="icon solid"><use href="#b-alacritty"/></svg>Alacritty</span>
-          <span><svg class="icon solid"><use href="#b-fish"/></svg>fish</span>
-          <span><svg class="icon solid"><use href="#b-bash"/></svg>bash</span>
+          <span><svg class="icon"><use href="#i-app-window"/></svg>Native splits</span>
         </div>
       </article>
     </div>
@@ -645,13 +646,13 @@ footer a { color: var(--muted); }
       <article class="card s2">
         <span class="chip"><svg class="icon"><use href="#i-zap"/></svg></span>
         <h3>Typing never waits</h3>
-        <p>The zsh hook sends the line to the engine after each key and returns at once. It reads a reply only when you press Tab.</p>
+        <p>The shell hook sends the line to the engine after each key and returns at once. It reads a reply only when you press Tab or Enter.</p>
       </article>
 
       <article class="card s2">
         <span class="chip"><svg class="icon"><use href="#i-lock-keyhole"/></svg></span>
         <h3>No extra permissions</h3>
-        <p>Figxit does not need Accessibility or Screen Recording access. tmux supplies the cursor position and the cell size.</p>
+        <p>Figxit does not need Accessibility or Screen Recording access. tmux supplies the cursor position and the cell size. Without tmux, the terminal app does.</p>
       </article>
     </div>
   </section>
@@ -727,9 +728,9 @@ footer a { color: var(--muted); }
     <div class="flow">
       <div class="card">
         <span class="chip"><svg class="icon"><use href="#i-plug"/></svg></span>
-        <p class="tag">zsh, about 200 lines</p>
+        <p class="tag">zsh, bash, fish</p>
         <h3>Adapter</h3>
-        <p>A zsh line editor hook sends the buffer, the cursor, and the folder to the engine after each key.</p>
+        <p>A line editor hook in your shell sends the buffer, the cursor, and the folder to the engine after each key.</p>
       </div>
       <div class="arrow"><svg class="icon"><use href="#i-arrow-right"/></svg></div>
       <div class="card">
@@ -760,13 +761,13 @@ footer a { color: var(--muted); }
       </li>
       <li>
         <div>
-          <p>Open Figxit. An icon appears in the menu bar and a setup window opens. Click <strong>Add to ~/.zshrc</strong>, or add this line yourself.</p>
+          <p>Open Figxit. An icon appears in the menu bar and a setup window opens. It lists the shells on your Mac. Click <strong>Set Up</strong> for your shell, or add the line yourself. This is the line for zsh. For bash and fish, the README has the lines.</p>
           <div class="cmd"><pre>eval "$('/Applications/Figxit.app/Contents/MacOS/figxit-engine' init zsh)"</pre><button type="button" aria-label="Copy"><svg class="icon idle"><use href="#i-copy"/></svg><svg class="icon done"><use href="#i-check"/></svg><span>Copy</span></button></div>
         </div>
       </li>
       <li>
         <div>
-          <p>Open a new tmux pane and type a command. To check the installation, run this.</p>
+          <p>Open a new terminal and type a command. To check the installation, run this.</p>
           <div class="cmd"><pre>figxit doctor</pre><button type="button" aria-label="Copy"><svg class="icon idle"><use href="#i-copy"/></svg><svg class="icon done"><use href="#i-check"/></svg><span>Copy</span></button></div>
         </div>
       </li>
@@ -775,7 +776,8 @@ footer a { color: var(--muted); }
     <div class="reqs">
       <span><svg class="icon"><use href="#i-cpu"/></svg>Apple Silicon</span>
       <span><svg class="icon"><use href="#i-app-window"/></svg>macOS 13 or later</span>
-      <span><svg class="icon"><use href="#i-square-terminal"/></svg>zsh inside tmux</span>
+      <span><svg class="icon"><use href="#i-square-terminal"/></svg>zsh, bash 5, or fish 4</span>
+      <span><svg class="icon solid"><use href="#b-tmux"/></svg>tmux, optional</span>
       <span><svg class="icon"><use href="#i-history"/></svg>Atuin, optional, for ranking</span>
       <span><svg class="icon"><use href="#i-shield-check"/></svg>No Accessibility permission</span>
     </div>
@@ -784,7 +786,7 @@ footer a { color: var(--muted); }
   <div class="closing">
     <img src="icon/rounded/icon-256.png" width="96" height="96" alt="Figxit app icon" loading="lazy">
     <h2>Figxit is open source</h2>
-    <p>Read the code, report a problem, or add an adapter for your shell. zsh is first. fish and bash come next.</p>
+    <p>Read the code, report a problem, or add an adapter for your shell. There are adapters for zsh, bash, and fish.</p>
     <div class="actions">
       <a class="button primary" href="https://github.com/en3sis/figxit"><svg class="icon solid"><use href="#b-github"/></svg>View on GitHub</a>
       <a class="button" href="https://figxit.com/download/Figxit.dmg">Download for macOS<svg class="icon"><use href="#i-arrow-down"/></svg></a>

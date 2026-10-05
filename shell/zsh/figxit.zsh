@@ -7,8 +7,9 @@ typeset -g _figxit_sock=${FIGXIT_SOCK:-$HOME/.local/state/figxit/engine.sock}
 typeset -g _figxit_sep=$'\x1f'
 (( $+functions[_figxit_close] )) && _figxit_close
 typeset -g _figxit_fd=
-typeset -g _figxit_last=
-typeset -gi _figxit_visible=0 _figxit_retry=0 _figxit_depth=0
+typeset -g _figxit_last= _figxit_size= _figxit_cell= _figxit_asked=
+typeset -gF _figxit_asked_at=0
+typeset -gi _figxit_visible=0 _figxit_retry=0 _figxit_depth=0 _figxit_reports=1
 typeset -gA _figxit_orig _figxit_base
 typeset -gA _figxit_keys=(
   '"^I"' figxit-tab
@@ -55,8 +56,70 @@ _figxit_connect() {
     return 1
   fi
   _figxit_fd=$REPLY
-  zle -F $_figxit_fd _figxit_recv
-  _figxit_send "H${_figxit_sep}$$${_figxit_sep}${TMUX%%,*}${_figxit_sep}${TMUX_PANE}${_figxit_sep}${PATH}"
+  zle -F -w $_figxit_fd _figxit_recv
+  _figxit_send "H${_figxit_sep}$$${_figxit_sep}${TMUX%%,*}${_figxit_sep}${TMUX_PANE}${_figxit_sep}${PATH}${_figxit_sep}${TERM_PROGRAM}"
+}
+
+_figxit_ask() {
+  if [[ -n $_figxit_asked ]]; then
+    if (( EPOCHREALTIME - _figxit_asked_at < 1 )); then
+      _figxit_asked=$1
+      return
+    fi
+    _figxit_asked=
+    _figxit_reports=0
+  fi
+  if (( ! _figxit_reports || PENDING )) || [[ $KEYMAP != main ]]; then
+    _figxit_send "C${_figxit_sep}$1"
+    return
+  fi
+  local ask=$'\e[c\e[6n'
+  if [[ "$COLUMNS $LINES" != $_figxit_size ]]; then
+    _figxit_size="$COLUMNS $LINES"
+    _figxit_cell=
+    ask=$'\e[c\e[14t\e[16t\e[6n'
+  fi
+  _figxit_asked=$1
+  _figxit_asked_at=$EPOCHREALTIME
+  print -n -- $ask >/dev/tty
+}
+
+_figxit_report() {
+  emulate -L zsh
+  setopt extendedglob
+  local got= c row= col= seq=$_figxit_asked
+  local -a match mbegin mend
+  local -A size
+  local -F stop=$(( EPOCHREALTIME + 0.1 ))
+  while (( EPOCHREALTIME < stop )); do
+    read -s -k 1 -t 0.02 c || continue
+    got+=$c
+    if [[ $got == (#b)(*)$'\e['(<->)';'(<->)R ]]; then
+      got=$match[1] row=$match[2] col=$match[3]
+      break
+    fi
+  done
+  [[ $got == (#b)($'\e[?'|)[0-9\;]#c(*) ]] && got=$match[2]
+  while [[ $got == (#b)(*)$'\e['([46])';'(<->)';'(<->)t(*) ]]; do
+    size[$match[2]]="$match[3]${_figxit_sep}$match[4]"
+    got=$match[1]$match[5]
+  done
+  (( $#size )) && _figxit_cell="${size[6]:-$_figxit_sep}${_figxit_sep}${size[4]}"
+  REPLY=$got
+  _figxit_asked=
+  [[ -n $seq ]] || return 0
+  if [[ -z $row ]]; then
+    _figxit_reports=0
+    _figxit_send "C${_figxit_sep}${seq}"
+    return 0
+  fi
+  _figxit_send "C${_figxit_sep}${seq}${_figxit_sep}${row}${_figxit_sep}${col}${_figxit_sep}${COLUMNS}${_figxit_sep}${LINES}${_figxit_sep}${_figxit_cell}"
+}
+
+figxit-report() {
+  local REPLY
+  _figxit_report
+  [[ -n $REPLY ]] && zle -U -- $REPLY
 }
 
 _figxit_apply() {
@@ -79,6 +142,10 @@ _figxit_recv() {
   local line
   if [[ -n $2 ]] || ! IFS= read -r -u $1 line; then
     _figxit_drop $1
+    return
+  fi
+  if [[ $line == Q$_figxit_sep* ]]; then
+    _figxit_ask ${line#*$_figxit_sep}
     return
   fi
   _figxit_apply $line
@@ -152,6 +219,7 @@ _figxit_bind() {
     _figxit_orig[$ours]=$widget
     bindkey -M main ${(Q)key} $ours
   done
+  bindkey -M main '^[[?' figxit-report
 }
 
 _figxit_line_init() {
@@ -175,8 +243,10 @@ _figxit_redraw() {
 }
 
 _figxit_preexec() {
+  local REPLY
   _figxit_visible=0
   _figxit_send X
+  [[ -n $_figxit_asked ]] && _figxit_report
   return 0
 }
 
@@ -198,7 +268,9 @@ _figxit_hook() {
   fi
 }
 
+zle -N _figxit_recv
 zle -N figxit-tab
+zle -N figxit-report
 zle -N figxit-enter
 zle -N figxit-up
 zle -N figxit-down

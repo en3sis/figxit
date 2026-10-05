@@ -169,6 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             else {
                 forget()
                 popup.hide()
+                server?.broadcast(Data(#"{"event":"hidden"}"#.utf8))
                 return try? encoder.encode(StatusReply(ok: false, error: "no terminal window", placement: nil))
             }
             let window = Geometry.cgWindow(pid: terminal.pid)
@@ -223,6 +224,13 @@ if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "snapshot" {
         outPath: CommandLine.arguments[3],
         dark: CommandLine.arguments.count > 4 && CommandLine.arguments[4] == "dark"
     )
+}
+if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "snapshot-setup" {
+    let dark = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "dark"
+    exit(SetupWindow().render(to: CommandLine.arguments[2], dark: dark) ? 0 : 1)
+}
+if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "snapshot-doctor" {
+    exit(DoctorWindow().render(to: CommandLine.arguments[2]) ? 0 : 1)
 }
 let delegate = AppDelegate()
 app.delegate = delegate

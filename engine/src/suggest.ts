@@ -10,6 +10,7 @@ export interface Suggestion {
   items: Candidate[];
   remove: number;
   tokenStart: number;
+  lead?: number;
 }
 
 export interface Result {
@@ -77,7 +78,7 @@ export async function suggest(
       .map((item) => ({ ...item, insert: ` ${item.insert ?? `${item.label} `}` }));
     if (rows.length === 0) return null;
     const run: Candidate = { label: head, detail: "Run", score: 0, icon: "sf:return", tint: "3A3A3C", run: true };
-    return { items: [run, ...rows].slice(0, MAX_ITEMS), remove: 0, tokenStart: cursor };
+    return { items: [run, ...rows].slice(0, MAX_ITEMS), remove: 0, tokenStart: cursor, lead: 1 };
   };
   const first = ahead(next.now);
   if (first) return { now: first, more: next.more ? next.more.then((list) => ahead(list) ?? first) : null };
@@ -195,6 +196,7 @@ async function complete(
     const matches = new Map<Candidate, number>();
     for (const candidate of merged.values()) {
       if (candidate === exact) continue;
+      if (depth === 0 && candidate.label !== prefix && candidate.label.toLowerCase() === prefix.toLowerCase()) continue;
       if (candidate.insert === undefined && (candidate.label === prefix || UNSAFE.test(candidate.label))) continue;
       let match = matchScore(candidate.label, prefix);
       for (const name of candidate.aliases ?? []) match = Math.max(match, matchScore(name, prefix));

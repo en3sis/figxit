@@ -1,7 +1,7 @@
 import { chmodSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Socket } from "bun";
-import { tmuxGrid, tmuxQuery, type Grid, type TmuxTarget } from "./geometry";
+import { parseShell, termPad, tmuxGrid, tmuxQuery, type Grid, type TmuxTarget } from "./geometry";
 import { Helper } from "./helper";
 import { History } from "./history";
 import { ENGINE_SOCK } from "./paths";
@@ -13,6 +13,7 @@ const SEP = "\x1f";
 const VISIBLE = 8;
 const SETTLE_MS = 12;
 const FOCUS_MS = 250;
+const CURSOR_MS = 500;
 const FOCUS_FORMAT = "#{window_active} #{pane_active} #{pane_in_mode}";
 
 interface Session {
@@ -20,6 +21,8 @@ interface Session {
   decoder: TextDecoder;
   pending: string;
   tmux: TmuxTarget | null;
+  term: string;
+  cursor: ((grid: Grid | null) => void) | null;
   items: Candidate[];
   selected: number;
   scroll: number;
@@ -79,25 +82,42 @@ function present(s: Session, result: Suggestion, keep: boolean) {
   s.scroll = 0;
 }
 
+function shellGrid(s: Session, seq: number): Promise<Grid | null> {
+  s.cursor?.(null);
+  return new Promise((resolve) => {
+    const done = (grid: Grid | null) => {
+      clearTimeout(timer);
+      if (s.cursor === done) s.cursor = null;
+      resolve(grid);
+    };
+    const timer = setTimeout(() => done(null), CURSOR_MS);
+    s.cursor = done;
+    s.socket.write(`Q${SEP}${seq}\n`);
+  });
+}
+
+async function tmuxSettled(s: Session, seq: number): Promise<Grid | null> {
+  await Bun.sleep(SETTLE_MS);
+  if (seq !== s.seq || !s.tmux) return null;
+  return tmuxGrid(s.tmux);
+}
+
 async function anchor(s: Session, seq: number, result: Suggestion, cwd: string, buffer: string): Promise<boolean> {
   const key = `${cwd}\n${buffer.slice(0, result.tokenStart)}`;
   if (s.anchorKey === key && s.anchor) return true;
-  await Bun.sleep(SETTLE_MS);
-  if (seq !== s.seq || !s.tmux) return false;
-  const grid = await tmuxGrid(s.tmux);
+  const grid = s.tmux ? await tmuxSettled(s, seq) : await shellGrid(s, seq);
   if (seq !== s.seq) return false;
   if (!grid) {
     hide(s);
     return false;
   }
-  grid.col = Math.max(0, grid.col - result.remove);
+  grid.col = Math.max(0, grid.col - result.remove + (result.lead ?? 0));
   s.anchorKey = key;
   s.anchor = grid;
   return true;
 }
 
 async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
-  if (!s.tmux) return hide(s);
   const seq = ++s.seq;
   s.fresh = false;
   s.navigated = false;
@@ -181,6 +201,10 @@ function onLine(s: Session, line: string) {
         count(1);
       }
       if (f[4]) process.env.PATH = f[4];
+      s.term = f[5] ?? "";
+      break;
+    case "C":
+      if (Number(f[1]) === s.seq) s.cursor?.(parseShell(f.slice(2), termPad(s.term)));
       break;
     case "L":
       history.refresh();
@@ -231,6 +255,8 @@ export async function daemon() {
           decoder: new TextDecoder(),
           pending: "",
           tmux: null,
+          term: "",
+          cursor: null,
           items: [],
           selected: 0,
           scroll: 0,
@@ -257,6 +283,7 @@ export async function daemon() {
       close(socket) {
         const s = socket.data;
         s.seq++;
+        s.cursor?.(null);
         if (s.counted) count(-1);
         if (active === s) {
           active = null;

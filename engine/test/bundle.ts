@@ -37,7 +37,11 @@ try {
   check("--version prints the version", /^\d+\.\d+\.\d+\n$/.test(version.out), version);
   check("no arguments prints help and does not start a daemon", run().out.includes("figxit init zsh"));
   check("an unknown command fails", run("nope").code === 1);
-  check("init needs zsh", run("init", "fish").code === 1);
+  check("init needs a known shell", run("init", "nope").code === 1);
+  for (const shell of ["bash", "fish"]) {
+    const lines = run("init", shell);
+    check(`init ${shell} prints the adapter path`, lines.code === 0 && lines.out.includes(`shell/${shell}/figxit.${shell}`), lines);
+  }
 
   const init = run("init", "zsh");
   check("init prints the app path", init.out.includes(`export FIGXIT_APP="${app}"`), init);

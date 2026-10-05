@@ -10,6 +10,7 @@ export interface Grid {
   cellPxH?: number;
   padX: number;
   padY: number;
+  pane?: boolean;
 }
 
 export interface TmuxTarget {
@@ -55,6 +56,25 @@ export function parseTmux(line: string, padFor: (term: string) => { x: number; y
   return grid;
 }
 
+export function parseShell(f: string[], pad: { x: number; y: number }): Grid | null {
+  const n = f.slice(0, 4).map(Number);
+  if (n.length < 4 || n.some((value) => !Number.isInteger(value) || value < 1)) return null;
+  const grid: Grid = { cols: n[2]!, rows: n[3]!, col: n[1]! - 1, row: n[0]! - 1, padX: pad.x, padY: pad.y, pane: true };
+  const [cellH, cellW, areaH, areaW] = f.slice(4, 8).map(Number);
+  if (cellH! > 0 && cellW! > 0) {
+    grid.cellPxW = cellW;
+    grid.cellPxH = cellH;
+  } else if (areaH! > 0 && areaW! > 0) {
+    grid.cellPxW = areaW! / grid.cols;
+    grid.cellPxH = areaH! / grid.rows;
+  }
+  return grid;
+}
+
+export function termPad(term: string): { x: number; y: number } {
+  return /ghostty/i.test(term) ? ghosttyPad() : { x: 0, y: 0 };
+}
+
 export async function tmuxQuery(target: TmuxTarget, format: string): Promise<string | null> {
   try {
     const proc = Bun.spawn([resolveCommand("tmux"), "-S", target.socket, "display-message", "-p", "-t", target.pane, format], {
@@ -75,5 +95,5 @@ export async function tmuxQuery(target: TmuxTarget, format: string): Promise<str
 export async function tmuxGrid(target: TmuxTarget): Promise<Grid | null> {
   const out = await tmuxQuery(target, FORMAT);
   if (out === null) return null;
-  return parseTmux(out, (term) => (term.includes("ghostty") ? ghosttyPad() : { x: 0, y: 0 }));
+  return parseTmux(out, termPad);
 }

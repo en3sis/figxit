@@ -9,6 +9,7 @@ struct Grid: Decodable {
     let cellPxH: Double?
     let padX: Double?
     let padY: Double?
+    let pane: Bool?
 }
 
 struct Item: Decodable {

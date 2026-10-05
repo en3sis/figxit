@@ -9,6 +9,7 @@ struct Terminal {
 
 enum Geometry {
     static let assumedTitlebar: CGFloat = 28
+    static let physicalPixels = "com.mitchellh.ghostty"
 
     static func frontTerminal() -> Terminal? {
         guard let app = NSWorkspace.shared.frontmostApplication,
@@ -127,10 +128,10 @@ enum Geometry {
         guard let base = surface ?? window else { return nil }
 
         let scale = screen(containing: base)?.backingScaleFactor ?? 2
-        let cellW = cellPoints(px: grid.cellPxW, scale: scale, estimate: (base.width - 2 * padX) / cols)
+        var cellW = cellPoints(px: grid.cellPxW, scale: scale, estimate: (base.width - 2 * padX) / cols)
 
-        let cellH: CGFloat
-        let top: CGFloat
+        var cellH: CGFloat
+        var top: CGFloat
         if source == "ax" {
             cellH = cellPoints(px: grid.cellPxH, scale: scale, estimate: (base.height - 2 * padY) / rows)
             top = base.minY
@@ -140,6 +141,20 @@ enum Geometry {
         } else {
             cellH = (base.height - assumedTitlebar - 2 * padY) / rows
             top = base.minY + assumedTitlebar
+        }
+
+        if grid.pane == true, source == "cg", let pxW = grid.cellPxW, let pxH = grid.cellPxH {
+            let fits = cols * CGFloat(pxW) <= base.width * 1.02 && rows * CGFloat(pxH) <= base.height * 1.02
+            let unit = terminal.bundleId == physicalPixels || !fits ? scale : 1
+            cellW = CGFloat(pxW) / unit
+            cellH = CGFloat(pxH) / unit
+            let spareW = base.width - cols * cellW - 2 * padX
+            let spareH = base.height - rows * cellH - 2 * padY
+            if spareW < -0.02 * base.width || spareW > 0.12 * base.width { return nil }
+            if spareH < -0.02 * base.height || spareH > max(100, 0.2 * base.height) { return nil }
+            top = base.minY + max(0, spareH)
+        } else if grid.pane == true, source == "cg", cellH < 1.6 * cellW || cellH > 3 * cellW {
+            return nil
         }
 
         let x = base.minX + padX + CGFloat(grid.col) * cellW

@@ -23,10 +23,12 @@ engine() {
 }
 
 resources() {
-  mkdir -p "$contents/Resources/specs" "$contents/Resources/shell/zsh"
+  mkdir -p "$contents/Resources/specs" "$contents/Resources/shell/zsh" "$contents/Resources/shell/bash" "$contents/Resources/shell/fish"
   rsync -a --delete --exclude=aws --exclude=aws.js --exclude=az --exclude=az.js --exclude=gcloud --exclude=gcloud.js \
     "$specs/" "$contents/Resources/specs/"
   cp shell/zsh/figxit.zsh "$contents/Resources/shell/zsh/figxit.zsh"
+  cp shell/bash/figxit.bash "$contents/Resources/shell/bash/figxit.bash"
+  cp shell/fish/figxit.fish "$contents/Resources/shell/fish/figxit.fish"
 }
 
 case "${1:-app}" in
