@@ -416,7 +416,7 @@ kbd .icon { width: 17px; height: 17px; }
 .support .works { align-items: center; gap: 8px; }
 .works span { padding: 7px 12px; }
 .works i { width: 1px; height: 22px; margin: 0 8px; background: var(--line); }
-.works .untested { border-style: dashed; background: none; color: var(--dim); }
+.works .untested { border-style: dashed; background: none; color: var(--dim); cursor: help; }
 .support .works .untested .icon { color: var(--dim); }
 
 .closing { position: relative; margin-top: 120px; padding: 72px 28px; border: 1px solid var(--line); border-radius: 28px; text-align: center; overflow: hidden; background: var(--card); }
@@ -575,12 +575,11 @@ footer a { color: var(--muted); }
       <span><svg class="icon solid"><use href="#b-ghostty"/></svg>Ghostty</span>
       <span><svg class="icon solid"><use href="#b-iterm2"/></svg>iTerm2</span>
       <span><svg class="icon"><use href="#i-terminal"/></svg>Terminal</span>
-      <span class="untested" title="Not tested yet without tmux"><svg class="icon solid"><use href="#b-wezterm"/></svg>WezTerm</span>
-      <span class="untested" title="Not tested yet without tmux"><svg class="icon solid"><use href="#b-alacritty"/></svg>Alacritty</span>
+      <span class="untested" title="Not tested yet without tmux. In tmux, each terminal app works."><svg class="icon solid"><use href="#b-wezterm"/></svg>WezTerm</span>
+      <span class="untested" title="Not tested yet without tmux. In tmux, each terminal app works."><svg class="icon solid"><use href="#b-alacritty"/></svg>Alacritty</span>
       <i></i>
       <span><svg class="icon solid"><use href="#b-tmux"/></svg>tmux, optional</span>
     </div>
-    <p class="note">Gray: not tested yet without tmux. In tmux, each terminal app works.</p>
   </section>
 
   <section id="features">
