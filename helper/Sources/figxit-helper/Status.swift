@@ -118,6 +118,7 @@ final class SetupWindow: NSObject {
     private let status = NSTextField(labelWithString: "")
     private let lineBox = NSStackView()
     private var timer: Timer?
+    private var shownState = ""
 
     func show() {
         if window == nil { build() }
@@ -162,8 +163,12 @@ final class SetupWindow: NSObject {
     }
 
     private func reload() {
+        let checks = Checks.all()
+        let state = checks.map { "\($0.state)|\($0.detail)" }.joined(separator: "\n")
+        guard state != shownState else { return }
+        shownState = state
         rows.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        Checks.all().forEach { rows.addArrangedSubview(row($0)) }
+        checks.forEach { rows.addArrangedSubview(row($0)) }
         lineBox.isHidden = Checks.shellLoaded
     }
 

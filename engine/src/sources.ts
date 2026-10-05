@@ -22,6 +22,8 @@ const MAKEFILES = ["GNUmakefile", "makefile", "Makefile"];
 const TARGET = /^([A-Za-z0-9][A-Za-z0-9_.\/-]*)\s*:(?![=:])(.*)$/;
 const SECTION = /^##@\s*(.+)$/;
 const MAX_DETAIL = 64;
+const MAKE_ELSEWHERE = /^(-C|-f|--directory|--file|--makefile)/;
+const MAKE_VALUE = /^-[jlokIW]$/;
 const BRANCH_COMMANDS = new Set(["checkout", "switch", "merge", "rebase", "cherry-pick"]);
 const SCRIPT_RUNNERS: Record<string, number[]> = { npm: [2], pnpm: [1, 2], yarn: [1, 2], bun: [1, 2] };
 
@@ -104,7 +106,7 @@ export function repoRoot(cwd: string): string | null {
     if (parent === dir) break;
     dir = parent;
   }
-  rootCache.set(cwd, root);
+  if (root) rootCache.set(cwd, root);
   return root;
 }
 
@@ -138,11 +140,12 @@ export function projectCandidates(words: string[], prefix: string, cwd: string, 
   if (!command || prefix.startsWith("-")) return none;
 
   if (command === "make" && depth >= 1) {
+    const rest = words.slice(1);
+    if (rest.some((word) => MAKE_ELSEWHERE.test(word))) return none;
+    const given = rest.some((word, index) => !word.startsWith("-") && !word.includes("=") && !MAKE_VALUE.test(rest[index - 1] ?? ""));
     for (const name of MAKEFILES) {
       const path = join(cwd, name);
-      if (!existsSync(path)) continue;
-      const given = words.slice(1).some((word) => !word.startsWith("-") && !word.includes("="));
-      return { candidates: given ? [] : cached(path, parseMakefile), authoritative: true };
+      if (existsSync(path)) return { candidates: given ? [] : cached(path, parseMakefile), authoritative: true };
     }
     return none;
   }

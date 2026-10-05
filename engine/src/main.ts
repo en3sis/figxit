@@ -92,7 +92,7 @@ async function doctor(fromApp: boolean): Promise<number> {
   }
   let shells = 0;
   try {
-    shells = Number(readFileSync(join(dirname(ENGINE_SOCK), "shells"), "utf8")) || 0;
+    if (await reachable(ENGINE_SOCK)) shells = Number(readFileSync(join(dirname(ENGINE_SOCK), "shells"), "utf8")) || 0;
   } catch {}
   const atuin = process.env.FIGXIT_ATUIN_DB ?? join(homedir(), ".local/share/atuin/history.db");
   const checks: [boolean, string, string][] = [
