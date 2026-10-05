@@ -3,7 +3,14 @@ source "$(dirname "$0")/lib.sh"
 
 background=helper/Resources/dmg-background.svg
 
-rm -rf dist/dmg "$DMG" dist/dmg-background.tiff
+for volume in /Volumes/Figxit*; do
+  if [ -d "$volume" ]; then
+    echo "Ejecting $volume, a second volume with this name breaks the disk image layout"
+    hdiutil detach "$volume" -quiet || hdiutil detach "$volume" -force -quiet || true
+  fi
+done
+
+rm -rf dist/dmg "$DMG" dist/dmg-background.tiff dist/rw.*.dmg
 mkdir -p dist/dmg
 cp -R "$APP" dist/dmg/Figxit.app
 rsvg-convert -w 600 -h 400 "$background" -o dist/dmg-bg.png
