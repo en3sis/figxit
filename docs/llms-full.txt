@@ -109,7 +109,7 @@ To build from source, see the [README](https://github.com/en3sis/figxit#developm
 - A Mac with Apple Silicon.
 - macOS 13 or later. The glass background needs macOS 26 or later.
 - zsh, bash 5 or later, or fish 4. The `/bin/bash` of macOS is version 3.2 and does not work.
-- tmux is optional. Without tmux, the terminal app must report its cursor position. Tested in Ghostty and Terminal.
+- tmux is optional. Without tmux, the terminal app must report its cursor position. Tested in Ghostty, iTerm2, and Terminal.
 - Atuin, optional, for ranking.
 - No Accessibility or Screen Recording permission is needed.
 
