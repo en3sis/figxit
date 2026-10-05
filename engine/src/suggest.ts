@@ -3,7 +3,7 @@ import { fileCandidates, lookup, type GenContext, type Lookup } from "./generato
 import type { History } from "./history";
 import { projectCandidates, repoRoot, type Candidate } from "./sources";
 import { emit, loadSpec, locate, toCandidate, type Emitted } from "./specs";
-import { commandWords, RESERVED, scan } from "./tokenize";
+import { commandWords, keyword, RESERVED, scan } from "./tokenize";
 import { CAUTION, cautious } from "./verbs";
 
 export interface Suggestion {
@@ -56,12 +56,44 @@ function iconFor(label: string, depth: number, command: string | undefined): Ico
   return brandIcon(command) ?? ICONS.history;
 }
 
+const COMMAND = /^[\w.+-]+$/;
+
 export async function suggest(
   buffer: string,
   cursor: number,
   cwd: string,
   history: History,
   now = Date.now(),
+): Promise<Result> {
+  const base = await complete(buffer, cursor, cwd, history, now);
+  const head = buffer.slice(0, cursor);
+  if (cursor !== buffer.length || !COMMAND.test(head) || keyword(head) || !(await loadSpec(head))) return base;
+
+  const next = await complete(`${head} `, cursor + 1, cwd, history, now);
+  const ahead = (list: Suggestion | null): Suggestion | null => {
+    const rows = (list?.items ?? [])
+      .filter((item) => item.pick && !item.run && !item.label.startsWith("-"))
+      .filter((item) => item.icon !== ICONS.folder.icon && item.icon !== ICONS.file.icon)
+      .map((item) => ({ ...item, insert: ` ${item.insert ?? `${item.label} `}` }));
+    if (rows.length === 0) return null;
+    const run: Candidate = { label: head, detail: "Run", score: 0, icon: "sf:return", tint: "3A3A3C", run: true };
+    return { items: [run, ...rows].slice(0, MAX_ITEMS), remove: 0, tokenStart: cursor };
+  };
+  const first = ahead(next.now);
+  if (first) return { now: first, more: next.more ? next.more.then((list) => ahead(list) ?? first) : null };
+  if (!next.more) return base;
+  return {
+    now: base.now,
+    more: next.more.then(async (list) => ahead(list) ?? (base.more ? await base.more : base.now)),
+  };
+}
+
+async function complete(
+  buffer: string,
+  cursor: number,
+  cwd: string,
+  history: History,
+  now: number,
 ): Promise<Result> {
   const after = buffer[cursor];
   if (after !== undefined && after !== " " && after !== "\n") return EMPTY;
@@ -81,7 +113,7 @@ export async function suggest(
   if (position?.repeated && prefix === "") return EMPTY;
   const emitted: Emitted | null = position ? emit(position, prefix) : null;
   const stats = history.nextTokens(words, cwd, repoRoot(cwd), now);
-  if (depth === 0 && ((stats.get(prefix)?.count ?? 0) >= 2 || (!prefix.includes("/") && (await loadSpec(prefix)) !== null))) return EMPTY;
+  const known = depth === 0 && prefix !== "" && !prefix.includes("/") && !keyword(prefix) && (await loadSpec(prefix)) !== null;
   const covered = project.authoritative || spec !== null;
   const brand = brandIcon(command) ?? ICONS.command;
 
@@ -155,6 +187,7 @@ export async function suggest(
         }
       }
     }
+    if (!exact && known) exact = { label: prefix, detail: "", score: 0 };
     if (exact?.hold) return null;
 
     let items: Candidate[] = [];

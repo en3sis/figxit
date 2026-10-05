@@ -218,7 +218,7 @@ describe("commands", () => {
     expect(next?.items.map((i) => i.label).sort()).toEqual(["check", "push"]);
   });
 
-  test("no list opens when the typed word is already a complete command", async () => {
+  test("a complete command gets a run row first, then the longer names", async () => {
     const cwd = project({});
     const history = historyOf([
       ["ls", cwd, 1],
@@ -228,8 +228,24 @@ describe("commands", () => {
     ]);
     const partial = await suggest("l", 1, cwd, history, NOW);
     expect(partial?.items.map((i) => i.label).sort()).toEqual(["ls", "lsof"]);
-    expect(await suggest("ls", 2, cwd, history, NOW)).toBeNull();
-    expect(await suggest("tool", 4, cwd, history, NOW)).toBeNull();
+    const complete = await suggest("ls", 2, cwd, history, NOW);
+    expect(complete?.items.map((i) => [i.label, i.run === true])).toEqual([["ls", true], ["lsof", false]]);
+  });
+
+  test("a complete command with subcommands shows them before the space", async () => {
+    const cwd = project({ "notes.txt": "" });
+    registerSpec("craft", {
+      name: "craft",
+      subcommands: [{ name: "build" }, { name: "serve" }],
+      options: [{ name: "--verbose" }],
+    });
+    registerSpec("peek", { name: "peek", args: { name: "file", template: "filepaths" } });
+    const result = await suggest("craft", 5, cwd, historyOf([]), NOW);
+    expect(result?.items.map((i) => [i.label, i.run === true])).toEqual([["craft", true], ["build", false], ["serve", false]]);
+    expect(result?.items[1]?.insert).toBe(" build ");
+    expect(result?.remove).toBe(0);
+    const files = await suggest("peek", 4, cwd, historyOf([]), NOW);
+    expect(files?.items.map((i) => [i.label, i.run === true])).toEqual([["peek", true]]);
   });
 
   test("a complete subcommand gets a run row first, then the longer names", async () => {
