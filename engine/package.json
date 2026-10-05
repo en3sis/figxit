@@ -1,0 +1,16 @@
+{
+  "name": "figxit-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/main.ts daemon",
+    "test": "bun test",
+    "build": "bun build --compile src/main.ts --outfile ../dist/Figxit.app/Contents/MacOS/figxit-engine"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@withfig/autocomplete": "^2.692.3",
+    "simple-icons": "^16.34.0"
+  }
+}
