@@ -12,6 +12,8 @@ export interface Candidate {
   insert?: string;
   aliases?: string[];
   pick?: boolean;
+  hold?: boolean;
+  run?: boolean;
 }
 
 export interface SourceResult {
