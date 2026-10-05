@@ -101,8 +101,9 @@ export async function suggest(
     const add = (candidate: Candidate | null) => {
       if (candidate && !merged.has(candidate.label)) merged.set(candidate.label, { ...candidate });
     };
-    project.candidates.forEach(add);
-    emitted?.statics.forEach(add);
+    const pick = (candidate: Candidate) => add({ ...candidate, pick: true });
+    project.candidates.forEach(pick);
+    emitted?.statics.forEach(pick);
     for (const item of dynamic) {
       const candidate = toCandidate(item as never, brand, "suggestion");
       if (!candidate) continue;
@@ -110,8 +111,10 @@ export async function suggest(
         const dotted = candidate.label.startsWith(".") && !candidate.label.startsWith("../");
         if (dotted && !prefix.startsWith(".")) continue;
         candidate.score = Math.min(candidate.score, 0.65);
+        add(candidate);
+        continue;
       }
-      add(candidate);
+      pick(candidate);
     }
     files.forEach(add);
 
@@ -139,6 +142,12 @@ export async function suggest(
         score: stat.score,
         ...iconFor(token, depth, command),
       });
+    }
+
+    if (prefix !== "") {
+      for (const candidate of merged.values()) {
+        if (candidate.label === prefix || candidate.aliases?.includes(prefix)) return null;
+      }
     }
 
     const items: Candidate[] = [];

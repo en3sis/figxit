@@ -11,6 +11,7 @@ export interface Candidate {
   tint?: string;
   insert?: string;
   aliases?: string[];
+  pick?: boolean;
 }
 
 export interface SourceResult {

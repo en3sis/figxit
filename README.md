@@ -80,7 +80,8 @@ For a command that has a spec, history from other folders is not shown. This kee
 |---|---|
 | Up, Down | Move the selection |
 | Tab | Insert the selected row |
-| Ctrl-U, Enter, or more typing | Close the popup |
+| Enter | If you typed part of a subcommand, option, target, or script: insert the selected row. It does not run the line, press Enter again for that. In all other cases, Enter runs the line as typed |
+| Ctrl-U or more typing | Close the popup |
 
 When the popup is closed, the keys do what they did before. Tab still opens your normal completion and Up still searches your history.
 

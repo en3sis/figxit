@@ -98,6 +98,12 @@ try {
   check("Tab inserts the selection and a space", screen().includes(`make ${filtered[1]} X`), screen());
 
   await keys("C-u");
+  await keys("make bu");
+  await keys("Enter");
+  check("Enter inserts the highlighted target and does not run", (screen().split("\n").at(-1) ?? "").includes("make build") && !screen().includes("for `build'"), screen());
+  await keys("Enter");
+  check("a second Enter runs the line", screen().includes("for `build'"), screen());
+
   await keys("make build ");
   check("no second list after a target", messages.at(-1)?.cmd === "hide", messages.slice(-3));
   await keys("C-u");
