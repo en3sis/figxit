@@ -151,9 +151,9 @@ function navigate(s: Session, direction: string) {
   render(s);
 }
 
-function accept(s: Session) {
+function accept(s: Session, typedOnly: boolean) {
   const item = s.visible && s.fresh ? s.items[s.selected] : undefined;
-  if (!item) {
+  if (!item || (typedOnly && !(item.pick && s.remove > 0))) {
     s.socket.write(`A${SEP}-1${SEP}\n`);
     return;
   }
@@ -185,7 +185,10 @@ function onLine(s: Session, line: string) {
       navigate(s, f[1] ?? "down");
       break;
     case "A":
-      accept(s);
+      accept(s, false);
+      break;
+    case "R":
+      accept(s, true);
       break;
     case "X":
       s.anchorKey = null;

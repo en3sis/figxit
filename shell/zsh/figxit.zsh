@@ -12,6 +12,7 @@ typeset -gi _figxit_visible=0 _figxit_retry=0 _figxit_depth=0
 typeset -gA _figxit_orig _figxit_base
 typeset -gA _figxit_keys=(
   '"^I"' figxit-tab
+  '"^M"' figxit-enter
   '"^[[A"' figxit-up
   '"^[OA"' figxit-up
   '"^[[B"' figxit-down
@@ -90,7 +91,7 @@ _figxit_accept() {
   while IFS= read -r -t 0 -u $_figxit_fd line; do
     _figxit_apply $line
   done
-  _figxit_send A || return 1
+  _figxit_send ${1:-A} || return 1
   while IFS= read -r -t 0.3 -u $_figxit_fd line; do
     f=("${(@ps:$_figxit_sep:)line}")
     if [[ $f[1] == A ]]; then
@@ -116,6 +117,11 @@ _figxit_fallback() {
 figxit-tab() {
   (( _figxit_visible && ! _figxit_depth )) && _figxit_accept && return
   _figxit_fallback figxit-tab expand-or-complete
+}
+
+figxit-enter() {
+  (( _figxit_visible && ! _figxit_depth )) && _figxit_accept R && return
+  _figxit_fallback figxit-enter accept-line
 }
 
 figxit-up() {
@@ -193,6 +199,7 @@ _figxit_hook() {
 }
 
 zle -N figxit-tab
+zle -N figxit-enter
 zle -N figxit-up
 zle -N figxit-down
 _figxit_hook line-init _figxit_line_init

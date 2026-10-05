@@ -214,6 +214,20 @@ describe("commands", () => {
     expect(await suggest("ls", 2, cwd, history, NOW)).toBeNull();
     expect(await suggest("tool", 4, cwd, history, NOW)).toBeNull();
   });
+
+  test("no list opens when the typed word is already a complete subcommand", async () => {
+    registerSpec("box", {
+      name: "box",
+      subcommands: [{ name: "ps" }, { name: "pause" }, { name: "push" }, { name: ["compose", "cps"] }],
+    });
+    const partial = await suggest("box p", 5, "/", historyOf([]), NOW);
+    expect(partial?.items.map((i) => i.label)).toContain("ps");
+    expect(await suggest("box ps", 6, "/", historyOf([]), NOW)).toBeNull();
+    expect(partial?.items.every((i) => i.pick)).toBe(true);
+    expect(await suggest("box cps", 7, "/", historyOf([]), NOW)).toBeNull();
+    const longer = await suggest("box pu", 6, "/", historyOf([]), NOW);
+    expect(longer?.items.map((i) => i.label)).toEqual(["push", "pause"]);
+  });
 });
 
 describe("stats worker", () => {
@@ -246,6 +260,7 @@ describe("safety", () => {
       ["gh auth ghp_abcdefghijklmnopqrstuv", cwd, 5],
     ]);
     const exported = await suggest("export ", 7, cwd, history, NOW);
+    expect(exported?.items.some((i) => i.pick)).toBe(false);
     expect(exported?.items.map((i) => i.label)).toEqual(["NODE_ENV=production"]);
     expect(await suggest("deploytool --token ", 19, cwd, history, NOW)).toBeNull();
     const region = await suggest("deploytool --region ", 20, cwd, history, NOW);
