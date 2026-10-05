@@ -15,6 +15,7 @@ export interface Position {
   arg: Spec | null;
   allowSubcommands: boolean;
   afterDashes: boolean;
+  repeated: boolean;
 }
 
 export interface Emitted {
@@ -89,6 +90,7 @@ export async function locate(spec: Spec, words: string[]): Promise<Position> {
   let pending: Spec[] = [];
   let variadicTaken = false;
   let afterDashes = false;
+  let repeated = false;
 
   for (const word of words.slice(1)) {
     const optionLike = !afterDashes && word.startsWith("-") && word !== "-";
@@ -135,6 +137,7 @@ export async function locate(spec: Spec, words: string[]): Promise<Position> {
     positional = true;
     const arg = list<Spec>(node.args)[argIndex];
     if (arg && !arg.isVariadic) argIndex++;
+    else if (arg) repeated = true;
   }
 
   return {
@@ -146,6 +149,7 @@ export async function locate(spec: Spec, words: string[]): Promise<Position> {
     arg: list<Spec>(node.args)[argIndex] ?? null,
     allowSubcommands: !positional,
     afterDashes,
+    repeated: repeated && pending.length === 0,
   };
 }
 

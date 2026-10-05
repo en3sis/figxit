@@ -29,8 +29,8 @@ smoke: ## Build the app, then test the bundle and the figxit command
 stop: ## Stop the helper and the engine
 	@pkill -x figxit-helper; pkill -x figxit-engine; true
 
-clean: stop ## Remove dist/ and the Swift build folder
-	rm -rf dist helper/.build
+clean: stop ## Remove the build output. Released versions in dist/Figxit-<version>/ stay
+	rm -rf dist/Figxit.app dist/Figxit.dmg dist/dmg dist/feed helper/.build
 
 ##@ Build
 
