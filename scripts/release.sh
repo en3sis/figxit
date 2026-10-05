@@ -42,7 +42,8 @@ else
 fi
 release=$(version)
 tag=v$release
-image=$ARCHIVE/Figxit-$release.dmg
+folder=$(release_dir "$release")
+image=$folder/Figxit-$release.dmg
 
 make build
 codesign --verify --deep --strict "$APP"
@@ -58,9 +59,13 @@ xcrun notarytool submit "$DMG" --keychain-profile "$profile" --wait
 xcrun stapler staple "$DMG"
 spctl --assess --type open --context context:primary-signature -v "$DMG"
 
-mkdir -p "$ARCHIVE"
-cp "$DMG" "$image"
-helper/.build/artifacts/sparkle/Sparkle/bin/generate_appcast --download-url-prefix "$site/download/" -o docs/appcast.xml "$ARCHIVE"
+mkdir -p "$folder"
+mv "$DMG" "$image"
+feed_view
+helper/.build/artifacts/sparkle/Sparkle/bin/generate_appcast --download-url-prefix "$site/download/" -o docs/appcast.xml "$FEED"
+for delta in "$FEED/Figxit$release-"*.delta; do
+  if [ -f "$delta" ] && [ ! -f "$folder/$(basename "$delta")" ]; then cp "$delta" "$folder/"; fi
+done
 
 scripts/r2.sh publish
 
@@ -69,4 +74,5 @@ git diff --cached --quiet || git commit -m "release $tag"
 git tag -a "$tag" -m "$tag"
 git push origin HEAD "$tag"
 gh release create "$tag" "$image" --title "$tag" --generate-notes
+rm -rf "$FEED"
 echo "Released $release: $site/download/Figxit.dmg"

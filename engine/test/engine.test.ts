@@ -200,6 +200,22 @@ describe("project targets", () => {
   });
 });
 
+describe("commands", () => {
+  test("no list opens when the typed word is already a complete command", async () => {
+    const cwd = project({});
+    const history = historyOf([
+      ["ls", cwd, 1],
+      ["ls", cwd, 2],
+      ["lsof -i", cwd, 3],
+      ["lsof -i", cwd, 4],
+    ]);
+    const partial = await suggest("l", 1, cwd, history, NOW);
+    expect(partial?.items.map((i) => i.label).sort()).toEqual(["ls", "lsof"]);
+    expect(await suggest("ls", 2, cwd, history, NOW)).toBeNull();
+    expect(await suggest("tool", 4, cwd, history, NOW)).toBeNull();
+  });
+});
+
 describe("stats worker", () => {
   const sparkle = "Figxit/0.0.1 Sparkle/2.10.0";
   const browser = "Mozilla/5.0 (Macintosh)";
@@ -271,11 +287,21 @@ describe("safety", () => {
         ],
       },
     });
-    await suggest("multi a ", 8, "/", historyOf([]), NOW);
+    await suggest("multi a b", 9, "/", historyOf([]), NOW);
     expect(runs).toBe(1);
-    await suggest('multi "$(touch x)" ', 19, "/", historyOf([]), NOW);
-    await suggest('multi "a; b" ', 13, "/", historyOf([]), NOW);
+    await suggest('multi "$(touch x)" b', 20, "/", historyOf([]), NOW);
+    await suggest('multi "a; b" c', 14, "/", historyOf([]), NOW);
     expect(runs).toBe(1);
+  });
+
+  test("no list opens for the next value of a repeating argument until a letter is typed", async () => {
+    const cwd = project({ "README.md": "", "notes.txt": "" });
+    registerSpec("show", { name: "show", args: { name: "file", isVariadic: true, template: "filepaths" } });
+    const first = await suggest("show ", 5, cwd, historyOf([]), NOW);
+    expect(first?.items.map((i) => i.label).sort()).toEqual(["README.md", "notes.txt"]);
+    expect(await suggest("show README.md ", 15, cwd, historyOf([]), NOW)).toBeNull();
+    const typed = await suggest("show README.md n", 16, cwd, historyOf([]), NOW);
+    expect(typed?.items.map((i) => i.label)).toEqual(["notes.txt"]);
   });
 });
 
@@ -352,7 +378,7 @@ describe("specs", () => {
   test("a file template lists the directory and keeps folders open", async () => {
     const cwd = project({ "a.txt": "", "b c.txt": "" });
     await Bun.$`mkdir ${cwd}/sub`;
-    const result = (await suggest("tool run -e prod x.txt ", 23, cwd, historyOf([]), NOW))!;
+    const result = (await suggest("tool run -e prod ", 17, cwd, historyOf([]), NOW))!;
     const byLabel = new Map(result.items.map((i) => [i.label, i.insert]));
     expect([...byLabel.keys()].sort()).toEqual(["a.txt", "b c.txt", "sub/"]);
     expect(byLabel.get("sub/")).toBe("sub/");

@@ -40,14 +40,15 @@ case "${1:-}" in
     site
     ;;
   publish)
-    image=$ARCHIVE/Figxit-$(version).dmg
+    image=$(release_dir "$(version)")/Figxit-$(version).dmg
     if [ ! -f "$image" ] || ! grep -q "Figxit-$(version).dmg" docs/appcast.xml; then
       echo "Version $(version) is not built. Run make release first"
       exit 1
     fi
     auth
     site
-    s3 sync "$ARCHIVE/" "s3://$bucket/download/" --no-progress \
+    feed_view
+    s3 sync "$FEED/" "s3://$bucket/download/" --no-progress \
       --exclude "*" --include "*.dmg" --include "*.delta" \
       --cache-control "public, max-age=31536000, immutable"
     s3 cp "$image" "s3://$bucket/download/Figxit.dmg" --no-progress \

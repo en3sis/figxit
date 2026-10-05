@@ -56,8 +56,8 @@ Delete the exported file after you save it.
 3. Builds the app and signs it with the Developer ID and the hardened runtime.
 4. Sends the app to the Apple notary service, waits, and staples the ticket to the app.
 5. Builds the disk image, signs it, notarizes it, and staples it.
-6. Copies the disk image to `releases/Figxit-<version>.dmg`.
-7. Writes `docs/appcast.xml` from all disk images in `releases/`, signed with the Sparkle key.
+6. Moves the disk image to `dist/Figxit-<version>/Figxit-<version>.dmg`.
+7. Writes `docs/appcast.xml` from the disk images of all versions, signed with the Sparkle key. The delta files for the new version go into its folder.
 8. Uploads to R2. See "What goes to R2".
 9. Commits `engine/package.json` and `docs/appcast.xml` as `release v<version>`, makes the tag, and pushes both.
 10. Makes the GitHub release with the disk image attached and generated notes.
@@ -77,7 +77,7 @@ Bucket `figxit-prod`, served at figxit.com.
 | Path | Source | Cache |
 |---|---|---|
 | `/` (site, `appcast.xml`) | `docs/`, without `*.md` and hidden files | 5 minutes |
-| `/download/Figxit-<version>.dmg` and `*.delta` | `releases/` | 1 year, never changes |
+| `/download/Figxit-<version>.dmg` and `*.delta` | `dist/Figxit-<version>/` | 1 year, never changes |
 | `/download/Figxit.dmg` | The newest disk image | 5 minutes |
 
 The site upload deletes remote files that are not in `docs/`, but it does not touch `/download/`.
@@ -106,7 +106,19 @@ R2 uploads use `aws s3` with the R2 endpoint. R2 accepts an API token as S3 keys
 
 The app reads `https://figxit.com/appcast.xml` (`SUFeedURL` in `helper/Info.plist`) one time each day and when the user selects **Check for Updates**. If the feed has a newer version, Sparkle downloads the disk image, checks its signature against `SUPublicEDKey`, and replaces the app.
 
-`releases/` must keep the old disk images. The feed is built from that folder, and Sparkle makes small delta files between versions from it. The folder is git-ignored and `make clean` does not remove it. The GitHub releases are the backup.
+Each released version has its own folder, `dist/Figxit-<version>/`, with its disk image and the delta files that update older versions to it. Keep these folders. The feed is built from all of them, and Sparkle makes the delta files from the older disk images. `dist/` is git-ignored, and `make clean` removes only the build output, not the version folders. The GitHub releases are the backup.
+
+```
+dist/
+  Figxit.app                    the last build, used by make dev and the tests
+  Figxit-0.1.1/
+    Figxit-0.1.1.dmg
+    Figxit0.1.1-0.1.0.delta
+  Figxit-0.1.2/
+    Figxit-0.1.2.dmg
+    Figxit0.1.2-0.1.0.delta
+    Figxit0.1.2-0.1.1.delta
+```
 
 ## Install counts
 
@@ -181,6 +193,6 @@ Then open an installed older version and select **Check for Updates**.
 | Notary result is `Invalid` | `xcrun notarytool log <submission id> --keychain-profile figxit` shows the reason |
 | "Could not verify the Cloudflare token" | The token is wrong or expired. Fix it in 1Password, then `scripts/r2.sh forget` |
 | Upload fails | Run `make release` again. Nothing was tagged |
-| Push or GitHub release fails after the tag | The files are on R2 already. Run the last steps by hand: `git push origin HEAD v<version>` and `gh release create v<version> releases/Figxit-<version>.dmg --generate-notes` |
+| Push or GitHub release fails after the tag | The files are on R2 already. Run the last steps by hand: `git push origin HEAD v<version>` and `gh release create v<version> dist/Figxit-<version>/Figxit-<version>.dmg --generate-notes` |
 
 Do not run `make release` again after the tag exists unless you want the next version.
