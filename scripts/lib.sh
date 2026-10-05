@@ -5,6 +5,15 @@ APP=dist/Figxit.app
 DMG=dist/Figxit.dmg
 ARCHIVE=releases
 ICON=helper/Resources/AppIcon
+
+if [ -f .env ]; then
+  while IFS='=' read -r key value; do
+    case "$key" in
+      '' | \#*) continue ;;
+    esac
+    if [ -z "${!key:-}" ]; then export "$key=$value"; fi
+  done <.env
+fi
 SIGN_ID="${SIGN_ID:--}"
 
 version() {
@@ -49,7 +58,7 @@ cf_login() {
   if [ -z "$CF_ACCOUNT" ]; then
     CF_ACCOUNT=$(cf_get "/zones?name=$SITE_HOST" | sed -nE 's/.*"account":\{[^}]*"id":"([^"]*)".*/\1/p')
     if [ -z "$CF_ACCOUNT" ]; then
-      echo "Could not find the Cloudflare account of $SITE_HOST. Run make cf-forget if the token changed"
+      echo "Could not find the Cloudflare account of $SITE_HOST. Run scripts/r2.sh forget if the token changed"
       exit 1
     fi
     cache account "$CF_ACCOUNT"

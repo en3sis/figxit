@@ -10,7 +10,7 @@ auth() {
   if [ -z "$id" ]; then
     id=$(cf_get "/accounts/$CF_ACCOUNT/tokens/verify" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
     if [ -z "$id" ]; then
-      echo "Could not verify the Cloudflare token. Run make cf-forget if the token changed"
+      echo "Could not verify the Cloudflare token. Run scripts/r2.sh forget if the token changed"
       exit 1
     fi
     cache key-id "$id"

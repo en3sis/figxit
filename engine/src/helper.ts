@@ -57,6 +57,10 @@ export class Helper {
     return false;
   }
 
+  async notify(message: object): Promise<void> {
+    if (this.socket || (await this.open())) this.socket?.write(JSON.stringify(message) + "\n");
+  }
+
   async send(message: object): Promise<void> {
     if (!this.socket) {
       this.connecting ??= this.connect().finally(() => {

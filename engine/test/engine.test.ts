@@ -195,6 +195,8 @@ describe("project targets", () => {
     expect(await suggest("make build ", 11, cwd, historyOf([]), NOW)).toBeNull();
     const flagged = (await suggest("make -j4 ", 9, cwd, historyOf([]), NOW))!;
     expect(flagged.items.map((i) => i.label)).toEqual(["build", "dev"]);
+    const jobs = (await suggest("make -j 4 ", 10, cwd, historyOf([]), NOW))!;
+    expect(jobs.items.map((i) => i.label)).toEqual(["build", "dev"]);
   });
 });
 
@@ -234,6 +236,22 @@ describe("safety", () => {
     expect(region?.items.map((i) => i.label)).toEqual(["eu-west"]);
     expect(secretLike("ghp_abcdefghijklmnopqrstuv")).toBe(true);
     expect(secretLike("feature-login")).toBe(false);
+    expect(secretLike("hunter2", "-p")).toBe(true);
+    expect(secretLike("postgres://app:hunter2@db.local/app")).toBe(true);
+    expect(secretLike("DB_PASS=hunter2")).toBe(true);
+    expect(secretLike("--author=sam")).toBe(false);
+    expect(secretLike("keyboard=us")).toBe(false);
+  });
+
+  test("history words with spaces or shell syntax are not suggested", async () => {
+    const cwd = project({});
+    const history = historyOf([
+      ["notes add 'fix login bug'", cwd, 1],
+      ["notes add 'a|b'", cwd, 2],
+      ["notes add plain", cwd, 3],
+    ]);
+    const result = await suggest("notes add ", 10, cwd, history, NOW);
+    expect(result?.items.map((i) => i.label)).toEqual(["plain"]);
   });
 
   test("generators do not run when an earlier word has shell syntax", async () => {

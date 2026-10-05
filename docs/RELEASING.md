@@ -16,18 +16,19 @@ make release BUMP=major
 
 `make build` is optional before `make release`. The release always builds again, because the version number goes into the app.
 
-The Makefile only names the tasks. `make` with no argument lists them. The logic is in `scripts/`:
+The Makefile has only the two main flows: develop (`make dev`, `make test`, `make build`) and publish (`make release`, `make r2`). `make` with no argument lists them. All other tasks are in a second Makefile, `scripts/Makefile`. Run them with `make -C scripts <command>`, and `make -C scripts` lists them. Each one is a script that you can also run directly. The scripts read `.env` by themselves.
 
-| Script | Task |
-|---|---|
-| `release.sh` | The full release, `make release` |
-| `r2.sh` | R2 login and uploads, `make r2`, `make r2-ls`, `make cf-forget` |
-| `stats.ts` | Install counts, `make stats`, `make stats-deploy` |
-| `build.sh` | Builds the app bundle, `make build` |
-| `dev.sh` | Runs the helper and the engine from source, `make dev` |
-| `sign.sh` | Code signing of the app, used by each build |
-| `dmg.sh` | The disk image, `make dmg` |
-| `appicon.sh` | The app icon files, `make appicon` |
+| Command | Script | Task |
+|---|---|---|
+| `make release` | `scripts/release.sh` | The full release |
+| `make r2` | `scripts/r2.sh site` | Upload the site |
+| `make -C scripts stats` | `scripts/stats.sh show [days]` | Show install counts |
+| `make -C scripts stats-deploy` | `scripts/stats.sh deploy` | Upload the Worker that counts installs |
+| `make -C scripts r2-ls` | `scripts/r2.sh ls` | List the files in the R2 bucket |
+| `make -C scripts cf-forget` | `scripts/r2.sh forget` | Remove the cached Cloudflare token from the keychain |
+| `make -C scripts appicon` | `scripts/appicon.sh` | Rebuild the app icon files |
+| `make -C scripts shots` | `scripts/shots.sh` | Render the screenshots in `docs/img` |
+| `make -C scripts icons` | | Rebuild the product icon set |
 
 ## Setup, one time
 
@@ -83,7 +84,7 @@ The site upload deletes remote files that are not in `docs/`, but it does not to
 
 `make r2` uploads only the site. Use it for a text change with no new release.
 
-`make r2-ls` lists the bucket.
+`scripts/r2.sh ls` lists the bucket.
 
 ## Cloudflare credentials
 
@@ -97,7 +98,7 @@ The first Cloudflare command reads the token with `op read` (one 1Password promp
 | `account` | The account id, found from the zone figxit.com |
 | `key-id` | The token id, used as the R2 access key |
 
-Later commands read the keychain and do not prompt. After a token change, run `make cf-forget`. The next command reads the new token.
+Later commands read the keychain and do not prompt. After a token change, run `scripts/r2.sh forget`. The next command reads the new token.
 
 R2 uploads use `aws s3` with the R2 endpoint. R2 accepts an API token as S3 keys: the access key is the token id, and the secret is the SHA-256 of the token.
 
@@ -126,9 +127,9 @@ The user can clear **Check for Updates Automatically** in the menu. Then the app
 What we say in public, and it must stay true: "Figxit has no telemetry. Its only network request is the daily update check. We count those checks by app version." If the Worker stores more than the table above, change the README and the landing page first.
 
 ```bash
-make stats-deploy    # upload the Worker and add the two routes, needed one time and after a change
-make stats           # counts for the last 14 days
-make stats DAYS=30
+scripts/stats.sh deploy    # upload the Worker and add the two routes, needed one time and after a change
+scripts/stats.sh show           # counts for the last 14 days
+scripts/stats.sh show 30
 ```
 
 Both commands use the cached Cloudflare token, see "Cloudflare credentials". The token needs the Workers Scripts, Workers Routes, and Account Analytics permissions.
@@ -137,7 +138,7 @@ After a deploy, check it:
 
 1. `curl -sI https://figxit.com/appcast.xml` returns 200.
 2. Download `Figxit.dmg` one time in a browser.
-3. Wait one minute, then `make stats` shows one `install` row.
+3. Wait one minute, then `scripts/stats.sh show` shows one `install` row.
 
 If the first update shows as `install` and not `update`, the Sparkle downloader did not send the app User-Agent. Change `classify` in the Worker.
 
@@ -147,7 +148,7 @@ What can cost money: only R2 reads. The Workers plan is the free plan, which sto
 
 | Risk | Control |
 |---|---|
-| A flood reaches the Workers daily limit and blocks downloads | Both routes are set to fail open by `make stats-deploy`. Above the limit, requests skip the Worker and go to R2. Counting stops, downloads continue |
+| A flood reaches the Workers daily limit and blocks downloads | Both routes are set to fail open by `scripts/stats.sh deploy`. Above the limit, requests skip the Worker and go to R2. Counting stops, downloads continue |
 | A flood of requests reads from R2 each time | The disk images are cached at the Cloudflare edge. Add the cache rule below so the site and the feed are cached too |
 | One client sends many requests | Add the rate limit rule below |
 | A bill grows with no notice | Add the billing notification below |
@@ -178,7 +179,7 @@ Then open an installed older version and select **Check for Updates**.
 |---|---|
 | Stops before the upload (build, signing, notary) | Fix the cause and run `make release` again. The version stays the same |
 | Notary result is `Invalid` | `xcrun notarytool log <submission id> --keychain-profile figxit` shows the reason |
-| "Could not verify the Cloudflare token" | The token is wrong or expired. Fix it in 1Password, then `make cf-forget` |
+| "Could not verify the Cloudflare token" | The token is wrong or expired. Fix it in 1Password, then `scripts/r2.sh forget` |
 | Upload fails | Run `make release` again. Nothing was tagged |
 | Push or GitHub release fails after the tag | The files are on R2 already. Run the last steps by hand: `git push origin HEAD v<version>` and `gh release create v<version> releases/Figxit-<version>.dmg --generate-notes` |
 

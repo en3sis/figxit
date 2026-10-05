@@ -62,8 +62,11 @@ export async function tmuxQuery(target: TmuxTarget, format: string): Promise<str
       stdout: "pipe",
       stderr: "ignore",
     });
+    const timer = setTimeout(() => proc.kill(9), 1000);
     const out = await new Response(proc.stdout).text();
-    return (await proc.exited) === 0 ? out : null;
+    const status = await proc.exited;
+    clearTimeout(timer);
+    return status === 0 ? out : null;
   } catch {
     return null;
   }

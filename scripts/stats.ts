@@ -9,7 +9,7 @@ const token = process.env.CF_TOKEN;
 const host = new URL(process.env.SITE_URL || "https://figxit.com").host;
 
 if (!account || !token) {
-  console.error("Run this with make stats or make stats-deploy");
+  console.error("Run this with scripts/stats.sh show or scripts/stats.sh deploy");
   process.exit(1);
 }
 
@@ -80,7 +80,7 @@ async function deploy() {
 Analytics Engine is not enabled for this account, and only the dashboard can enable it.
 1. Open https://dash.cloudflare.com/${account}/workers/services/view/${WORKER}/production/bindings
 2. Add a binding: Analytics Engine, variable name STATS, dataset ${DATASET}. Deploy it there.
-3. Run make stats-deploy again.
+3. Run scripts/stats.sh deploy again.
 Downloads and updates work now. Counting starts after step 3.`);
   }
 }

@@ -20,9 +20,10 @@ const MAX_ITEMS = 40;
 const MAX_TOKEN = 48;
 const UNSAFE = /['"`$\\*?<>!{}\[\]]/;
 const SHELL = /['"`$\\*?<>!{}\[\];&|()\n]/;
+const BARE = /[\s#]/;
 const SECRET =
-  /(key|token|secret|passw|pwd|auth|bearer|credential)[\w.-]*[=:]|^(gh[pousr]_|github_pat_|sk-|xox[abprs]-|AKIA|eyJ)|^[A-Za-z0-9+_=-]{32,}$/i;
-const SECRET_FLAG = /^--?(password|passwd|pass|token|secret|key|apikey|api-key|auth|bearer)$/i;
+  /(key|token|secret|passwd|password|pass|pwd|pw|auth|bearer|credential)s?(?![a-z])[\w.-]*[=:]|:\/\/[^\/@\s]+:[^@\s]+@|^(gh[pousr]_|github_pat_|sk-|xox[abprs]-|AKIA|eyJ)|^[A-Za-z0-9+_=-]{32,}$/i;
+const SECRET_FLAG = /^(-[pua]|--?(password|passwd|pass|token|secret|key|apikey|api-key|auth|bearer|user))$/i;
 
 export function secretLike(token: string, previous?: string): boolean {
   return SECRET.test(token) || (previous !== undefined && SECRET_FLAG.test(previous));
@@ -86,7 +87,7 @@ export async function suggest(
     if (emitted.templates.size > 0) {
       files.push(...fileCandidates(prefix, cwd, !emitted.templates.has("filepaths")));
     }
-    if (project.candidates.length === 0 && !words.some((word) => SHELL.test(word))) {
+    if (project.candidates.length === 0 && ![...words, prefix].some((word) => SHELL.test(word) || BARE.test(word))) {
       const ctx: GenContext = { tokens: [...words, prefix], cwd, prefix };
       for (const generator of emitted.generators) slots.push(lookup(generator, ctx, now));
     }
@@ -124,7 +125,7 @@ export async function suggest(
     for (const [token, stat] of stats) {
       if (claimed.has(token) || project.authoritative) continue;
       if (covered && stat.local === 0) continue;
-      if (token.length > MAX_TOKEN || UNSAFE.test(token)) continue;
+      if (token.length > MAX_TOKEN || SHELL.test(token) || BARE.test(token)) continue;
       if (secretLike(token, words[depth - 1])) continue;
       if (token.startsWith("-") !== prefix.startsWith("-")) continue;
       if (pathLike(token) && stat.local === 0) continue;

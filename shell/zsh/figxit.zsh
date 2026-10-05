@@ -86,6 +86,10 @@ _figxit_recv() {
 _figxit_accept() {
   local line
   local -a f
+  [[ "$CURSOR$_figxit_sep$BUFFER" == "$_figxit_last" ]] || return 1
+  while IFS= read -r -t 0 -u $_figxit_fd line; do
+    _figxit_apply $line
+  done
   _figxit_send A || return 1
   while IFS= read -r -t 0.3 -u $_figxit_fd line; do
     f=("${(@ps:$_figxit_sep:)line}")
@@ -170,6 +174,11 @@ _figxit_preexec() {
   return 0
 }
 
+_figxit_precmd() {
+  _figxit_connect && _figxit_bind
+  return 0
+}
+
 _figxit_hook() {
   local hook=zle-$1
   local -a extant
@@ -189,3 +198,4 @@ zle -N figxit-down
 _figxit_hook line-init _figxit_line_init
 _figxit_hook line-pre-redraw _figxit_redraw
 add-zsh-hook preexec _figxit_preexec
+add-zsh-hook precmd _figxit_precmd

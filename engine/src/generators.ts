@@ -95,7 +95,7 @@ async function run(generator: Spec, ctx: GenContext): Promise<unknown[]> {
     const script = typeof generator.script === "function" ? generator.script(ctx.tokens) : generator.script;
     if (!script) return [];
     const timeout = typeof generator.scriptTimeout === "number" ? generator.scriptTimeout : SCRIPT_TIMEOUT;
-    const { stdout } = await execute(script, ctx.cwd, timeout);
+    const { stdout } = await limit(execute(script, ctx.cwd, timeout), timeout + 500, { stdout: "", stderr: "", status: 1 });
     if (typeof generator.postProcess === "function") {
       const result = generator.postProcess(stdout, ctx.tokens);
       return Array.isArray(result) ? result : [];

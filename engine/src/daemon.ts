@@ -29,6 +29,7 @@ interface Session {
   anchor: Grid | null;
   seq: number;
   counted: boolean;
+  fresh: boolean;
 }
 
 const history = new History();
@@ -65,6 +66,7 @@ function render(s: Session) {
   const items = s.items.slice(s.scroll, s.scroll + VISIBLE).map(({ label, detail, icon, tint }) => ({ label, detail, icon, tint }));
   helper.send({ cmd: "show", grid: s.anchor, items, selected: s.selected - s.scroll });
   setVisible(s, true);
+  s.fresh = true;
 }
 
 function present(s: Session, result: Suggestion, keep: boolean) {
@@ -96,6 +98,7 @@ async function anchor(s: Session, seq: number, result: Suggestion, cwd: string, 
 async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
   if (!s.tmux) return hide(s);
   const seq = ++s.seq;
+  s.fresh = false;
   const result = await suggest(buffer, cursor, cwd, history);
   if (seq !== s.seq) return;
   if (!result.now && !result.more) return hide(s);
@@ -149,7 +152,7 @@ function navigate(s: Session, direction: string) {
 }
 
 function accept(s: Session) {
-  const item = s.visible ? s.items[s.selected] : undefined;
+  const item = s.visible && s.fresh ? s.items[s.selected] : undefined;
   if (!item) {
     s.socket.write(`A${SEP}-1${SEP}\n`);
     return;
@@ -205,6 +208,7 @@ export async function daemon() {
 
   history.refresh(0);
   count(0);
+  helper.notify({ cmd: "hide" });
 
   Bun.listen<Session>({
     unix: SOCK,
@@ -224,6 +228,7 @@ export async function daemon() {
           anchor: null,
           seq: 0,
           counted: false,
+          fresh: false,
         };
       },
       data(socket, chunk) {

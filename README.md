@@ -154,7 +154,7 @@ Figxit has three parts that talk over unix sockets in `~/.local/state/figxit/`.
 | `FIGXIT_ATUIN_DB=/path` | History database to read |
 | `defaults write dev.figxit.helper glass -bool false` | Use the classic background in place of glass |
 
-The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is in `engine/scripts/icons.ts`, and `make icons` rebuilds the icon set.
+The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is in `engine/scripts/icons.ts`, and `cd engine && bun run scripts/icons.ts` rebuilds the icon set.
 
 ## Limits
 
@@ -172,8 +172,6 @@ make dev      # run the helper and the engine from source, with reload
 make test     # unit tests
 make e2e      # end-to-end test in a private tmux server
 make smoke    # build the app and test the bundle and the figxit command
-make shots    # render the images in docs/img
-make appicon  # rebuild the app icon and the PNG exports in docs/icon
 make build    # build and sign dist/Figxit.app
 make dmg      # build the disk image with the drag-to-Applications window
 ```
