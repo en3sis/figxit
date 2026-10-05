@@ -28,6 +28,7 @@ s3() {
 }
 
 site() {
+  sed -i '' "s|<lastmod>.*</lastmod>|<lastmod>$(date +%F)</lastmod>|" docs/sitemap.xml
   s3 sync docs/ "s3://$bucket/" --no-progress --delete \
     --exclude ".*" --exclude "*/.*" --exclude "*.md" --exclude "download/*" \
     --cache-control "public, max-age=300"
