@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseTmux } from "../src/geometry";
+import { parseShell, parseTmux } from "../src/geometry";
 import { History } from "../src/history";
 import { parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
@@ -244,8 +244,16 @@ describe("commands", () => {
     expect(result?.items.map((i) => [i.label, i.run === true])).toEqual([["craft", true], ["build", false], ["serve", false]]);
     expect(result?.items[1]?.insert).toBe(" build ");
     expect(result?.remove).toBe(0);
+    expect(result?.lead).toBe(1);
     const files = await suggest("peek", 4, cwd, historyOf([]), NOW);
     expect(files?.items.map((i) => [i.label, i.run === true])).toEqual([["peek", true]]);
+  });
+
+  test("a first word that differs from a command only by case is not listed", async () => {
+    const cwd = project({});
+    registerSpec("lsx", { name: "lsx" });
+    const result = await suggest("ls", 2, cwd, historyOf([["LS", cwd], ["LS", cwd], ["lsx", cwd], ["lsx", cwd]]), NOW);
+    expect(result?.items.map((i) => i.label)).toEqual(["lsx"]);
   });
 
   test("a complete subcommand gets a run row first, then the longer names", async () => {
@@ -525,5 +533,43 @@ describe("parseTmux", () => {
 
   test("rejects short output", () => {
     expect(parseTmux("", pad)).toBeNull();
+  });
+});
+
+describe("parseShell", () => {
+  const pad = { x: 4, y: 2 };
+
+  test("turns the 1-based cursor report into a 0-based cell and keeps the cell size as height then width", () => {
+    expect(parseShell(["12", "8", "120", "30", "34", "16"], pad)).toEqual({
+      cols: 120,
+      rows: 30,
+      col: 7,
+      row: 11,
+      cellPxW: 16,
+      cellPxH: 34,
+      padX: 4,
+      padY: 2,
+      pane: true,
+    });
+  });
+
+  test("derives the cell size from the text area when the terminal reports no cell size", () => {
+    const grid = parseShell(["1", "1", "100", "40", "", "", "1360", "1650"], pad)!;
+    expect([grid.cellPxW, grid.cellPxH]).toEqual([16.5, 34]);
+    expect(parseShell(["1", "1", "100", "40", "34", "16", "1400", "1700"], pad)!.cellPxW).toBe(16);
+  });
+
+  test("sends no cell size when the terminal reports none", () => {
+    const grid = parseShell(["3", "1", "80", "24", ""], pad)!;
+    expect(grid.cellPxW).toBeUndefined();
+    expect(grid.cellPxH).toBeUndefined();
+    expect([grid.row, grid.col]).toEqual([2, 0]);
+  });
+
+  test("rejects an empty or broken report", () => {
+    expect(parseShell([], pad)).toBeNull();
+    expect(parseShell(["", "", "80", "24"], pad)).toBeNull();
+    expect(parseShell(["5", "x", "80", "24"], pad)).toBeNull();
+    expect(parseShell(["0", "3", "80", "24"], pad)).toBeNull();
   });
 });

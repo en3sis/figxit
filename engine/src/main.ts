@@ -2,13 +2,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { version } from "../package.json";
-import { daemon } from "./daemon";
 import { appPath, bundlePath, ENGINE_SOCK, HELPER_SOCK, specsDir } from "./paths";
 
 const HELP = `figxit ${version}
 
 Usage:
-  figxit init zsh    Print the lines that load figxit in zsh
+  figxit init zsh    Print the lines that load figxit in zsh. Also: init bash, init fish
   figxit start       Start the popup helper and the engine
   figxit stop        Stop them
   figxit doctor      Check the installation
@@ -25,19 +24,69 @@ async function reachable(path: string): Promise<boolean> {
   }
 }
 
+const SHELLS: Record<string, { file: string; lines: string[]; setup: string; reload: string }> = {
+  zsh: {
+    file: "shell/zsh/figxit.zsh",
+    lines: ['source "$FIGXIT_APP/Contents/Resources/shell/zsh/figxit.zsh"', 'figxit() { "$FIGXIT_APP/Contents/MacOS/figxit-engine" "$@" }'],
+    setup: 'add to ~/.zshrc: eval "$(figxit init zsh)"',
+    reload: "exec zsh",
+  },
+  bash: {
+    file: "shell/bash/figxit.bash",
+    lines: ['source "$FIGXIT_APP/Contents/Resources/shell/bash/figxit.bash"', 'figxit() { "$FIGXIT_APP/Contents/MacOS/figxit-engine" "$@"; }'],
+    setup: 'add to ~/.bashrc: eval "$(figxit init bash)"',
+    reload: "exec bash",
+  },
+  fish: {
+    file: "shell/fish/figxit.fish",
+    lines: ['source "$FIGXIT_APP/Contents/Resources/shell/fish/figxit.fish"', 'function figxit; "$FIGXIT_APP/Contents/MacOS/figxit-engine" $argv; end'],
+    setup: "add to ~/.config/fish/conf.d/figxit.fish: figxit init fish | source",
+    reload: "exec fish",
+  },
+};
+
+const RC: Record<string, string[]> = {
+  zsh: [".zshrc"],
+  bash: [".bashrc", ".bash_profile", ".bash_login", ".profile"],
+  fish: [".config/fish/conf.d/figxit.fish", ".config/fish/config.fish"],
+};
+
+function shellRows(short: boolean): [boolean, string, string][] {
+  const PATH = `${process.env.PATH ?? ""}:/opt/homebrew/bin:/usr/local/bin:/bin`;
+  const rows: [boolean, string, string][] = [];
+  for (const name of Object.keys(SHELLS)) {
+    const path = Bun.which(name, { PATH });
+    if (!path) continue;
+    const file = RC[name]!.find((rc) => {
+      try {
+        return readFileSync(join(homedir(), rc), "utf8").toLowerCase().includes("figxit");
+      } catch {
+        return false;
+      }
+    });
+    rows.push([file !== undefined, name, file ? `${path}, ${short ? "loaded from" : "set up in"} ~/${file}` : short ? path : `${path}, not set up, ${SHELLS[name]!.setup}`]);
+  }
+  return rows;
+}
+
+function loginShell(): string {
+  const name = (process.env.SHELL ?? "").split("/").pop() ?? "";
+  return SHELLS[name] ? name : "zsh";
+}
+
 function init(shell: string | undefined): number {
-  if (shell !== "zsh") {
-    console.error("figxit init: only zsh is supported. Run: figxit init zsh");
+  const entry = shell ? SHELLS[shell] : undefined;
+  if (!entry) {
+    console.error("figxit init: give one of zsh, bash, fish. For example: figxit init zsh");
     return 1;
   }
   const app = bundlePath() ?? appPath();
-  if (!app || !existsSync(join(app, "Contents/Resources/shell/zsh/figxit.zsh"))) {
+  if (!app || !existsSync(join(app, "Contents/Resources", entry.file))) {
     console.error("figxit init: Figxit.app with its shell files was not found. Run make build first.");
     return 1;
   }
-  console.log(`export FIGXIT_APP=${JSON.stringify(app)}`);
-  console.log('source "$FIGXIT_APP/Contents/Resources/shell/zsh/figxit.zsh"');
-  console.log('figxit() { "$FIGXIT_APP/Contents/MacOS/figxit-engine" "$@" }');
+  console.log(shell === "fish" ? `set -gx FIGXIT_APP ${JSON.stringify(app)}` : `export FIGXIT_APP=${JSON.stringify(app)}`);
+  for (const line of entry.lines) console.log(line);
   return 0;
 }
 
@@ -81,7 +130,7 @@ async function stop(): Promise<number> {
   return 0;
 }
 
-async function doctor(fromApp: boolean): Promise<number> {
+async function doctor(fromApp: boolean, json: boolean): Promise<number> {
   const app = appPath();
   const specs = specsDir();
   let specCount = 0;
@@ -94,6 +143,7 @@ async function doctor(fromApp: boolean): Promise<number> {
   try {
     if (await reachable(ENGINE_SOCK)) shells = Number(readFileSync(join(dirname(ENGINE_SOCK), "shells"), "utf8")) || 0;
   } catch {}
+  const login = SHELLS[loginShell()]!;
   const atuin = process.env.FIGXIT_ATUIN_DB ?? join(homedir(), ".local/share/atuin/history.db");
   const checks: [boolean, string, string][] = [
     [app !== null, "app bundle", app ?? "not found"],
@@ -101,18 +151,24 @@ async function doctor(fromApp: boolean): Promise<number> {
     [await reachable(ENGINE_SOCK), "engine", ENGINE_SOCK],
     [specCount > 0, "completion specs", specs ? `${specCount} in ${specs}` : "not found"],
     [existsSync(atuin), "atuin history", existsSync(atuin) ? atuin : "not found, ranking is off"],
-    [shells > 0, "shells connected", shells > 0 ? String(shells) : "none, run exec zsh in each open terminal"],
+    [shells > 0, "shells connected", shells > 0 ? String(shells) : `none, run ${login.reload} in each open terminal`],
   ];
   const shell: [boolean, string, string][] = [
-    [Bun.which("tmux") !== null, "tmux on PATH", Bun.which("tmux") ?? "not found"],
-    [Boolean(process.env.TMUX), "inside tmux", process.env.TMUX ? "yes" : "no, the popup works only inside tmux"],
+    [true, "popup position", process.env.TMUX ? "from tmux" : "from the terminal, which must report its cursor position"],
     [
       Boolean(process.env.FIGXIT_APP),
       "shell integration",
-      process.env.FIGXIT_APP ? "loaded" : 'not loaded, add to ~/.zshrc: eval "$(figxit init zsh)"',
+      process.env.FIGXIT_APP ? "loaded" : `not loaded, ${login.setup}`,
     ],
   ];
+  const tmux = Bun.which("tmux", { PATH: `${process.env.PATH ?? ""}:/opt/homebrew/bin:/usr/local/bin` });
+  checks.push(...shellRows(json), [tmux !== null, "tmux", tmux ?? "optional"]);
   if (!fromApp) checks.push(...shell);
+  if (json) {
+    const optional = new Set(["atuin history", "tmux", ...Object.keys(SHELLS)]);
+    console.log(JSON.stringify(checks.map(([ok, name, detail]) => ({ level: ok ? "ok" : optional.has(name) ? "off" : "bad", name, detail }))));
+    return 0;
+  }
   for (const [ok, name, detail] of checks) console.log(`${ok ? "ok  " : "--  "} ${name.padEnd(18)} ${detail}`);
   return checks.slice(0, 1).every(([ok]) => ok) ? 0 : 1;
 }
@@ -120,7 +176,10 @@ async function doctor(fromApp: boolean): Promise<number> {
 const [command, argument] = process.argv.slice(2);
 switch (command) {
   case "daemon":
-    await daemon();
+    await (await import("./daemon")).daemon();
+    break;
+  case "bridge":
+    await (await import("./bridge")).bridge(process.argv.slice(3));
     break;
   case "init":
     process.exit(init(argument));
@@ -129,7 +188,7 @@ switch (command) {
   case "stop":
     process.exit(await stop());
   case "doctor":
-    process.exit(await doctor(argument === "--app"));
+    process.exit(await doctor(process.argv.includes("--app"), process.argv.includes("--json")));
   case "--version":
   case "-v":
   case "version":

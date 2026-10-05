@@ -6,3 +6,4 @@ preview/
 .env
 video/
 launch/
+.claude/

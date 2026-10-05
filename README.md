@@ -29,7 +29,7 @@ Make the command line show you its options at the moment you need them, with no 
 
 ## Vision
 
-- **One popup for each shell and terminal.** The engine and the popup do not depend on the shell. Each shell needs only a small adapter. zsh is first. fish and bash come next.
+- **One popup for each shell and terminal.** The engine and the popup do not depend on the shell. Each shell needs only a small adapter. There are adapters for zsh, bash, and fish.
 - **Completion that knows your project.** A `Makefile`, a `package.json`, and a git repository already describe what you can run. Figxit reads them directly, so a new project works with no setup.
 - **Your history is the ranking.** The command you run ten times a day in this folder is the first row.
 - **Native on each platform.** On macOS the popup is a real system window with the system glass material, not text drawn over your prompt.
@@ -119,7 +119,7 @@ The rule applies to Makefile targets, `package.json` scripts, and live values su
 
 - A Mac with Apple Silicon.
 - macOS 13 or later. The glass background needs macOS 26 or later.
-- zsh, inside tmux.
+- zsh, bash 5 or later, or fish 4, in tmux or directly in a terminal that reports its cursor position. The `/bin/bash` of macOS is version 3.2 and does not work.
 - Atuin, optional, for ranking.
 
 No Accessibility or Screen Recording permission is needed.
@@ -128,13 +128,20 @@ No Accessibility or Screen Recording permission is needed.
 
 1. Download [Figxit.dmg](https://figxit.com/download/Figxit.dmg), open it, and drag Figxit to Applications.
 2. Open Figxit. An icon appears in the menu bar and a setup window opens.
-3. Click **Add to ~/.zshrc**, or copy the line and add it yourself:
+3. The setup window shows the line for your login shell. Click the **Add** button, or copy the line and add it yourself:
 
 ```bash
+# zsh, in ~/.zshrc
 eval "$('/Applications/Figxit.app/Contents/MacOS/figxit-engine' init zsh)"
+
+# bash, in ~/.bashrc, or in ~/.bash_profile if that file does not load ~/.bashrc
+eval "$('/Applications/Figxit.app/Contents/MacOS/figxit-engine' init bash)"
+
+# fish, in ~/.config/fish/conf.d/figxit.fish
+status is-interactive; and '/Applications/Figxit.app/Contents/MacOS/figxit-engine' init fish | source
 ```
 
-4. Open a new tmux pane and type a command.
+4. Open a new terminal or a new tmux pane and type a command.
 
 The line also defines the `figxit` command in your shell, so nothing needs to be on your PATH.
 
@@ -154,7 +161,7 @@ The icon shows that Figxit is running. It is dimmed when the engine is stopped. 
 
 | Command | Action |
 |---|---|
-| `figxit init zsh` | Print the lines that load Figxit in zsh |
+| `figxit init zsh` | Print the lines that load Figxit in zsh. `init bash` and `init fish` do the same for those shells |
 | `figxit start` | Start the popup helper and the engine |
 | `figxit stop` | Stop them |
 | `figxit doctor` | Check each part of the installation |
@@ -165,17 +172,22 @@ The icon shows that Figxit is running. It is dimmed when the engine is stopped. 
 Figxit has three parts that talk over unix sockets in `~/.local/state/figxit/`.
 
 ```
- zsh adapter  ── buffer, cursor, folder ──▶  engine  ── rows, grid position ──▶  helper
- (zsh, ~200 lines)                            (Bun)                               (Swift, AppKit)
-      ▲                                         │
-      └──────── text to insert on Tab ──────────┘
+ shell adapter  ── buffer, cursor, folder ──▶  engine  ── rows, grid position ──▶  helper
+ (zsh, bash, fish)                              (Bun)                               (Swift, AppKit)
+      ▲                                           │
+      └───────── text to insert on Tab ───────────┘
 ```
 
 **Adapter** (`shell/zsh/figxit.zsh`). A zsh line editor hook sends the buffer to the engine after each key and returns at once, so typing never waits. It reads a reply only when you press Tab.
 
+**Bridge for bash and fish** (`engine/src/bridge.ts`, `shell/bash/figxit.bash`, `shell/fish/figxit.fish`). These shells cannot open a unix socket or watch one. Each shell starts one bridge process, `figxit-engine bridge`, which holds the engine connection for that shell. The adapters use shell builtins only, so no process starts for a key.
+
+- bash binds each printable key and each editing key to a macro: the original function, then a hook that writes the buffer to the bridge through a pipe. Tab, Enter, Up, and Down first ask if the popup is open, and run their original binding if it is not.
+- fish adds the hook to its existing bindings. It has no pipe that stays open, so it appends each line to a file in `~/.local/state/figxit/shell-<pid>/` that the bridge watches, and reads the popup state and the replies from files in the same folder.
+
 **Engine** (`engine/`). A Bun process that keeps your history and the loaded specs in memory. For each key it parses the line, collects candidates from the project files, the spec, and your history, merges and ranks them, and sends the visible rows to the helper. Values that need a command (git branches, for example) arrive in a second pass, so the first rows are never delayed.
 
-**Helper** (`helper/`). A small macOS app with no Dock icon. It starts the engine and restarts it after a crash. It shows a floating panel that does not take keyboard focus. It finds the terminal window through the public window list, and tmux supplies the pane offset, the cursor cell, and the cell size in pixels. The helper hides the popup when you switch app, window, or tab.
+**Helper** (`helper/`). A small macOS app with no Dock icon. It starts the engine and restarts it after a crash. It shows a floating panel that does not take keyboard focus. It finds the terminal window through the public window list. In tmux, tmux supplies the pane offset, the cursor cell, and the cell size in pixels. Outside tmux, the terminal supplies the cursor cell and the cell size. In zsh and bash the question goes out when a new word starts, and the answer is read as a key sequence, so typed keys keep their order. In fish the bridge asks and reads the answer while the key hook waits, and it does not ask while more typed keys are waiting. The helper hides the popup when you switch app, window, or tab.
 
 ## Configuration
 
@@ -189,7 +201,13 @@ The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is 
 
 ## Limits
 
-- zsh inside tmux only. The adapter stays inactive in a shell outside tmux.
+- bash and fish: the popup is off in vi mode. In bash, keys with a character outside ASCII, a paste, and a Tab completion do not update the popup until the next key.
+- bash: each key clears and draws the input line again, which is how bash runs a key hook.
+- fish, outside tmux: a key that is not text, Enter, Tab, or Backspace is lost, with the keys typed after it, if it arrives in the short time in which the bridge reads the cursor position.
+- bash and fish: each shell keeps one bridge process, about 28 MB.
+- Outside tmux, the popup stays hidden in a native split of the terminal app, because the window list gives the window and not the pane. Use one pane for each window or tab, or use tmux for splits.
+- Outside tmux, the popup stays hidden in a terminal that does not answer a cursor position query. In a terminal that does not report its cell size, the position is correct only with no tab bar and no split.
+- Outside tmux, a terminal that keeps all its tabs in one window does not tell Figxit about a tab switch. The popup closes at the next key.
 - macOS only.
 - Escape does not close the popup yet.
 - After an option that ends in `=`, values are not suggested yet.
@@ -201,7 +219,7 @@ The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is 
 ```bash
 make dev      # run the helper and the engine from source, with reload
 make test     # unit tests
-make e2e      # end-to-end test in a private tmux server
+make e2e      # end-to-end test for zsh, bash, and fish in a private tmux server, with and without tmux geometry
 make smoke    # build the app and test the bundle and the figxit command
 make build    # build and sign dist/Figxit.app
 make dmg      # build the disk image with the drag-to-Applications window
@@ -214,12 +232,16 @@ Builds get an ad hoc signature, which is enough to run the app on your own Mac. 
 For development, source the adapter from the repository in place of the `eval` line:
 
 ```bash
-source /path/to/figxit/shell/zsh/figxit.zsh
+source /path/to/figxit/shell/zsh/figxit.zsh      # zsh
+source /path/to/figxit/shell/bash/figxit.bash    # bash
+source /path/to/figxit/shell/fish/figxit.fish    # fish
 ```
+
+From the repository, the bash and fish adapters run the bridge with `bun run engine/src/main.ts bridge`.
 
 With that line the adapter starts nothing by itself. `make dev` runs the helper and the engine in the foreground and reloads the engine when its source changes. Ctrl-C stops both.
 
-The end-to-end test starts its own tmux server and a stand-in for the helper, so it does not touch your running session. Set `FIGXIT_E2E_REAL=1` to run it with your own `~/.zshrc`.
+The end-to-end test starts its own tmux server and a stand-in for the helper, so it does not touch your running session. Set `FIGXIT_E2E_SHELL=bash` or `fish` to run one shell, and `FIGXIT_E2E_PLAIN=1` to run without tmux geometry. Set `FIGXIT_E2E_REAL=1` to run the zsh test with your own `~/.zshrc`.
 
 ## Privacy
 
