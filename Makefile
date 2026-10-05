@@ -6,7 +6,7 @@ BUMP ?= patch
 export SIGN_ID NOTARY_PROFILE CF_TOKEN_REF R2_BUCKET SITE_URL
 
 .DEFAULT_GOAL := help
-.PHONY: help dev test e2e smoke stop clean build dmg release r2
+.PHONY: help dev site test e2e smoke stop clean build dmg release r2
 
 help: ## List the commands
 	@awk 'BEGIN {FS = ":.*## "} /^##@/ {printf "\n%s\n", substr($$0, 5)} /^[a-z0-9-]+:.*## / {printf "  make %-14s %s\n", $$1, $$2}' $(firstword $(MAKEFILE_LIST))
@@ -15,6 +15,9 @@ help: ## List the commands
 
 dev: ## Run the helper and the engine from source, with reload. Ctrl-C stops both
 	@scripts/dev.sh
+
+site: ## Serve docs/ at http://localhost:4174 and open it. PORT=<n> to change. Ctrl-C stops it
+	@(sleep 1; open http://localhost:$(or $(PORT),4174)) & python3 -m http.server $(or $(PORT),4174) --directory docs
 
 test: ## Run the unit tests
 	cd engine && bun test
@@ -42,8 +45,8 @@ dmg: build ## Build dist/Figxit.dmg with the drag-to-Applications window
 
 ##@ Release (owner only, see docs/RELEASING.md)
 
-release: ## Publish the app: build, sign, notarize, upload, tag, GitHub release. BUMP=patch|minor|major
+release: ## [prod] Publish the app: build, sign, notarize, upload, tag, GitHub release. BUMP=patch|minor|major
 	@scripts/release.sh $(BUMP)
 
-r2: ## Publish the site only: upload docs/ to R2. No build, no tag
+r2: ## [prod] Publish the site only: upload docs/ to R2. No build, no tag
 	@scripts/r2.sh site

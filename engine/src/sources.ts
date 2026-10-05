@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { ICONS } from "./brands";
-import { verbIcon } from "./verbs";
+import { CAUTION, cautious, verbIcon } from "./verbs";
 
 export interface Candidate {
   label: string;
@@ -27,6 +27,7 @@ const SECTION = /^##@\s*(.+)$/;
 const MAX_DETAIL = 64;
 const MAKE_ELSEWHERE = /^(-C|-f|--directory|--file|--makefile)/;
 const MAKE_VALUE = /^-[jlokIW]$/;
+const CAUTION_TAG = /^\[(prod|production|danger|caution)\]\s*/i;
 const BRANCH_COMMANDS = new Set(["checkout", "switch", "merge", "rebase", "cherry-pick"]);
 const SCRIPT_RUNNERS: Record<string, number[]> = { npm: [2], pnpm: [1, 2], yarn: [1, 2], bun: [1, 2] };
 
@@ -64,13 +65,18 @@ export function parseMakefile(text: string): Candidate[] {
     }
     const match = TARGET.exec(line);
     if (!match || match[1]!.includes("%")) continue;
-    const help = /##\s*(.+)$/.exec(match[2]!)?.[1]!.trim() ?? "";
+    const noted = /##\s*(.+)$/.exec(match[2]!)?.[1]!.trim() ?? "";
+    const help = noted.replace(CAUTION_TAG, "");
+    const flagged = help !== noted || cautious(match[1]!);
     const existing = seen.get(match[1]!);
     if (existing) {
       if (help) existing.detail = describe(section, help);
+      if (flagged) existing.tint = CAUTION;
       continue;
     }
-    seen.set(match[1]!, { label: match[1]!, detail: describe(section, help), score: 1, ...verbIcon(match[1]!) });
+    const candidate: Candidate = { label: match[1]!, detail: describe(section, help), score: 1, ...verbIcon(match[1]!) };
+    if (flagged) candidate.tint = CAUTION;
+    seen.set(match[1]!, candidate);
   }
   return [...seen.values()];
 }
@@ -88,6 +94,7 @@ export function parseScripts(text: string): Candidate[] {
           detail: command.length > 48 ? command.slice(0, 47) + "…" : command,
           score: 1,
           ...verbIcon(name),
+          ...(cautious(name) ? { tint: CAUTION } : {}),
         };
       });
   } catch {

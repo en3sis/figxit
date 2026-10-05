@@ -11,6 +11,7 @@ process.env.FIGXIT_ATUIN_DB = join(work, "none.db");
 
 const { History } = await import("../src/history");
 const { suggest } = await import("../src/suggest");
+const { registerSpec } = await import("../src/specs");
 
 mkdirSync(project);
 mkdirSync(out, { recursive: true });
@@ -45,6 +46,35 @@ writeFileSync(
   }),
 );
 
+const ops = join(work, "ops");
+mkdirSync(ops);
+writeFileSync(
+  join(ops, "Makefile"),
+  [
+    "##@ Develop",
+    "dev: ## Start the stack",
+    "test: ## Run the tests",
+    "##@ Deploy",
+    "deploy-staging: ## Deploy to staging",
+    "deploy-prod: ## Deploy to production",
+    "release: ## [prod] Publish the app",
+    "db-reset: ## [danger] Drop the data and seed again",
+    "",
+  ].join("\n"),
+);
+registerSpec("ssh", {
+  name: "ssh",
+  args: {
+    name: "host",
+    generators: [
+      {
+        custom: async () =>
+          ["PROD", "PROD-DB", "staging", "kara", "backup"].map((name) => ({ name, description: "SSH host", priority: 50 })),
+      },
+    ],
+  },
+});
+
 const history = new History();
 const now = Date.now();
 const used: [string, number][] = [
@@ -70,7 +100,9 @@ for (const [command, times] of used) {
   for (let i = 0; i < times; i++) history.add(command, project, now - i * 3_600_000, 0);
 }
 
-const shots: [string, string, number][] = [
+const shots: [string, string, number, string?][] = [
+  ["caution-make", "make ", 6, ops],
+  ["caution-hosts", "ssh ", 5, ops],
   ["make", "make ", 7],
   ["scripts", "npm run ", 7],
   ["commands", "p", 8],
@@ -78,8 +110,8 @@ const shots: [string, string, number][] = [
   ["options", "docker run --", 8],
 ];
 
-for (const [name, buffer, count] of shots) {
-  const result = await suggest(buffer, buffer.length, project, history, now);
+for (const [name, buffer, count, cwd] of shots) {
+  const result = await suggest(buffer, buffer.length, cwd ?? project, history, now);
   const full = result.more ? await result.more : result.now;
   const items = (full?.items ?? []).slice(0, count).map(({ label, detail, icon, tint }) => ({ label, detail, icon, tint }));
   const file = join(work, `${name}.json`);

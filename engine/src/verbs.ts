@@ -43,3 +43,12 @@ export function verbIcon(name: string): Icon {
   const verb = verbOf(name);
   return { icon: verb ? VERBS[verb]!.icon : "sf:terminal.fill", tint: TINT };
 }
+
+const CAPITALS = /^(?=(?:[^A-Z]*[A-Z]){2})[A-Z0-9_.:-]+$/;
+const PRODUCTION = /(^|[-_:.\/])(prod|production)($|[-_:.\/])/i;
+
+export const CAUTION = "D70015";
+
+export function cautious(name: string): boolean {
+  return CAPITALS.test(name) || PRODUCTION.test(name);
+}

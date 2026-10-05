@@ -7,7 +7,8 @@ export interface Scan {
 
 const SEPARATORS = new Set([";", "|", "&", "(", ")", "\n"]);
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
-const WRAPPERS = new Set(["sudo", "command", "noglob", "nocorrect", "time"]);
+const WRAPPERS = new Set(["sudo", "command", "noglob", "nocorrect", "time", "do", "then", "else", "elif", "if", "while", "until", "!", "{"]);
+export const RESERVED = new Set(["done", "fi", "esac", "for", "in", "case", "select", "function", "}", "[[", "]]"]);
 
 export function scan(text: string): Scan {
   const segments: string[][] = [[]];

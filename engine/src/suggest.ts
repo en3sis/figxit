@@ -3,7 +3,8 @@ import { fileCandidates, lookup, type GenContext, type Lookup } from "./generato
 import type { History } from "./history";
 import { projectCandidates, repoRoot, type Candidate } from "./sources";
 import { emit, loadSpec, locate, toCandidate, type Emitted } from "./specs";
-import { commandWords, scan } from "./tokenize";
+import { commandWords, RESERVED, scan } from "./tokenize";
+import { CAUTION, cautious } from "./verbs";
 
 export interface Suggestion {
   items: Candidate[];
@@ -111,6 +112,8 @@ export async function suggest(
         const dotted = candidate.label.startsWith(".") && !candidate.label.startsWith("../");
         if (dotted && !prefix.startsWith(".")) continue;
         candidate.score = Math.min(candidate.score, 0.65);
+      } else if (cautious(candidate.label)) {
+        candidate.tint = CAUTION;
       }
       pick(candidate);
     }
@@ -133,10 +136,11 @@ export async function suggest(
       if (secretLike(token, words[depth - 1])) continue;
       if (token.startsWith("-") !== prefix.startsWith("-")) continue;
       if (pathLike(token) && stat.local === 0) continue;
-      if (depth === 0 && stat.count < 2) continue;
+      if (depth === 0 && (stat.count < 2 || RESERVED.has(token))) continue;
       add({
         label: token,
         detail: depth === 0 ? "command" : "history",
+        pick: depth === 0,
         score: stat.score,
         ...iconFor(token, depth, command),
       });

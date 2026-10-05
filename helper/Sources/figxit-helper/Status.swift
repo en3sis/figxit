@@ -273,6 +273,7 @@ final class StatusController: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let engine: EngineSupervisor?
     private let setup = SetupWindow()
+    private let aboutWindow = AboutWindow()
     private let stateItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let pauseItem = NSMenuItem(title: "", action: #selector(togglePause), keyEquivalent: "")
     private let restartItem = NSMenuItem(title: "Restart Engine", action: #selector(restart), keyEquivalent: "")
@@ -412,25 +413,8 @@ final class StatusController: NSObject, NSMenuDelegate {
         refresh()
     }
 
-    private static let aboutLinks: [(label: String, url: String)] = [
-        ("Website", "https://figxit.com"),
-        ("GitHub", "https://github.com/en3sis/figxit"),
-        ("Discord", "https://discord.gg/Q34NWaC7pM"),
-        ("X", "https://x.com/en3sis"),
-    ]
-
     @objc private func about() {
-        let style = NSMutableParagraphStyle()
-        style.alignment = .center
-        let font = NSFont.systemFont(ofSize: 11)
-        let credits = NSMutableAttributedString()
-        for link in Self.aboutLinks {
-            guard let url = URL(string: link.url) else { continue }
-            if credits.length > 0 { credits.append(NSAttributedString(string: "\n", attributes: [.font: font, .paragraphStyle: style])) }
-            credits.append(NSAttributedString(string: link.label, attributes: [.link: url, .font: font, .paragraphStyle: style]))
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+        aboutWindow.show()
     }
 
     @objc private func quit() {
