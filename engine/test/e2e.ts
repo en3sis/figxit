@@ -78,6 +78,7 @@ try {
   await keys("make ");
   let show = lastShow();
   check("popup opens after 'make '", !!show, messages);
+  check("the engine counts the connected shell", (await Bun.file(join(work, "shells")).text().catch(() => "")).trim() === "1");
   check("lists the Makefile targets", show?.items.map((i: any) => i.label).sort().join() === "admin-url,build,deploy,dev", show?.items);
   check("carries the help text", show?.items.find((i: any) => i.label === "dev")?.detail === "Start the stack", show?.items);
   const anchorCol = show?.grid.col;
@@ -97,6 +98,10 @@ try {
   check("Tab inserts the selection and a space", screen().includes(`make ${filtered[1]} X`), screen());
 
   await keys("C-u");
+  await keys("make build ");
+  check("no second list after a target", messages.at(-1)?.cmd === "hide", messages.slice(-3));
+  await keys("C-u");
+
   await keys(" echo hi");
   const before = messages.length;
   await keys("Enter");

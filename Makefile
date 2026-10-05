@@ -7,7 +7,7 @@ DAYS ?= 14
 export SIGN_ID NOTARY_PROFILE CF_TOKEN_REF R2_BUCKET SITE_URL
 
 .DEFAULT_GOAL := help
-.PHONY: help dev test e2e smoke stop clean build dmg release site stats stats-deploy r2-ls cf-forget icons appicon shots
+.PHONY: help dev test e2e smoke stop clean build dmg release r2 stats stats-deploy r2-ls cf-forget icons appicon shots
 
 help: ## List the commands
 	@awk 'BEGIN {FS = ":.*## "} /^##@/ {printf "\n%s\n", substr($$0, 5)} /^[a-z0-9-]+:.*## / {printf "  make %-14s %s\n", $$1, $$2}' $(firstword $(MAKEFILE_LIST))
@@ -43,10 +43,10 @@ dmg: build ## Build dist/Figxit.dmg with the drag-to-Applications window
 
 ##@ Release (owner only, see docs/RELEASING.md)
 
-release: ## Notarize, upload, tag, and publish. BUMP=patch|minor|major
+release: ## Publish the app: build, sign, notarize, upload, tag, GitHub release. BUMP=patch|minor|major
 	@scripts/release.sh $(BUMP)
 
-site: ## Upload only the site in docs/ to R2
+r2: ## Publish the site only: upload docs/ to R2. No build, no tag
 	@scripts/r2.sh site
 
 stats: ## Show install counts. DAYS=14

@@ -1,0 +1,35 @@
+# Figxit
+
+> Figxit is a native macOS autocomplete popup for zsh inside tmux. It opens under the cursor as you type and lists the commands, subcommands, options, package.json scripts, and Makefile targets that fit, ranked by your own shell history. It is open source (MIT), free, and local only: no account, no AI chat, no telemetry.
+
+Key facts:
+
+- Platform: Apple Silicon Mac, macOS 13 or later, zsh inside tmux. No other shell, terminal multiplexer, or operating system is supported yet.
+- Current version: 0.1.0.
+- Install: download the disk image, drag Figxit to Applications, open it, and add one line to `~/.zshrc`.
+- Completion data: the open source Fig completion specs (700+ tools), plus the Makefile and package.json in the current folder.
+- Ranking: reads the Atuin history database, read-only. Atuin is optional.
+- Permissions: no Accessibility or Screen Recording access.
+- Figxit is not affiliated with Fig, Amazon, or Kiro.
+
+## Docs
+
+- [Full page content as Markdown](https://figxit.com/llms-full.txt): what it does, keys, how it works, install steps, requirements, limits, privacy, credits
+- [README](https://github.com/en3sis/figxit/blob/main/README.md): the complete reference, with the menu bar items, the `figxit` command, configuration, and development
+- [Website](https://figxit.com/): the landing page with screenshots
+
+## Install
+
+- [Download Figxit.dmg](https://figxit.com/download/Figxit.dmg): the latest release as a disk image for Apple Silicon
+- [Install steps](https://figxit.com/#install): download, drag to Applications, add one line to `~/.zshrc`, run `figxit doctor` to check
+
+## Source
+
+- [GitHub repository](https://github.com/en3sis/figxit): source code and issues
+- [Licence](https://github.com/en3sis/figxit/blob/main/LICENSE): MIT
+
+## Optional
+
+- [Build from source](https://github.com/en3sis/figxit/blob/main/README.md#development): make targets and build requirements
+- [Update feed](https://figxit.com/appcast.xml): the Sparkle appcast with the current version
+- [Author](https://en3sis.com): en3sis

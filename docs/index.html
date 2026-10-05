@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Figxit: autocomplete popup for your terminal</title>
 <meta name="description" content="A native macOS autocomplete popup for zsh. It lists commands, subcommands, options, scripts, and Makefile targets as you type, ranked by your own history. Local only.">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 <meta name="author" content="en3sis">
 <link rel="author" href="https://en3sis.com">
+<link rel="me" href="https://en3sis.com">
+<link rel="alternate" type="text/plain" href="https://figxit.com/llms-full.txt" title="Figxit page content as Markdown">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#f6f7fb">
 <link rel="icon" type="image/png" sizes="32x32" href="icon/rounded/icon-32.png">
@@ -25,6 +28,55 @@
 <meta name="twitter:title" content="Figxit: autocomplete popup for your terminal">
 <meta name="twitter:description" content="A native autocomplete popup for your terminal. No account, no AI chat, no telemetry.">
 <meta name="twitter:image" content="https://figxit.com/og.png">
+<meta name="twitter:image:alt" content="Figxit app icon and the line: Autocomplete popup for your terminal">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://figxit.com/#app",
+      "name": "Figxit",
+      "url": "https://figxit.com/",
+      "description": "A native macOS autocomplete popup for zsh. It lists commands, subcommands, options, scripts, and Makefile targets as you type, ranked by your own history. Local only.",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "macOS 13 or later",
+      "processorRequirements": "Apple Silicon",
+      "softwareRequirements": "zsh inside tmux",
+      "softwareVersion": "0.1.0",
+      "downloadUrl": "https://figxit.com/download/Figxit.dmg",
+      "installUrl": "https://figxit.com/#install",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "image": "https://figxit.com/og.png",
+      "screenshot": "https://figxit.com/img/make.png",
+      "sameAs": "https://github.com/en3sis/figxit",
+      "author": { "@id": "https://en3sis.com/#person" },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://figxit.com/#website",
+      "name": "Figxit",
+      "url": "https://figxit.com/",
+      "inLanguage": "en",
+      "about": { "@id": "https://figxit.com/#app" },
+      "publisher": { "@id": "https://en3sis.com/#person" }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://en3sis.com/#person",
+      "name": "en3sis",
+      "url": "https://en3sis.com",
+      "sameAs": "https://github.com/en3sis"
+    }
+  ]
+}
+</script>
 <style>
 :root {
   --bg: #f6f7fb;
@@ -648,7 +700,7 @@ footer a { color: var(--muted); }
     <p>Completion specs from <a href="https://github.com/withfig/autocomplete">withfig/autocomplete</a> (MIT). Product icons from <a href="https://simpleicons.org">Simple Icons</a> (CC0). Interface icons from <a href="https://lucide.dev">Lucide</a> (ISC). The logos are trademarks of their owners.</p>
     <p>Figxit is not affiliated with Fig, Amazon, or Kiro.</p>
   </div>
-  <p class="made">Built with love by <img src="img/en3sis.png" width="20" height="20" alt="" loading="lazy"><a href="https://en3sis.com">@en3sis</a></p>
+  <p class="made">Built with love by <img src="img/en3sis.png" width="20" height="20" alt="" loading="lazy"><a href="https://en3sis.com" rel="me author">@en3sis</a></p>
 </footer>
 
 </div>

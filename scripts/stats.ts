@@ -59,18 +59,21 @@ async function deploy() {
     console.error(`No Cloudflare zone for ${host}`);
     process.exit(1);
   }
-  const routes: { pattern: string }[] = (await api(`/zones/${zone}/workers/routes`)).result ?? [];
+  const routes: { id: string; pattern: string; request_limit_fail_open?: boolean }[] =
+    (await api(`/zones/${zone}/workers/routes`)).result ?? [];
   for (const pattern of [`${host}/appcast.xml`, `${host}/download/*`]) {
-    if (routes.some((route) => route.pattern === pattern)) {
-      console.log(`route ${pattern} exists`);
-      continue;
+    const route = routes.find((entry) => entry.pattern === pattern);
+    const body = JSON.stringify({ pattern, script: WORKER, request_limit_fail_open: true });
+    const headers = { "Content-Type": "application/json" };
+    if (!route) {
+      await api(`/zones/${zone}/workers/routes`, { method: "POST", headers, body });
+      console.log(`route ${pattern} added, fail open`);
+    } else if (route.request_limit_fail_open !== true) {
+      await api(`/zones/${zone}/workers/routes/${route.id}`, { method: "PUT", headers, body });
+      console.log(`route ${pattern} set to fail open`);
+    } else {
+      console.log(`route ${pattern} exists, fail open`);
     }
-    await api(`/zones/${zone}/workers/routes`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pattern, script: WORKER }),
-    });
-    console.log(`route ${pattern} added`);
   }
   if (!bound) {
     console.log(`

@@ -21,7 +21,7 @@ The Makefile only names the tasks. `make` with no argument lists them. The logic
 | Script | Task |
 |---|---|
 | `release.sh` | The full release, `make release` |
-| `r2.sh` | R2 login and uploads, `make site`, `make r2-ls`, `make cf-forget` |
+| `r2.sh` | R2 login and uploads, `make r2`, `make r2-ls`, `make cf-forget` |
 | `stats.ts` | Install counts, `make stats`, `make stats-deploy` |
 | `build.sh` | Builds the app bundle, `make build` |
 | `dev.sh` | Runs the helper and the engine from source, `make dev` |
@@ -81,7 +81,7 @@ Bucket `figxit-prod`, served at figxit.com.
 
 The site upload deletes remote files that are not in `docs/`, but it does not touch `/download/`.
 
-`make site` uploads only the site. Use it for a text change with no new release.
+`make r2` uploads only the site. Use it for a text change with no new release.
 
 `make r2-ls` lists the bucket.
 
@@ -133,8 +133,6 @@ make stats DAYS=30
 
 Both commands use the cached Cloudflare token, see "Cloudflare credentials". The token needs the Workers Scripts, Workers Routes, and Account Analytics permissions.
 
-The Worker is on the free Workers plan, which has a limit of requests each day. In the Cloudflare dashboard, set the Workers failure mode to "fail open", so that requests go directly to R2 if the limit is reached. Then the counter cannot block an update.
-
 After a deploy, check it:
 
 1. `curl -sI https://figxit.com/appcast.xml` returns 200.
@@ -142,6 +140,25 @@ After a deploy, check it:
 3. Wait one minute, then `make stats` shows one `install` row.
 
 If the first update shows as `install` and not `update`, the Sparkle downloader did not send the app User-Agent. Change `classify` in the Worker.
+
+## Cost and abuse limits
+
+What can cost money: only R2 reads. The Workers plan is the free plan, which stops at its daily request limit and cannot make a bill. R2 has no charge for data transfer. R2 reads cost money above 10 million each month.
+
+| Risk | Control |
+|---|---|
+| A flood reaches the Workers daily limit and blocks downloads | Both routes are set to fail open by `make stats-deploy`. Above the limit, requests skip the Worker and go to R2. Counting stops, downloads continue |
+| A flood of requests reads from R2 each time | The disk images are cached at the Cloudflare edge. Add the cache rule below so the site and the feed are cached too |
+| One client sends many requests | Add the rate limit rule below |
+| A bill grows with no notice | Add the billing notification below |
+
+Set these three in the Cloudflare dashboard, one time. The API token cannot set them.
+
+1. **Cache rule.** figxit.com, Caching, Cache Rules, Create rule. When: Hostname equals `figxit.com`. Then: Eligible for cache, Edge TTL "Use cache-control header if present". The site and the feed are then served from the edge for 5 minutes at a time.
+2. **Rate limit rule.** figxit.com, Security, WAF, Rate limiting rules, Create rule. When: Hostname equals `figxit.com`. Rate: 100 requests in 10 seconds for each IP address. Action: Block for 10 seconds. The free plan has one such rule.
+3. **Billing notification.** Manage Account, Notifications, Add, "Billing: Usage Based Billing". Product: R2. Set a low threshold, so you get an email long before a cost.
+
+The counts can be inflated by a person who sends requests with the app name. They are a guide, not an exact number.
 
 ## Checks after a release
 

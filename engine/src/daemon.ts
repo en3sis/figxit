@@ -1,5 +1,5 @@
-import { chmodSync, mkdirSync, unlinkSync } from "node:fs";
-import { dirname } from "node:path";
+import { chmodSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { Socket } from "bun";
 import { tmuxGrid, tmuxQuery, type Grid, type TmuxTarget } from "./geometry";
 import { Helper } from "./helper";
@@ -28,11 +28,20 @@ interface Session {
   anchorKey: string | null;
   anchor: Grid | null;
   seq: number;
+  counted: boolean;
 }
 
 const history = new History();
 const helper = new Helper();
 let active: Session | null = null;
+let shells = 0;
+
+function count(change: number) {
+  shells += change;
+  try {
+    writeFileSync(join(dirname(SOCK), "shells"), `${shells}\n`);
+  } catch {}
+}
 
 function setVisible(s: Session, visible: boolean) {
   if (visible) active = s;
@@ -155,6 +164,10 @@ function onLine(s: Session, line: string) {
   switch (f[0]) {
     case "H":
       s.tmux = f[2] && f[3] ? { socket: f[2], pane: f[3] } : null;
+      if (!s.counted) {
+        s.counted = true;
+        count(1);
+      }
       if (f[4]) process.env.PATH = f[4];
       break;
     case "L":
@@ -191,6 +204,7 @@ export async function daemon() {
   } catch {}
 
   history.refresh(0);
+  count(0);
 
   Bun.listen<Session>({
     unix: SOCK,
@@ -209,6 +223,7 @@ export async function daemon() {
           anchorKey: null,
           anchor: null,
           seq: 0,
+          counted: false,
         };
       },
       data(socket, chunk) {
@@ -224,6 +239,7 @@ export async function daemon() {
       close(socket) {
         const s = socket.data;
         s.seq++;
+        if (s.counted) count(-1);
         if (active === s) {
           active = null;
           helper.send({ cmd: "hide" });

@@ -5,6 +5,7 @@ autoload -Uz add-zle-hook-widget add-zsh-hook
 typeset -g FIGXIT_HOME=${FIGXIT_HOME:-${${(%):-%x}:A:h:h:h}}
 typeset -g _figxit_sock=${FIGXIT_SOCK:-$HOME/.local/state/figxit/engine.sock}
 typeset -g _figxit_sep=$'\x1f'
+(( $+functions[_figxit_close] )) && _figxit_close
 typeset -g _figxit_fd=
 typeset -g _figxit_last=
 typeset -gi _figxit_visible=0 _figxit_retry=0 _figxit_depth=0
@@ -63,14 +64,20 @@ _figxit_apply() {
   [[ $f[1] == S ]] && _figxit_visible=$f[2]
 }
 
-_figxit_recv() {
-  local line
-  if [[ -n $2 ]]; then
+_figxit_drop() {
+  local fd=$1
+  if [[ $fd == $_figxit_fd ]]; then
     _figxit_close
     return
   fi
-  if ! IFS= read -r -u $1 line; then
-    _figxit_close
+  zle -F $fd 2>/dev/null
+  exec {fd}>&-
+}
+
+_figxit_recv() {
+  local line
+  if [[ -n $2 ]] || ! IFS= read -r -u $1 line; then
+    _figxit_drop $1
     return
   fi
   _figxit_apply $line
@@ -146,7 +153,10 @@ _figxit_line_init() {
 }
 
 _figxit_redraw() {
-  [[ -n $_figxit_fd ]] || return 0
+  if [[ -z $_figxit_fd ]]; then
+    _figxit_connect || return 0
+    _figxit_bind
+  fi
   (( PENDING )) && return 0
   local state="$CURSOR$_figxit_sep$BUFFER"
   [[ $state == "$_figxit_last" ]] && return 0

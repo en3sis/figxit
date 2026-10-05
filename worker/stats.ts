@@ -24,9 +24,9 @@ export function classify(method: string, path: string, agent: string | null, ran
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const response = await fetch(request);
+    const path = new URL(request.url).pathname;
+    const response = await fetch(request, { cf: { cacheEverything: path === "/appcast.xml" } } as RequestInit);
     try {
-      const path = new URL(request.url).pathname;
       const hit =
         response.status < 400
           ? classify(request.method, path, request.headers.get("user-agent"), request.headers.get("range"))

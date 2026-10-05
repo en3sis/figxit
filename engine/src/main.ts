@@ -1,6 +1,6 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { version } from "../package.json";
 import { daemon } from "./daemon";
 import { appPath, bundlePath, ENGINE_SOCK, HELPER_SOCK, specsDir } from "./paths";
@@ -90,6 +90,10 @@ async function doctor(fromApp: boolean): Promise<number> {
       specCount = (await import(join(specs, "index.js"))).default.length;
     } catch {}
   }
+  let shells = 0;
+  try {
+    shells = Number(readFileSync(join(dirname(ENGINE_SOCK), "shells"), "utf8")) || 0;
+  } catch {}
   const atuin = process.env.FIGXIT_ATUIN_DB ?? join(homedir(), ".local/share/atuin/history.db");
   const checks: [boolean, string, string][] = [
     [app !== null, "app bundle", app ?? "not found"],
@@ -97,6 +101,7 @@ async function doctor(fromApp: boolean): Promise<number> {
     [await reachable(ENGINE_SOCK), "engine", ENGINE_SOCK],
     [specCount > 0, "completion specs", specs ? `${specCount} in ${specs}` : "not found"],
     [existsSync(atuin), "atuin history", existsSync(atuin) ? atuin : "not found, ranking is off"],
+    [shells > 0, "shells connected", shells > 0 ? String(shells) : "none, run exec zsh in each open terminal"],
   ];
   const shell: [boolean, string, string][] = [
     [Bun.which("tmux") !== null, "tmux on PATH", Bun.which("tmux") ?? "not found"],

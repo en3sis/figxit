@@ -187,6 +187,17 @@ describe("suggest", () => {
   });
 });
 
+describe("project targets", () => {
+  test("make lists targets one time", async () => {
+    const cwd = project({ Makefile: "build:\ndev:\n" });
+    const first = (await suggest("make ", 5, cwd, historyOf([]), NOW))!;
+    expect(first.items.map((i) => i.label)).toEqual(["build", "dev"]);
+    expect(await suggest("make build ", 11, cwd, historyOf([]), NOW)).toBeNull();
+    const flagged = (await suggest("make -j4 ", 9, cwd, historyOf([]), NOW))!;
+    expect(flagged.items.map((i) => i.label)).toEqual(["build", "dev"]);
+  });
+});
+
 describe("stats worker", () => {
   const sparkle = "Figxit/0.0.1 Sparkle/2.10.0";
   const browser = "Mozilla/5.0 (Macintosh)";
