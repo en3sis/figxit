@@ -215,18 +215,27 @@ describe("commands", () => {
     expect(await suggest("tool", 4, cwd, history, NOW)).toBeNull();
   });
 
-  test("no list opens when the typed word is already a complete subcommand", async () => {
+  test("a complete subcommand gets a run row first, then the longer names", async () => {
     registerSpec("box", {
       name: "box",
-      subcommands: [{ name: "ps" }, { name: "pause" }, { name: "push" }, { name: ["compose", "cps"] }],
+      subcommands: [
+        { name: "ps" },
+        { name: "psql" },
+        { name: "pause" },
+        { name: ["compose", "cps"] },
+        { name: "exec", args: { name: "container" } },
+        { name: "prune", isDangerous: true },
+      ],
     });
     const partial = await suggest("box p", 5, "/", historyOf([]), NOW);
-    expect(partial?.items.map((i) => i.label)).toContain("ps");
-    expect(await suggest("box ps", 6, "/", historyOf([]), NOW)).toBeNull();
-    expect(partial?.items.every((i) => i.pick)).toBe(true);
-    expect(await suggest("box cps", 7, "/", historyOf([]), NOW)).toBeNull();
-    const longer = await suggest("box pu", 6, "/", historyOf([]), NOW);
-    expect(longer?.items.map((i) => i.label)).toEqual(["push", "pause"]);
+    expect(partial?.items.map((i) => i.label).sort()).toEqual(["pause", "prune", "ps", "psql"]);
+    expect(partial?.items.every((i) => i.pick && !i.run)).toBe(true);
+    const complete = await suggest("box ps", 6, "/", historyOf([]), NOW);
+    expect(complete?.items.map((i) => [i.label, i.run === true])).toEqual([["ps", true], ["psql", false]]);
+    const alias = await suggest("box cps", 7, "/", historyOf([]), NOW);
+    expect(alias?.items.map((i) => [i.label, i.run === true])).toEqual([["cps", true]]);
+    expect(await suggest("box exec", 8, "/", historyOf([]), NOW)).toBeNull();
+    expect(await suggest("box prune", 9, "/", historyOf([]), NOW)).toBeNull();
   });
 });
 

@@ -111,12 +111,10 @@ export async function suggest(
         const dotted = candidate.label.startsWith(".") && !candidate.label.startsWith("../");
         if (dotted && !prefix.startsWith(".")) continue;
         candidate.score = Math.min(candidate.score, 0.65);
-        add(candidate);
-        continue;
       }
       pick(candidate);
     }
-    files.forEach(add);
+    files.forEach(pick);
 
     const claimed = new Set<string>();
     for (const candidate of merged.values()) {
@@ -144,23 +142,36 @@ export async function suggest(
       });
     }
 
+    let exact: Candidate | undefined;
     if (prefix !== "") {
       for (const candidate of merged.values()) {
-        if (candidate.label === prefix || candidate.aliases?.includes(prefix)) return null;
+        if (candidate.label === prefix || candidate.aliases?.includes(prefix)) {
+          exact = candidate;
+          break;
+        }
       }
     }
+    if (exact?.hold) return null;
 
-    const items: Candidate[] = [];
+    let items: Candidate[] = [];
+    let prefixed = false;
+    const matches = new Map<Candidate, number>();
     for (const candidate of merged.values()) {
+      if (candidate === exact) continue;
       if (candidate.insert === undefined && (candidate.label === prefix || UNSAFE.test(candidate.label))) continue;
       let match = matchScore(candidate.label, prefix);
       for (const name of candidate.aliases ?? []) match = Math.max(match, matchScore(name, prefix));
       if (match === 0 || (depth === 0 && match < 0.9)) continue;
-      items.push({ ...candidate, score: candidate.score * match });
+      const item = { ...candidate, score: candidate.score * match };
+      if (match >= 0.9) prefixed = true;
+      matches.set(item, match);
+      items.push(item);
     }
-    if (items.length === 0) return null;
+    if (prefix !== "" && (prefixed || exact)) items = items.filter((item) => matches.get(item)! >= 0.9);
+    if (items.length === 0 && !exact) return null;
 
     items.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
+    if (exact) items.unshift({ label: prefix, detail: "Run", score: 0, icon: "sf:return", tint: "3A3A3C", run: true });
     return { items: items.slice(0, MAX_ITEMS), remove: cursor - parsed.tokenStart, tokenStart: parsed.tokenStart };
   };
 

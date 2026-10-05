@@ -30,6 +30,7 @@ interface Session {
   seq: number;
   counted: boolean;
   fresh: boolean;
+  navigated: boolean;
 }
 
 const history = new History();
@@ -99,6 +100,7 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
   if (!s.tmux) return hide(s);
   const seq = ++s.seq;
   s.fresh = false;
+  s.navigated = false;
   const result = await suggest(buffer, cursor, cwd, history);
   if (seq !== s.seq) return;
   if (!result.now && !result.more) return hide(s);
@@ -148,13 +150,20 @@ function navigate(s: Session, direction: string) {
   if (!s.visible || s.items.length === 0) return;
   const step = direction === "up" ? -1 : 1;
   s.selected = (s.selected + step + s.items.length) % s.items.length;
+  s.navigated = true;
   render(s);
 }
 
 function accept(s: Session, typedOnly: boolean) {
   const item = s.visible && s.fresh ? s.items[s.selected] : undefined;
-  if (!item || (typedOnly && !(item.pick && s.remove > 0))) {
+  const chosen = item && ((item.pick && s.remove > 0) || s.navigated);
+  if (!item || (typedOnly && (item.run || !chosen))) {
     s.socket.write(`A${SEP}-1${SEP}\n`);
+    return;
+  }
+  if (item.run) {
+    s.socket.write(`A${SEP}0${SEP} \n`);
+    hide(s);
     return;
   }
   s.socket.write(`A${SEP}${s.remove}${SEP}${item.insert ?? item.label + " "}\n`);
@@ -232,6 +241,7 @@ export async function daemon() {
           seq: 0,
           counted: false,
           fresh: false,
+          navigated: false,
         };
       },
       data(socket, chunk) {

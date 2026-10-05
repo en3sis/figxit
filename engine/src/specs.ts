@@ -200,6 +200,8 @@ export function toCandidate(
     if (value && !CONTROL.test(value)) candidate.insert = value;
   }
   if (candidate.insert === undefined && label !== name) candidate.insert = `${name} `;
+  const first = list<Spec>(node.args)[0];
+  if (node.isDangerous || (first && !first.isOptional)) candidate.hold = true;
   return candidate;
 }
 
@@ -214,7 +216,7 @@ function optionCandidate(option: Spec, prefix: string): Candidate | null {
       : "="
     : " ";
   const priority = typeof option.priority === "number" ? option.priority : 50;
-  return {
+  const candidate: Candidate = {
     label,
     detail: detailOf(option, "option"),
     score: Math.min(Math.max(priority, 1), 100) / 50,
@@ -222,6 +224,9 @@ function optionCandidate(option: Spec, prefix: string): Candidate | null {
     insert: label + separator,
     ...ICONS.flag,
   };
+  const first = list<Spec>(option.args)[0];
+  if (option.isDangerous || (first && !first.isOptional)) candidate.hold = true;
+  return candidate;
 }
 
 export function emit(position: Position, prefix: string): Emitted {

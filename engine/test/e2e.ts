@@ -104,6 +104,10 @@ try {
   await keys("Enter");
   check("a second Enter runs the line", screen().includes("for `build'"), screen());
 
+  await keys("make build");
+  check("a complete target shows a run row first", lastShow()?.items[0]?.label === "build" && lastShow()?.items[0]?.icon === "sf:return", lastShow()?.items);
+  await keys("C-u");
+
   await keys("make build ");
   check("no second list after a target", messages.at(-1)?.cmd === "hide", messages.slice(-3));
   await keys("C-u");
