@@ -1,24 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
   <defs>
-    <linearGradient id="ground" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#F4F7FF"/>
-      <stop offset="0.55" stop-color="#F7F5FF"/>
-      <stop offset="1" stop-color="#F1ECFE"/>
-    </linearGradient>
-    <linearGradient id="arrow" gradientUnits="userSpaceOnUse" x1="252" y1="0" x2="340" y2="0">
-      <stop offset="0" stop-color="#4A63FF" stop-opacity="0.35"/>
-      <stop offset="1" stop-color="#7B3BF5" stop-opacity="0.9"/>
-    </linearGradient>
     <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/>
       <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect width="600" height="400" fill="url(#ground)"/>
+  <rect width="600" height="400" fill="#F6F7FB"/>
   <circle cx="160" cy="182" r="118" fill="url(#halo)"/>
   <circle cx="440" cy="182" r="118" fill="url(#halo)"/>
-  <path d="M252 182 H336" fill="none" stroke="url(#arrow)" stroke-width="7" stroke-linecap="round"/>
-  <path d="M322 164 L342 182 L322 200" fill="none" stroke="#7B3BF5" stroke-opacity="0.9" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M252 182 H336" fill="none" stroke="#111216" stroke-opacity="0.55" stroke-width="7" stroke-linecap="round"/>
+  <path d="M322 164 L342 182 L322 200" fill="none" stroke="#111216" stroke-opacity="0.55" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
   <text x="300" y="322" text-anchor="middle" font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, sans-serif" font-size="15" font-weight="600" fill="#2B2F45">Drag Figxit to Applications</text>
   <text x="300" y="345" text-anchor="middle" font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, sans-serif" font-size="12.5" fill="#6B7088">Then open it to finish the setup.</text>
 </svg>
