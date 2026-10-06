@@ -225,6 +225,14 @@ if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "snapshot" {
         dark: CommandLine.arguments.count > 4 && CommandLine.arguments[4] == "dark"
     )
 }
+if CommandLine.arguments.count >= 6, CommandLine.arguments[1] == "snapshot-scene" {
+    guard let data = FileManager.default.contents(atPath: CommandLine.arguments[2]),
+          let items = try? JSONDecoder().decode([Item].self, from: data)
+    else { exit(2) }
+    let dark = CommandLine.arguments.count > 6 && CommandLine.arguments[6] == "dark"
+    let done = Scene.render(items: items, buffer: CommandLine.arguments[4], folder: CommandLine.arguments[5], dark: dark, outPath: CommandLine.arguments[3])
+    exit(done ? 0 : 1)
+}
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "snapshot-setup" {
     let dark = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "dark"
     exit(SetupWindow().render(to: CommandLine.arguments[2], dark: dark) ? 0 : 1)

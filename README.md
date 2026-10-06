@@ -6,10 +6,10 @@ A native autocomplete popup for your terminal. It opens under the cursor as you 
 
 It is the completion part of Fig, rebuilt as a small local tool: no account, no AI chat, no telemetry.
 
-<p>
-  <img src="docs/img/make.png" width="364" alt="Popup listing Makefile targets with their section and help text">
-  <img src="docs/img/commands-dark.png" width="260" alt="Popup listing commands with product icons in dark mode">
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/make-dark.png">
+  <img src="docs/img/scene/make.png" width="640" alt="Terminal window with make typed and the popup listing Makefile targets with their section and help text">
+</picture>
 
 ## Why it exists
 
@@ -43,7 +43,10 @@ Make the command line show you its options at the moment you need them, with no 
 
 The icon comes from the verb in the name: `dev`, `start`, and `serve` share one shape, `test` and `test:e2e` share another, and `dev-down` gets the stop shape. One list of 12 verbs covers most script and target names in popular open source projects.
 
-<img src="docs/img/scripts.png" width="272" alt="Popup listing package.json scripts with the command each one runs">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/scripts-dark.png">
+  <img src="docs/img/scene/scripts.png" width="640" alt="Terminal window with npm run typed and the popup listing package.json scripts with the command each one runs">
+</picture>
 
 For a `Makefile`, the right column shows the comments that many projects already write:
 
@@ -62,9 +65,20 @@ test: ## Run the unit tests
 
 Figxit loads the open source Fig completion specs. Type a command and a space for its subcommands, or a dash for its options. Options that are already on the line are hidden.
 
-<img src="docs/img/git.png" width="420" alt="Popup listing git subcommands that match the typed letters">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/git-dark.png">
+  <img src="docs/img/scene/git.png" width="640" alt="Terminal window with git ch typed and the popup listing the git subcommands that match">
+</picture>
 
-<img src="docs/img/options.png" width="556" alt="Popup listing docker run options with descriptions">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/options-dark.png">
+  <img src="docs/img/scene/options.png" width="640" alt="Terminal window with docker run and two dashes typed and the popup listing options with descriptions">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/commands-dark.png">
+  <img src="docs/img/scene/commands.png" width="640" alt="Terminal window with the letter p typed and the popup listing commands with product icons">
+</picture>
 
 Specs can also supply live values, for example git branches after `git checkout `, hosts after `ssh `, and files and folders where a command takes a path.
 
