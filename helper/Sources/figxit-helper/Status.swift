@@ -446,7 +446,7 @@ final class SetupWindow: NSObject {
             var trailing: [NSView] = [Panel.state("Too old", .bad)]
             if let newer = shell.newer {
                 detail = "\(version) at \(shell.path ?? ""), \(Shell.version(at: newer)) at \(newer)."
-                let fix = NSButton(title: "Copy chsh", target: self, action: #selector(copyLoginFix(_:)))
+                let fix = NSButton(title: "Copy command", target: self, action: #selector(copyLoginFix(_:)))
                 fix.tag = Shell.allCases.firstIndex(of: shell) ?? 0
                 fix.bezelStyle = .rounded
                 fix.toolTip = "Copies the command that makes \(newer) your login shell"
