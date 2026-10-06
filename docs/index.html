@@ -43,7 +43,7 @@
       "operatingSystem": "macOS 13 or later",
       "processorRequirements": "Apple Silicon",
       "softwareRequirements": "zsh, bash 5, or fish 4. tmux is optional.",
-      "softwareVersion": "0.1.0",
+      "softwareVersion": "0.2.1",
       "downloadUrl": "https://figxit.com/download/Figxit.dmg",
       "installUrl": "https://figxit.com/#install",
       "license": "https://opensource.org/licenses/MIT",
@@ -92,7 +92,7 @@
           "name": "Is Figxit a replacement for Microsoft inshellisense?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "On a Mac with zsh, bash, or fish, yes. Both use the Fig completion specs. inshellisense draws its list inside the terminal session. Figxit shows a native macOS window under the cursor and also ranks rows by your history. inshellisense also runs on Windows and Linux and in other shells, and Figxit does not."
+            "text": "On a Mac with zsh, bash, or fish, yes. Both use the Fig completion specs. inshellisense draws its list inside the terminal session. Figxit shows its list in a native macOS window and orders it by your history. inshellisense also runs on Windows and Linux and in other shells, and Figxit does not."
           }
         },
         {
@@ -157,11 +157,8 @@
   --text: #0d0e14;
   --muted: #555967;
   --dim: #7b7f8f;
-  --cyan: #3fc3ff;
-  --blue: #4a63ff;
-  --violet: #7b3bf5;
-  --link: #3346d6;
-  --accent: #2f55f0;
+  --link: #0064d9;
+  --accent: #007aff;
   --line-hover: rgba(12, 14, 34, 0.34);
   --nav-bg: rgba(255, 255, 255, 0.76);
   --h1-a: #0d0e14;
@@ -170,14 +167,13 @@
   --primary-hover: #000000;
   --primary-text: #ffffff;
   --primary-ring: rgba(13, 14, 20, 0.08);
-  --glow-opacity: 0.5;
   --term-bg: rgba(255, 255, 255, 0.84);
-  --term-shadow: 0 40px 90px rgba(40, 50, 130, 0.22), inset 0 1px 0 #ffffff;
+  --term-shadow: 0 40px 90px rgba(13, 14, 20, 0.16), inset 0 1px 0 #ffffff;
   --popup-shadow: 0 18px 40px rgba(20, 25, 60, 0.2), 0 0 0 1px rgba(12, 14, 34, 0.08);
   --card-a: #ffffff;
   --card-b: #fbfbfd;
   --card-shadow: 0 1px 2px rgba(20, 25, 60, 0.05), 0 8px 24px rgba(20, 25, 60, 0.04);
-  --chip-text: #2f43d0;
+  --chip-text: #0d0e14;
   --shot-bg: #eff1f6;
   --key-a: #ffffff;
   --key-b: #eceef4;
@@ -198,6 +194,7 @@ body {
   color: var(--text);
   font-family: var(--sans);
   font-size: 16px;
+  font-weight: 500;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
@@ -302,18 +299,6 @@ button.button { font-family: inherit; cursor: pointer; }
 .trailer button:hover { background: rgba(13, 14, 20, 0.85); }
 
 .stage { position: relative; max-width: 860px; margin: 56px auto 0; text-align: left; }
-.glow {
-  position: absolute;
-  inset: -12% -10% -8%;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(42% 55% at 22% 38%, rgba(63, 195, 255, 0.55), transparent 70%),
-    radial-gradient(45% 60% at 55% 55%, rgba(74, 99, 255, 0.6), transparent 70%),
-    radial-gradient(42% 55% at 82% 40%, rgba(123, 59, 245, 0.6), transparent 70%);
-  filter: blur(56px);
-  opacity: var(--glow-opacity);
-}
 .term {
   position: relative;
   z-index: 1;
@@ -352,7 +337,7 @@ button.button { font-family: inherit; cursor: pointer; }
 .tabs button.on { color: var(--text); border-color: var(--line-hover); background: var(--card-strong); }
 
 section { padding: 112px 0 0; }
-.eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px; font: 500 13px var(--mono); color: var(--link); }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px; font: 600 13px var(--mono); color: var(--link); }
 .eyebrow .icon { width: 15px; height: 15px; }
 h2 { margin: 0 0 14px; max-width: 20ch; font-size: clamp(30px, 4.6vw, 46px); line-height: 1.08; letter-spacing: -0.028em; font-weight: 680; }
 .section-lead { max-width: 58ch; margin-bottom: 44px; font-size: 18px; color: var(--muted); }
@@ -376,7 +361,7 @@ h3 { margin: 0 0 8px; font-size: 19px; line-height: 1.25; letter-spacing: -0.015
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, -40%), rgba(91, 116, 255, 0.16), transparent 60%);
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, -40%), rgba(13, 14, 20, 0.07), transparent 60%);
   opacity: 0;
   transition: opacity 0.25s;
 }
@@ -399,7 +384,7 @@ h3 { margin: 0 0 8px; font-size: 19px; line-height: 1.25; letter-spacing: -0.015
   margin-bottom: 18px;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
-  background: linear-gradient(160deg, rgba(63, 195, 255, 0.22), rgba(123, 59, 245, 0.22));
+  background: var(--shot-bg);
   color: var(--chip-text);
 }
 .shot { margin-top: 26px; padding: 18px 18px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--shot-bg); font-family: var(--mono); font-size: 13.5px; flex: 1; }
@@ -481,30 +466,16 @@ kbd .icon { width: 17px; height: 17px; }
 .reqs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 36px; }
 .reqs span { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 14px; color: var(--muted); }
 .reqs .icon { width: 15px; height: 15px; color: var(--link); }
-.support .reqs { margin-top: 22px; }
-.support .reqs .icon { color: var(--text); }
-.support .works { align-items: center; gap: 8px; }
-.works span { padding: 7px 12px; }
-.works i { width: 1px; height: 22px; margin: 0 8px; background: var(--line); }
-.works .untested { border-style: dashed; background: none; color: var(--dim); cursor: help; }
-.support .works .untested .icon { color: var(--dim); }
-.works [data-tip] { position: relative; outline: none; }
-.works [data-tip]::after { content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translate(-50%, 4px); width: max-content; max-width: 240px; padding: 8px 12px; border-radius: 10px; background: var(--text); color: var(--bg); font-size: 13px; line-height: 1.4; text-align: center; white-space: normal; box-shadow: 0 8px 24px rgba(12, 14, 34, 0.18); opacity: 0; pointer-events: none; transition: opacity 0.12s ease, transform 0.12s ease; z-index: 5; }
-.works [data-tip]::before { content: ""; position: absolute; left: 50%; bottom: calc(100% + 5px); width: 10px; height: 10px; background: var(--text); transform: translate(-50%, 4px) rotate(45deg); opacity: 0; pointer-events: none; transition: opacity 0.12s ease, transform 0.12s ease; z-index: 5; }
-.works [data-tip]:hover::after, .works [data-tip]:focus::after { opacity: 1; transform: translate(-50%, 0); }
-.works [data-tip]:hover::before, .works [data-tip]:focus::before { opacity: 1; transform: translate(-50%, 0) rotate(45deg); }
-.works [data-tip]:focus-visible { border-color: var(--link); }
+.works { max-width: 860px; margin-top: 26px; border-top: 1px solid var(--line); }
+.works .row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; align-items: center; padding: 16px 2px; border-bottom: 1px solid var(--line); }
+.works .row > b { font: 600 13px var(--mono); color: var(--muted); }
+.works .row > div { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 26px; }
+.works span { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.works .icon { flex: none; width: 17px; height: 17px; color: var(--text); }
+.works em { font-style: normal; font-size: 13px; font-weight: 500; color: var(--dim); }
+.works .dim, .works .dim .icon { color: var(--dim); }
 
 .closing { position: relative; margin-top: 120px; padding: 72px 28px; border: 1px solid var(--line); border-radius: 28px; text-align: center; overflow: hidden; background: var(--card); }
-.closing::before {
-  content: "";
-  position: absolute;
-  inset: auto -10% -70% -10%;
-  height: 120%;
-  pointer-events: none;
-  background: radial-gradient(50% 50% at 30% 50%, rgba(63, 195, 255, 0.35), transparent 70%), radial-gradient(50% 50% at 70% 50%, rgba(123, 59, 245, 0.45), transparent 70%);
-  filter: blur(60px);
-}
 .closing > * { position: relative; }
 .closing img { width: 96px; height: 96px; margin: 0 auto 20px; }
 .closing h2 { margin: 0 auto 14px; }
@@ -520,9 +491,6 @@ footer a { color: var(--muted); }
 
 @media (max-width: 900px) {
   .s2, .s3, .s4 { grid-column: span 6; }
-  .works [data-tip]::after { left: 0; max-width: min(240px, 70vw); transform: translate(0, 4px); text-align: left; }
-  .works [data-tip]:hover::after, .works [data-tip]:focus::after { transform: translate(0, 0); }
-  .works [data-tip]::before { left: 22px; }
   .shots { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .keys { grid-template-columns: minmax(0, 1fr); }
   .flow { grid-template-columns: minmax(0, 1fr); }
@@ -535,7 +503,6 @@ footer a { color: var(--muted); }
   .nav-links a:not(.gh) { display: none; }
   .hero { padding: 56px 0 24px; }
   .stage { margin-top: 48px; }
-  .glow { inset: -8% 0 -6%; }
   .term-body { padding: 18px 16px 20px; font-size: 13px; }
   .frames { margin-left: 0; min-height: 0; }
   section { padding-top: 80px; }
@@ -545,6 +512,7 @@ footer a { color: var(--muted); }
   .cmd { flex-direction: column; }
   .cmd pre { flex: none; width: 100%; }
   .closing { margin-top: 88px; padding: 52px 20px; }
+  .works .row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -612,7 +580,7 @@ footer a { color: var(--muted); }
   <div class="hero">
     <span class="badge"><svg class="icon"><use href="#i-scale"/></svg>Open source, MIT licence, macOS</span>
     <h1>IDE autocomplete for your terminal</h1>
-    <p class="lead">Type <code>git</code>, <code>docker</code>, or <code>make</code> and pick the next word from a list, as you would in an editor. Works in zsh, bash, and fish on macOS.</p>
+    <p class="lead">Figxit completes subcommands, options, npm scripts, and Makefile targets as you type. A free, open source replacement for Fig, for zsh, bash, and fish on macOS.</p>
     <div class="actions">
       <a class="button primary" href="https://figxit.com/download/Figxit.dmg"><svg class="icon"><use href="#i-arrow-down"/></svg>Download for macOS</a>
       <a class="button" href="https://github.com/en3sis/figxit"><svg class="icon solid"><use href="#b-github"/></svg>View on GitHub</a>
@@ -621,7 +589,6 @@ footer a { color: var(--muted); }
     <p class="note">Apple Silicon, macOS 13 or later. zsh, bash 5, or fish 4. tmux is optional. No account, no AI chat, no telemetry.</p>
 
     <div class="stage">
-      <div class="glow"></div>
       <div class="term">
         <div class="term-bar"><i></i><i></i><i></i><span>zsh</span></div>
         <div class="term-body">
@@ -648,32 +615,40 @@ footer a { color: var(--muted); }
   <section id="support" class="support">
     <span class="eyebrow"><svg class="icon"><use href="#i-check"/></svg>Support</span>
     <h2>Works with</h2>
-    <div class="reqs works">
-      <span><svg class="icon solid"><use href="#b-zsh"/></svg>zsh</span>
-      <span><svg class="icon solid"><use href="#b-bash"/></svg>bash 5</span>
-      <span><svg class="icon solid"><use href="#b-fish"/></svg>fish 4</span>
-      <i></i>
-      <span><svg class="icon solid"><use href="#b-ghostty"/></svg>Ghostty</span>
-      <span><svg class="icon solid"><use href="#b-iterm2"/></svg>iTerm2</span>
-      <span><svg class="icon"><use href="#i-terminal"/></svg>Terminal</span>
-      <span class="untested" tabindex="0" data-tip="Not tested yet without tmux. In tmux, each terminal app works."><svg class="icon solid"><use href="#b-wezterm"/></svg>WezTerm</span>
-      <span class="untested" tabindex="0" data-tip="Not tested yet without tmux. In tmux, each terminal app works."><svg class="icon solid"><use href="#b-alacritty"/></svg>Alacritty</span>
-      <span class="untested" tabindex="0" data-tip="Not tested yet without tmux. In tmux, each terminal app works."><svg class="icon"><use href="#i-square-terminal"/></svg>kitty</span>
-      <i></i>
-      <span><svg class="icon solid"><use href="#b-tmux"/></svg>tmux, optional</span>
+    <div class="works">
+      <div class="row"><b>Shells</b><div>
+        <span><svg class="icon solid"><use href="#b-zsh"/></svg>zsh<em>any version</em></span>
+        <span><svg class="icon solid"><use href="#b-bash"/></svg>bash<em>5 or later</em></span>
+        <span><svg class="icon solid"><use href="#b-fish"/></svg>fish<em>4 or later</em></span>
+      </div></div>
+      <div class="row"><b>Terminals</b><div>
+        <span><svg class="icon solid"><use href="#b-ghostty"/></svg>Ghostty</span>
+        <span><svg class="icon solid"><use href="#b-iterm2"/></svg>iTerm2</span>
+        <span><svg class="icon"><use href="#i-terminal"/></svg>Terminal</span>
+      </div></div>
+      <div class="row"><b>In tmux only</b><div>
+        <span class="dim"><svg class="icon solid"><use href="#b-wezterm"/></svg>WezTerm</span>
+        <span class="dim"><svg class="icon solid"><use href="#b-alacritty"/></svg>Alacritty</span>
+        <span class="dim"><svg class="icon"><use href="#i-square-terminal"/></svg>kitty</span>
+        <em>Not tested yet without tmux</em>
+      </div></div>
+      <div class="row"><b>Optional</b><div>
+        <span><svg class="icon solid"><use href="#b-tmux"/></svg>tmux</span>
+        <span><svg class="icon"><use href="#i-history"/></svg>Atuin<em>for ranking</em></span>
+      </div></div>
     </div>
   </section>
 
   <section id="features">
     <span class="eyebrow"><svg class="icon"><use href="#i-square-terminal"/></svg>What it does</span>
-    <h2>The completion part of Fig, rebuilt as a small local tool</h2>
-    <p class="section-lead">The popup is a real macOS window. It does not take keyboard focus and it does not draw inside your terminal session.</p>
+    <h2>Autocomplete for 700+ command line tools and your own project</h2>
+    <p class="section-lead">The list is a native macOS window. It does not take keyboard focus, and nothing is drawn inside your terminal.</p>
 
     <div class="bento">
       <article class="card s3">
         <span class="chip"><svg class="icon"><use href="#i-package"/></svg></span>
         <h3>Project targets and scripts</h3>
-        <p><code>make</code> lists the targets of the Makefile in the current folder. <code>npm run</code>, <code>pnpm</code>, <code>yarn</code>, and <code>bun run</code> list the scripts of package.json, with the command each one runs. A new project works with no setup.</p>
+        <p><code>make</code> lists the targets of the Makefile in the current folder. <code>npm run</code>, <code>pnpm</code>, <code>yarn</code>, and <code>bun run</code> list the scripts of package.json, with the command each one runs. There is no setup for each project.</p>
         <div class="shot">
           <p class="prompt"><span class="mark">❯</span> npm run <span class="cursor"></span></p>
           <img src="img/scripts.png" width="272" height="206" loading="lazy" alt="Popup listing package.json scripts with the command each one runs">
@@ -718,13 +693,13 @@ footer a { color: var(--muted); }
 
       <article class="card s2">
         <span class="chip"><svg class="icon"><use href="#i-zap"/></svg></span>
-        <h3>Typing never waits</h3>
-        <p>The shell hook sends the line to the engine after each key and returns at once. It reads a reply only when you press Tab or Enter.</p>
+        <h3>No typing delay</h3>
+        <p>The shell hook sends the line to the engine after each key and does not wait for the answer. The shell waits for the engine only when you press Tab or Enter to insert a row.</p>
       </article>
 
       <article class="card s2">
         <span class="chip"><svg class="icon"><use href="#i-lock-keyhole"/></svg></span>
-        <h3>No extra permissions</h3>
+        <h3>No permission prompts</h3>
         <p>Figxit does not need Accessibility or Screen Recording access. tmux supplies the cursor position and the cell size. Without tmux, the terminal app does.</p>
       </article>
     </div>
@@ -732,28 +707,28 @@ footer a { color: var(--muted); }
 
   <section id="keys">
     <span class="eyebrow"><svg class="icon"><use href="#i-keyboard"/></svg>Keys</span>
-    <h2>Three keys, and your own bindings stay</h2>
+    <h2>Keys</h2>
     <div class="keys">
       <div class="card">
         <div class="caps"><kbd aria-label="Up"><svg class="icon"><use href="#i-arrow-up"/></svg></kbd><kbd aria-label="Down"><svg class="icon"><use href="#i-arrow-down"/></svg></kbd></div>
-        <div><h3>Move the selection</h3><p>Up and Down walk the rows of the popup.</p></div>
+        <div><h3>Move the selection</h3><p>Up and Down move through the list.</p></div>
       </div>
       <div class="card">
         <div class="caps"><kbd>Tab</kbd></div>
-        <div><h3>Insert the selected row</h3><p>The text goes into the line at the cursor.</p></div>
+        <div><h3>Insert the selected row</h3><p>Tab adds the selected row to the command line.</p></div>
       </div>
       <div class="card">
         <div class="caps"><kbd aria-label="Enter"><svg class="icon"><use href="#i-corner-down-left"/></svg></kbd></div>
-        <div><h3>Insert, or run</h3><p>Enter inserts the row you typed part of, and does not run it. When the word is complete, the first row has a return icon, and Enter runs the line.</p></div>
+        <div><h3>Insert, or run</h3><p>If you typed part of a word, Enter inserts the selected row and does not run the command. If the word is complete, the first row has a return icon, and Enter runs the command.</p></div>
       </div>
     </div>
-    <p class="after">Ctrl-U or more typing closes the popup. When it is closed, the keys do what they did before. Tab still opens your normal completion and Up still searches your history.</p>
+    <p class="after">Ctrl-U or more typing closes the list. Escape does not close it yet. When the list is closed, Tab opens your normal completion and Up searches your history, as before.</p>
   </section>
 
   <section id="conventions">
     <span class="eyebrow"><svg class="icon"><use href="#i-flag"/></svg>Conventions</span>
-    <h2>It reads the names you already use</h2>
-    <p class="section-lead">Figxit reads a few naming habits that many projects have already. None is required.</p>
+    <h2>Makefile and script conventions</h2>
+    <p class="section-lead">Figxit uses three conventions that many projects already follow. All are optional.</p>
     <div class="bento">
       <article class="card s3">
         <span class="chip"><svg class="icon"><use href="#i-hammer"/></svg></span>
@@ -767,7 +742,7 @@ footer a { color: var(--muted); }
 
       <article class="card s3">
         <span class="chip"><svg class="icon"><use href="#i-play"/></svg></span>
-        <h3>The verb selects the icon</h3>
+        <h3>Icons from the script name</h3>
         <p><code>dev</code>, <code>start</code>, and <code>serve</code> share one icon, <code>test</code> has another, <code>build</code> another. One list of 12 verbs covers most target and script names.</p>
         <div class="shot">
           <p class="prompt"><span class="mark">❯</span> npm run <span class="cursor"></span></p>
@@ -777,7 +752,7 @@ footer a { color: var(--muted); }
 
       <article class="card s6">
         <span class="chip"><svg class="icon"><use href="#i-flag"/></svg></span>
-        <h3>A red icon means be careful</h3>
+        <h3>Red icon for production</h3>
         <p>A row is red when its name is in capitals, when it has the word <code>prod</code> or <code>production</code>, or when a Makefile target has <code>[prod]</code> or <code>[danger]</code> at the start of its help text. It works for SSH hosts, targets, and scripts.</p>
         <div class="shots">
           <div class="shot">
@@ -791,13 +766,13 @@ footer a { color: var(--muted); }
         </div>
       </article>
     </div>
-    <p class="after">Name a production host <code>PROD</code>, or write <code>release: ## [prod] Publish the app</code>, and the list shows where a mistake costs more.</p>
+    <p class="after">Name a production host <code>PROD</code>, or write <code>release: ## [prod] Publish the app</code>, and that row gets a red icon.</p>
   </section>
 
   <section id="how">
     <span class="eyebrow"><svg class="icon"><use href="#i-blocks"/></svg>How it works</span>
-    <h2>Three parts that talk over unix sockets</h2>
-    <p class="section-lead">The sockets live in <code>~/.local/state/figxit/</code>. Nothing leaves your machine.</p>
+    <h2>A shell hook, an engine, and a macOS app</h2>
+    <p class="section-lead">The three parts talk over unix sockets in <code>~/.local/state/figxit/</code>. The line you type is not sent over the network.</p>
     <div class="flow">
       <div class="card">
         <span class="chip"><svg class="icon"><use href="#i-plug"/></svg></span>
@@ -824,8 +799,8 @@ footer a { color: var(--muted); }
 
   <section id="install">
     <span class="eyebrow"><svg class="icon"><use href="#i-terminal"/></svg>Install</span>
-    <h2>Download, drag, and add one line</h2>
-    <p class="section-lead">The download is a disk image with the app. The app holds the popup, the engine, and the completion specs.</p>
+    <h2>Install Figxit</h2>
+    <p class="section-lead">One app contains the engine and the completion specs. There is nothing else to install.</p>
     <ol class="steps">
       <li>
         <div>
@@ -834,7 +809,7 @@ footer a { color: var(--muted); }
       </li>
       <li>
         <div>
-          <p>Open Figxit. An icon appears in the menu bar and a setup window opens. It lists the shells on your Mac. Click <strong>Set Up</strong> for your shell, or add the line yourself. This is the line for zsh. For bash and fish, the README has the lines.</p>
+          <p>Open Figxit. An icon appears in the menu bar and a setup window opens. It lists the shells on your Mac. Click <strong>Set Up</strong> for your shell, or add the line yourself. This is the line for zsh. The lines for bash and fish are in the <a href="https://github.com/en3sis/figxit#install">README</a>.</p>
           <div class="cmd"><pre>eval "$('/Applications/Figxit.app/Contents/MacOS/figxit-engine' init zsh)"</pre><button type="button" aria-label="Copy"><svg class="icon idle"><use href="#i-copy"/></svg><svg class="icon done"><use href="#i-check"/></svg><span>Copy</span></button></div>
         </div>
       </li>
@@ -870,7 +845,7 @@ footer a { color: var(--muted); }
       </details>
       <details>
         <summary>Is Figxit a replacement for Microsoft inshellisense?<svg class="icon"><use href="#i-chevron-right"/></svg></summary>
-        <p>On a Mac with zsh, bash, or fish, yes. Both use the Fig completion specs. inshellisense draws its list inside the terminal session. Figxit shows a native macOS window under the cursor and also ranks rows by your history. inshellisense also runs on Windows and Linux and in other shells, and Figxit does not.</p>
+        <p>On a Mac with zsh, bash, or fish, yes. Both use the Fig completion specs. inshellisense draws its list inside the terminal session. Figxit shows its list in a native macOS window and orders it by your history. inshellisense also runs on Windows and Linux and in other shells, and Figxit does not.</p>
       </details>
       <details>
         <summary>Which commands does it know?<svg class="icon"><use href="#i-chevron-right"/></svg></summary>
@@ -894,7 +869,7 @@ footer a { color: var(--muted); }
   <div class="closing">
     <img src="icon/rounded/icon-256.png" width="96" height="96" alt="Figxit app icon" loading="lazy">
     <h2>Figxit is open source</h2>
-    <p>Read the code, report a problem, or add an adapter for your shell. There are adapters for zsh, bash, and fish.</p>
+    <p>The source is on GitHub under the MIT licence. Bug reports and pull requests are welcome.</p>
     <div class="actions">
       <a class="button primary" href="https://github.com/en3sis/figxit"><svg class="icon solid"><use href="#b-github"/></svg>View on GitHub</a>
       <a class="button" href="https://figxit.com/download/Figxit.dmg">Download for macOS<svg class="icon"><use href="#i-arrow-down"/></svg></a>
