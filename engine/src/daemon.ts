@@ -142,6 +142,8 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
     if (!result.now) hide(s);
     return;
   }
+  const held = s.navigated ? s.items[s.selected]?.label : undefined;
+  if (held !== undefined && !full.items.some((item) => item.label === held)) return;
   present(s, full, result.now !== null);
   if (!(await anchor(s, seq, full, cwd, buffer))) return;
   render(s);
