@@ -418,6 +418,12 @@ kbd .icon { width: 17px; height: 17px; }
 .works i { width: 1px; height: 22px; margin: 0 8px; background: var(--line); }
 .works .untested { border-style: dashed; background: none; color: var(--dim); cursor: help; }
 .support .works .untested .icon { color: var(--dim); }
+.works [data-tip] { position: relative; outline: none; }
+.works [data-tip]::after { content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translate(-50%, 4px); width: max-content; max-width: 240px; padding: 8px 12px; border-radius: 10px; background: var(--text); color: var(--bg); font-size: 13px; line-height: 1.4; text-align: center; white-space: normal; box-shadow: 0 8px 24px rgba(12, 14, 34, 0.18); opacity: 0; pointer-events: none; transition: opacity 0.12s ease, transform 0.12s ease; z-index: 5; }
+.works [data-tip]::before { content: ""; position: absolute; left: 50%; bottom: calc(100% + 5px); width: 10px; height: 10px; background: var(--text); transform: translate(-50%, 4px) rotate(45deg); opacity: 0; pointer-events: none; transition: opacity 0.12s ease, transform 0.12s ease; z-index: 5; }
+.works [data-tip]:hover::after, .works [data-tip]:focus::after { opacity: 1; transform: translate(-50%, 0); }
+.works [data-tip]:hover::before, .works [data-tip]:focus::before { opacity: 1; transform: translate(-50%, 0) rotate(45deg); }
+.works [data-tip]:focus-visible { border-color: var(--link); }
 
 .closing { position: relative; margin-top: 120px; padding: 72px 28px; border: 1px solid var(--line); border-radius: 28px; text-align: center; overflow: hidden; background: var(--card); }
 .closing::before {
@@ -444,6 +450,9 @@ footer a { color: var(--muted); }
 
 @media (max-width: 900px) {
   .s2, .s3, .s4 { grid-column: span 6; }
+  .works [data-tip]::after { left: 0; max-width: min(240px, 70vw); transform: translate(0, 4px); text-align: left; }
+  .works [data-tip]:hover::after, .works [data-tip]:focus::after { transform: translate(0, 0); }
+  .works [data-tip]::before { left: 22px; }
   .shots { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .keys { grid-template-columns: minmax(0, 1fr); }
   .flow { grid-template-columns: minmax(0, 1fr); }
@@ -575,8 +584,8 @@ footer a { color: var(--muted); }
       <span><svg class="icon solid"><use href="#b-ghostty"/></svg>Ghostty</span>
       <span><svg class="icon solid"><use href="#b-iterm2"/></svg>iTerm2</span>
       <span><svg class="icon"><use href="#i-terminal"/></svg>Terminal</span>
-      <span class="untested" title="Not tested yet without tmux. In tmux, each terminal app works."><svg class="icon solid"><use href="#b-wezterm"/></svg>WezTerm</span>
-      <span class="untested" title="Not tested yet without tmux. In tmux, each terminal app works."><svg class="icon solid"><use href="#b-alacritty"/></svg>Alacritty</span>
+      <span class="untested" tabindex="0" data-tip="Not tested yet without tmux. In tmux, each terminal app works."><svg class="icon solid"><use href="#b-wezterm"/></svg>WezTerm</span>
+      <span class="untested" tabindex="0" data-tip="Not tested yet without tmux. In tmux, each terminal app works."><svg class="icon solid"><use href="#b-alacritty"/></svg>Alacritty</span>
       <i></i>
       <span><svg class="icon solid"><use href="#b-tmux"/></svg>tmux, optional</span>
     </div>
