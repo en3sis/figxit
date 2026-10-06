@@ -123,6 +123,36 @@ To build from source, see the [README](https://github.com/en3sis/figxit#developm
 - Spec generators that search the network on each key are turned off.
 - Generators that need a live service, for example `kubectl get`, show nothing when the service does not answer in 1.5 seconds.
 
+## FAQ
+
+### Is Figxit a replacement for Fig?
+
+Yes, for Fig's autocomplete: the list that opens as you type, with a description on each row. Figxit loads the same open source completion specs that Fig used. It does not have the other Fig features, such as scripts, dotfile sync, and team sharing, and it has no AI chat.
+
+### Can I use it in place of Amazon Q or Kiro CLI autocomplete?
+
+Yes, if you only want the autocomplete. Figxit needs no account and has no AI features. It is not affiliated with Fig, Amazon, or Kiro.
+
+### Is Figxit a replacement for Microsoft inshellisense?
+
+On a Mac with zsh, bash, or fish, yes. Both use the Fig completion specs. inshellisense draws its list inside the terminal session. Figxit shows a native macOS window under the cursor and also ranks rows by your history. inshellisense also runs on Windows and Linux and in other shells, and Figxit does not.
+
+### Which commands does it know?
+
+The Fig completion specs cover more than 700 tools, for example git, docker, npm, and kubectl. Figxit also reads the Makefile targets and package.json scripts in the current folder.
+
+### Does Figxit send what I type anywhere?
+
+No. It has no telemetry and no account. Its only network request is the update check, one time each day, and you can turn that off in the menu.
+
+### Do I need tmux?
+
+No. Figxit works in tmux and directly in Ghostty, iTerm2, and Terminal. Without tmux, a native split of the terminal app gets no list.
+
+### Is it free?
+
+Yes. Figxit is open source under the MIT licence.
+
 ## Privacy
 
 Figxit has no telemetry: the app does not report what you type, what you run, or how you use it.

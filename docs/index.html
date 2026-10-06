@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Figxit: autocomplete popup for your terminal</title>
-<meta name="description" content="A native macOS autocomplete popup for zsh, bash, and fish. It lists commands, subcommands, options, scripts, and Makefile targets as you type, ranked by your own history. Local only.">
+<title>Figxit: IDE-style autocomplete for the Mac terminal</title>
+<meta name="description" content="IDE-style autocomplete for the Mac terminal. Figxit lists subcommands, options, npm scripts, and Makefile targets as you type in zsh, bash, or fish. Open source Fig alternative.">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 <meta name="author" content="en3sis">
 <link rel="author" href="https://en3sis.com">
@@ -18,17 +18,17 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Figxit">
 <meta property="og:url" content="https://figxit.com/">
-<meta property="og:title" content="Figxit: autocomplete popup for your terminal">
-<meta property="og:description" content="A native autocomplete popup for your terminal. No account, no AI chat, no telemetry.">
+<meta property="og:title" content="Figxit: IDE-style autocomplete for the Mac terminal">
+<meta property="og:description" content="IDE-style autocomplete for the Mac terminal, in zsh, bash, and fish. No account, no AI chat, no telemetry.">
 <meta property="og:image" content="https://figxit.com/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Figxit app icon and the line: Autocomplete popup for your terminal">
+<meta property="og:image:alt" content="Figxit app icon, the line IDE autocomplete for your terminal, and a terminal with the suggestion list open">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Figxit: autocomplete popup for your terminal">
-<meta name="twitter:description" content="A native autocomplete popup for your terminal. No account, no AI chat, no telemetry.">
+<meta name="twitter:title" content="Figxit: IDE-style autocomplete for the Mac terminal">
+<meta name="twitter:description" content="IDE-style autocomplete for the Mac terminal, in zsh, bash, and fish. No account, no AI chat, no telemetry.">
 <meta name="twitter:image" content="https://figxit.com/og.png">
-<meta name="twitter:image:alt" content="Figxit app icon and the line: Autocomplete popup for your terminal">
+<meta name="twitter:image:alt" content="Figxit app icon, the line IDE autocomplete for your terminal, and a terminal with the suggestion list open">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -38,7 +38,7 @@
       "@id": "https://figxit.com/#app",
       "name": "Figxit",
       "url": "https://figxit.com/",
-      "description": "A native macOS autocomplete popup for zsh, bash, and fish. It lists commands, subcommands, options, scripts, and Makefile targets as you type, ranked by your own history. Local only.",
+      "description": "IDE-style autocomplete for the Mac terminal. Figxit lists subcommands, options, npm scripts, and Makefile targets as you type in zsh, bash, or fish. Open source Fig alternative.",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "macOS 13 or later",
       "processorRequirements": "Apple Silicon",
@@ -66,6 +66,68 @@
       "inLanguage": "en",
       "about": { "@id": "https://figxit.com/#app" },
       "publisher": { "@id": "https://en3sis.com/#person" }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://figxit.com/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is Figxit a replacement for Fig?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, for Fig's autocomplete: the list that opens as you type, with a description on each row. Figxit loads the same open source completion specs that Fig used. It does not have the other Fig features, such as scripts, dotfile sync, and team sharing, and it has no AI chat."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use it in place of Amazon Q or Kiro CLI autocomplete?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, if you only want the autocomplete. Figxit needs no account and has no AI features. It is not affiliated with Fig, Amazon, or Kiro."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Figxit a replacement for Microsoft inshellisense?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "On a Mac with zsh, bash, or fish, yes. Both use the Fig completion specs. inshellisense draws its list inside the terminal session. Figxit shows a native macOS window under the cursor and also ranks rows by your history. inshellisense also runs on Windows and Linux and in other shells, and Figxit does not."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which commands does it know?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The Fig completion specs cover more than 700 tools, for example git, docker, npm, and kubectl. Figxit also reads the Makefile targets and package.json scripts in the current folder."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Figxit send what I type anywhere?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. It has no telemetry and no account. Its only network request is the update check, one time each day, and you can turn that off in the menu."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do I need tmux?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Figxit works in tmux and directly in Ghostty, iTerm2, and Terminal. Without tmux, a native split of the terminal app gets no list."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is it free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Figxit is open source under the MIT licence."
+          }
+        }
+      ]
     },
     {
       "@type": "Person",
@@ -212,6 +274,7 @@ h1 {
   color: transparent;
 }
 .lead { margin: 0 auto 36px; max-width: 60ch; font-size: clamp(17px, 2vw, 20px); color: var(--muted); }
+.lead code { color: var(--text); font-size: 0.9em; }
 .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .button {
   display: inline-flex;
@@ -408,6 +471,13 @@ kbd .icon { width: 17px; height: 17px; }
 .cmd button .icon { width: 14px; height: 14px; }
 .cmd button .done, .cmd button.ok .idle { display: none; }
 .cmd button.ok .done { display: block; color: var(--ok); }
+.faq { max-width: 820px; border-top: 1px solid var(--line); }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 2px; font-size: 17px; font-weight: 600; cursor: pointer; list-style: none; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary .icon { flex: none; width: 16px; height: 16px; color: var(--dim); transition: transform 0.15s; }
+.faq details[open] summary .icon { transform: rotate(90deg); }
+.faq p { margin: 0 0 18px; padding: 0 2px; max-width: 68ch; color: var(--muted); }
 .reqs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 36px; }
 .reqs span { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 14px; color: var(--muted); }
 .reqs .icon { width: 15px; height: 15px; color: var(--link); }
@@ -493,6 +563,7 @@ footer a { color: var(--muted); }
 <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
 <symbol id="i-blocks" viewBox="0 0 24 24"><path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"/><rect x="14" y="2" width="8" height="8" rx="1"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
 <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
 <symbol id="i-corner-down-left" viewBox="0 0 24 24"><path d="M20 4v7a4 4 0 0 1-4 4H4"/><path d="m9 10-5 5 5 5"/></symbol>
 <symbol id="i-cpu" viewBox="0 0 24 24"><path d="M12 20v2"/><path d="M12 2v2"/><path d="M17 20v2"/><path d="M17 2v2"/><path d="M2 12h2"/><path d="M2 17h2"/><path d="M2 7h2"/><path d="M20 12h2"/><path d="M20 17h2"/><path d="M20 7h2"/><path d="M7 20v2"/><path d="M7 2v2"/><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol>
@@ -532,6 +603,7 @@ footer a { color: var(--muted); }
     <a href="#conventions">Conventions</a>
     <a href="#how">How it works</a>
     <a href="#install">Install</a>
+    <a href="#faq">FAQ</a>
     <a class="gh" href="https://github.com/en3sis/figxit"><svg class="icon solid"><use href="#b-github"/></svg>GitHub</a>
   </nav>
 </header>
@@ -539,8 +611,8 @@ footer a { color: var(--muted); }
 <main id="top">
   <div class="hero">
     <span class="badge"><svg class="icon"><use href="#i-scale"/></svg>Open source, MIT licence, macOS</span>
-    <h1>Autocomplete popup for your terminal</h1>
-    <p class="lead">Figxit opens under the cursor as you type and lists the commands, subcommands, options, scripts, and targets that fit, ordered by what you use most in the current project.</p>
+    <h1>IDE autocomplete for your terminal</h1>
+    <p class="lead">Type <code>git</code>, <code>docker</code>, or <code>make</code> and pick the next word from a list, as you would in an editor. Works in zsh, bash, and fish on macOS.</p>
     <div class="actions">
       <a class="button primary" href="https://figxit.com/download/Figxit.dmg"><svg class="icon"><use href="#i-arrow-down"/></svg>Download for macOS</a>
       <a class="button" href="https://github.com/en3sis/figxit"><svg class="icon solid"><use href="#b-github"/></svg>View on GitHub</a>
@@ -781,6 +853,41 @@ footer a { color: var(--muted); }
       <span><svg class="icon solid"><use href="#b-tmux"/></svg>tmux, optional</span>
       <span><svg class="icon"><use href="#i-history"/></svg>Atuin, optional, for ranking</span>
       <span><svg class="icon"><use href="#i-shield-check"/></svg>No Accessibility permission</span>
+    </div>
+  </section>
+
+  <section id="faq">
+    <span class="eyebrow"><svg class="icon"><use href="#i-chevron-right"/></svg>FAQ</span>
+    <h2>Questions and answers</h2>
+    <div class="faq">
+      <details>
+        <summary>Is Figxit a replacement for Fig?<svg class="icon"><use href="#i-chevron-right"/></svg></summary>
+        <p>Yes, for Fig's autocomplete: the list that opens as you type, with a description on each row. Figxit loads the same open source completion specs that Fig used. It does not have the other Fig features, such as scripts, dotfile sync, and team sharing, and it has no AI chat.</p>
+      </details>
+      <details>
+        <summary>Can I use it in place of Amazon Q or Kiro CLI autocomplete?<svg class="icon"><use href="#i-chevron-right"/></svg></summary>
+        <p>Yes, if you only want the autocomplete. Figxit needs no account and has no AI features. It is not affiliated with Fig, Amazon, or Kiro.</p>
+      </details>
+      <details>
+        <summary>Is Figxit a replacement for Microsoft inshellisense?<svg class="icon"><use href="#i-chevron-right"/></svg></summary>
+        <p>On a Mac with zsh, bash, or fish, yes. Both use the Fig completion specs. inshellisense draws its list inside the terminal session. Figxit shows a native macOS window under the cursor and also ranks rows by your history. inshellisense also runs on Windows and Linux and in other shells, and Figxit does not.</p>
+      </details>
+      <details>
+        <summary>Which commands does it know?<svg class="icon"><use href="#i-chevron-right"/></svg></summary>
+        <p>The Fig completion specs cover more than 700 tools, for example git, docker, npm, and kubectl. Figxit also reads the Makefile targets and package.json scripts in the current folder.</p>
+      </details>
+      <details>
+        <summary>Does Figxit send what I type anywhere?<svg class="icon"><use href="#i-chevron-right"/></svg></summary>
+        <p>No. It has no telemetry and no account. Its only network request is the update check, one time each day, and you can turn that off in the menu.</p>
+      </details>
+      <details>
+        <summary>Do I need tmux?<svg class="icon"><use href="#i-chevron-right"/></svg></summary>
+        <p>No. Figxit works in tmux and directly in Ghostty, iTerm2, and Terminal. Without tmux, a native split of the terminal app gets no list.</p>
+      </details>
+      <details>
+        <summary>Is it free?<svg class="icon"><use href="#i-chevron-right"/></svg></summary>
+        <p>Yes. Figxit is open source under the MIT licence.</p>
+      </details>
     </div>
   </section>
 
