@@ -2,9 +2,9 @@
 
 # Figxit
 
-A native autocomplete popup for your terminal. It opens under the cursor as you type and lists the commands, subcommands, options, scripts, and targets that fit, ordered by what you use most in the current project.
+IDE-style autocomplete for the macOS terminal, for zsh, bash, and fish. Figxit completes commands, subcommands, options, `package.json` scripts, and Makefile targets as you type, ordered by what you use most in the current project.
 
-It is the completion part of Fig, rebuilt as a small local tool: no account, no AI chat, no telemetry.
+It is a free, open source replacement for Fig's autocomplete. It runs locally, with no account, no AI chat, and no telemetry.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/make-dark.png">
@@ -13,27 +13,15 @@ It is the completion part of Fig, rebuilt as a small local tool: no account, no 
 
 ## Why it exists
 
-Fig made the terminal easier to use. You typed `git ` and saw what you could do next, with a short description on each row. Fig was then acquired and folded into a larger AI product, and the standalone autocomplete went away.
+Fig added autocomplete to the terminal: you typed `git ` and got the subcommands, each with a short description. Fig joined AWS in 2023 and the app was shut down in September 2024. Its autocomplete now ships inside Kiro CLI, a closed-source AI agent tool.
 
-The open alternatives each miss a part of that experience:
+The open alternatives each lack a part of what Fig did:
 
 - Shell completion menus open only when you press Tab, and they do not know which command you use most.
-- Tools that draw inside the terminal must take over the terminal session to do it.
-- History search finds a full past command, but it does not show what a command can do.
+- Tools that draw the list inside the terminal wrap the shell session to do it.
+- History search finds a full past command, but it does not list what a command can do.
 
-Figxit puts the three parts back together: a popup that opens by itself, completion data for hundreds of tools, and ranking from your own history.
-
-## Mission
-
-Make the command line show you its options at the moment you need them, with no cost to speed and no data leaving your machine.
-
-## Vision
-
-- **One popup for each shell and terminal.** The engine and the popup do not depend on the shell. Each shell needs only a small adapter. There are adapters for zsh, bash, and fish.
-- **Completion that knows your project.** A `Makefile`, a `package.json`, and a git repository already describe what you can run. Figxit reads them directly, so a new project works with no setup.
-- **Your history is the ranking.** The command you run ten times a day in this folder is the first row.
-- **Native on each platform.** On macOS the popup is a real system window with the system glass material, not text drawn over your prompt.
-- **Local only.** No account, no cloud service, no usage tracking.
+Figxit has all three: a list that opens while you type, completion data for 700+ tools, and ranking from your own history.
 
 ## What it does
 
@@ -101,7 +89,7 @@ When the popup is closed, the keys do what they did before. Tab still opens your
 
 ## Conventions
 
-Figxit reads a few naming habits that many projects have already. None is required.
+Figxit uses three conventions that many projects already follow. All are optional.
 
 ### Makefile help
 
@@ -117,7 +105,7 @@ The tags are `[prod]`, `[production]`, `[danger]`, and `[caution]`. A help comma
 
 The verb in a target or script name selects the icon: `dev`, `start`, and `serve` share one, `test` another, `build` another. The list of 12 verbs is in `engine/src/verbs.ts`.
 
-### Red icon: be careful
+### Red icon for production
 
 A red icon marks a row that touches production. A row gets it in one of three ways:
 
@@ -193,7 +181,7 @@ Figxit has three parts that talk over unix sockets in `~/.local/state/figxit/`.
       └───────── text to insert on Tab ───────────┘
 ```
 
-**Adapter** (`shell/zsh/figxit.zsh`). A zsh line editor hook sends the buffer to the engine after each key and returns at once, so typing never waits. It reads a reply only when you press Tab.
+**Adapter** (`shell/zsh/figxit.zsh`). A zsh line editor hook sends the buffer to the engine after each key and does not wait for the answer. The shell waits for the engine only when you press Tab or Enter with the list open, for 300 ms at most. It binds Tab, Enter, Up, and Down, and runs your own binding when the list is closed.
 
 **Bridge for bash and fish** (`engine/src/bridge.ts`, `shell/bash/figxit.bash`, `shell/fish/figxit.fish`). These shells cannot open a unix socket or watch one. Each shell starts one bridge process, `figxit-engine bridge`, which holds the engine connection for that shell. The adapters use shell builtins only, so no process starts for a key.
 

@@ -1,22 +1,22 @@
 # Figxit
 
-> Figxit is a native macOS autocomplete popup for zsh, bash, and fish. It opens under the cursor as you type and lists the commands, subcommands, options, scripts, and targets that fit, ordered by what you use most in the current project.
+> Figxit is IDE-style autocomplete for the macOS terminal, for zsh, bash, and fish. It completes commands, subcommands, options, package.json scripts, and Makefile targets as you type, ordered by what you use most in the current project. It is a free, open source replacement for Fig's autocomplete.
 
 - Website: https://figxit.com/
 - Download: https://figxit.com/download/Figxit.dmg
 - Source: https://github.com/en3sis/figxit
-- Version: 0.2.0
+- Version: 0.2.1
 - Licence: MIT, open source, free
 - Platform: Apple Silicon, macOS 13 or later. zsh, bash 5 or later, or fish 4. tmux is optional
 - No account, no AI chat, no telemetry
 
 ## What it does
 
-Figxit is the completion part of Fig, rebuilt as a small local tool. The popup is a real macOS window. It does not take keyboard focus and it does not draw inside your terminal session.
+Figxit completes commands for 700+ command line tools and for your own project. The list is a native macOS window. It does not take keyboard focus, and nothing is drawn inside your terminal.
 
 ### Project targets and scripts
 
-`make ` lists the targets of the Makefile in the current folder. `npm run `, `pnpm `, `yarn `, and `bun run ` list the scripts of package.json, with the command each one runs. A new project works with no setup.
+`make ` lists the targets of the Makefile in the current folder. `npm run `, `pnpm `, `yarn `, and `bun run ` list the scripts of package.json, with the command each one runs. There is no setup for each project.
 
 For a Makefile, the right column shows the comments that many projects already write. `##@` starts a section and `##` after a target is its help text. Both are optional.
 
@@ -47,11 +47,11 @@ For a command that has a spec, history from other folders is not shown. This kee
 
 Your commands and history stay on your Mac. The app does not report what you type or how you use it. Its only network request is the daily update check, which reads one file from figxit.com. You can turn the check off in the menu. There is no account.
 
-### Typing never waits
+### No typing delay
 
-The shell hook sends the line to the engine after each key and returns at once. It reads a reply only when you press Tab or Enter.
+The shell hook sends the line to the engine after each key and does not wait for the answer. The shell waits for the engine only when you press Tab or Enter to insert a row, for 300 ms at most. Outside tmux, zsh also waits up to 100 ms at the start of a word while it reads the cursor position from the terminal.
 
-### No extra permissions
+### No permission prompts
 
 Figxit does not need Accessibility or Screen Recording access. tmux supplies the cursor position and the cell size. Without tmux, the terminal app does.
 
@@ -61,13 +61,14 @@ Figxit does not need Accessibility or Screen Recording access. tmux supplies the
 |---|---|
 | Up, Down | Move the selection |
 | Tab | Insert the selected row |
-| Ctrl-U, Enter, or more typing | Close the popup |
+| Enter | If you typed part of a word, insert the selected row without running the command. If the word is complete, the first row has a return icon, and Enter runs the command |
+| Ctrl-U or more typing | Close the list. Escape does not close it yet |
 
 When the popup is closed, the keys do what they did before. Tab still opens your normal completion and Up still searches your history.
 
 ## How it works
 
-Figxit has three parts that talk over unix sockets in `~/.local/state/figxit/`. Nothing leaves your machine.
+Figxit has three parts that talk over unix sockets in `~/.local/state/figxit/`. The line you type is not sent over the network.
 
 1. **Adapter** (zsh, bash, fish). A line editor hook in the shell sends the buffer, the cursor, and the folder to the engine after each key and returns at once.
 2. **Engine** (Bun). It keeps your history and the loaded specs in memory. For each key it parses the line, collects candidates from the project files, the spec, and your history, then merges and ranks them and sends the visible rows to the helper. Values that need a command (git branches, for example) arrive in a second pass, so the first rows are never delayed.
@@ -75,7 +76,7 @@ Figxit has three parts that talk over unix sockets in `~/.local/state/figxit/`. 
 
 ## Install
 
-The download is a disk image with the app. The app holds the popup, the engine, and the completion specs.
+One app contains the engine and the completion specs. There is nothing else to install.
 
 1. Download [Figxit.dmg](https://figxit.com/download/Figxit.dmg), open it, and drag Figxit to Applications.
 2. Open Figxit. An icon appears in the menu bar and a setup window opens. It lists the shells on your Mac. Click **Set Up** for your shell, or add the line yourself. This is the line for zsh. Use `init bash` for bash. For fish, put `status is-interactive; and '/Applications/Figxit.app/Contents/MacOS/figxit-engine' init fish | source` in `~/.config/fish/conf.d/figxit.fish`.
@@ -135,7 +136,7 @@ Yes, if you only want the autocomplete. Figxit needs no account and has no AI fe
 
 ### Is Figxit a replacement for Microsoft inshellisense?
 
-On a Mac with zsh, bash, or fish, yes. Both use the Fig completion specs. inshellisense draws its list inside the terminal session. Figxit shows a native macOS window under the cursor and also ranks rows by your history. inshellisense also runs on Windows and Linux and in other shells, and Figxit does not.
+On a Mac with zsh, bash, or fish, yes. Both use the Fig completion specs. inshellisense draws its list inside the terminal session. Figxit shows its list in a native macOS window and orders it by your history. inshellisense also runs on Windows and Linux and in other shells, and Figxit does not.
 
 ### Which commands does it know?
 

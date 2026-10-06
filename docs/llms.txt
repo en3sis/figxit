@@ -1,15 +1,16 @@
 # Figxit
 
-> Figxit is a native macOS autocomplete popup for zsh, bash, and fish. It opens under the cursor as you type and lists the commands, subcommands, options, package.json scripts, and Makefile targets that fit, ranked by your own shell history. It is open source (MIT), free, and local only: no account, no AI chat, no telemetry.
+> Figxit is IDE-style autocomplete for the macOS terminal, for zsh, bash, and fish. It completes commands, subcommands, options, package.json scripts, and Makefile targets as you type, ordered by your own shell history. It is a free, open source (MIT) replacement for Fig's autocomplete. It runs locally with no account, no AI chat, and no telemetry.
 
 Key facts:
 
 - Platform: Apple Silicon Mac, macOS 13 or later. zsh, bash 5 or later, or fish 4. tmux is optional. No other shell or operating system is supported yet.
-- Current version: 0.2.0.
+- Current version: 0.2.1.
 - Install: download the disk image, drag Figxit to Applications, open it, and click Set Up for your shell in the setup window. It adds one line to the config file of that shell.
 - Completion data: the open source Fig completion specs (700+ tools), plus the Makefile and package.json in the current folder.
 - Ranking: reads the Atuin history database, read-only. Atuin is optional.
-- Permissions: no Accessibility or Screen Recording access.
+- Permissions: it does not ask for Accessibility or Screen Recording access.
+- Network: one request each day, the update check. It can be turned off in the menu.
 - Replaces: the autocomplete of Fig, of Amazon Q and Kiro CLI, and of Microsoft inshellisense on macOS. It does not have Fig scripts, dotfile sync, team sharing, or AI chat, and it does not run on Windows or Linux.
 - Figxit is not affiliated with Fig, Amazon, or Kiro.
 
