@@ -120,6 +120,7 @@ The rule applies to Makefile targets, `package.json` scripts, and live values su
 - A Mac with Apple Silicon.
 - macOS 13 or later. The glass background needs macOS 26 or later.
 - zsh, bash 5 or later, or fish 4, in tmux or directly in a terminal that reports its cursor position. The `/bin/bash` of macOS is version 3.2 and does not work.
+- tmux is optional. In tmux, each terminal app works. Without tmux, the popup is tested in Ghostty, iTerm2, and Terminal. WezTerm, Alacritty, and kitty are not tested yet without tmux.
 - Atuin, optional, for ranking.
 
 No Accessibility or Screen Recording permission is needed.
