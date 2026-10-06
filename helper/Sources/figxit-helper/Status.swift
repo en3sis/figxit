@@ -34,16 +34,40 @@ enum Shell: String, CaseIterable {
         }
     }
 
-    var path: String? {
-        if Shell.login == self, FileManager.default.isExecutableFile(atPath: Shell.loginPath) { return Shell.loginPath }
-        if let hit = Checks.find(rawValue) { return hit }
-        let system = "/bin/" + rawValue
-        return FileManager.default.isExecutableFile(atPath: system) ? system : nil
+    var candidates: [String] {
+        let login = Shell.login == self ? [Shell.loginPath] : []
+        var seen = Set<String>()
+        return (login + Checks.searchPaths.map { $0 + "/" + rawValue } + ["/bin/" + rawValue]).filter {
+            FileManager.default.isExecutableFile(atPath: $0)
+                && seen.insert(URL(fileURLWithPath: $0).resolvingSymlinksInPath().path).inserted
+        }
     }
 
-    var version: String {
-        guard let path = path else { return "" }
-        if let hit = Shell.versions[path] { return hit }
+    private func meetsMinimum(_ path: String) -> Bool {
+        guard let minimum = minimum, let major = Int(Shell.version(at: path).prefix(while: { $0 != "." })) else { return true }
+        return major >= minimum
+    }
+
+    var path: String? {
+        let all = candidates
+        if Shell.login == self, all.first == Shell.loginPath { return Shell.loginPath }
+        return all.first(where: meetsMinimum) ?? all.first
+    }
+
+    var newer: String? {
+        guard let path = path, tooOld else { return nil }
+        return candidates.first { $0 != path && meetsMinimum($0) }
+    }
+
+    var loginFix: String? {
+        guard let newer = newer else { return nil }
+        let listed = ((try? String(contentsOfFile: "/etc/shells", encoding: .utf8)) ?? "")
+            .split(separator: "\n").contains { $0.trimmingCharacters(in: .whitespaces) == newer }
+        return (listed ? "" : "echo \(newer) | sudo tee -a /etc/shells && ") + "chsh -s \(newer)"
+    }
+
+    static func version(at path: String) -> String {
+        if let hit = versions[path] { return hit }
         var found = ""
         let process = Process()
         let pipe = Pipe()
@@ -56,9 +80,13 @@ enum Shell: String, CaseIterable {
             process.waitUntilExit()
             if let range = text.range(of: #"\d+\.\d+(\.\d+)?"#, options: .regularExpression) { found = String(text[range]) }
         }
-        Shell.versions[path] = found
+        versions[path] = found
         return found
     }
+
+    static func forgetVersions() { versions = [:] }
+
+    var version: String { path.map(Shell.version) ?? "" }
 
     var minimum: Int? {
         switch self {
@@ -68,10 +96,7 @@ enum Shell: String, CaseIterable {
         }
     }
 
-    var tooOld: Bool {
-        guard let minimum = minimum, let major = Int(version.prefix { $0 != "." }) else { return false }
-        return major < minimum
-    }
+    var tooOld: Bool { path.map { !meetsMinimum($0) } ?? false }
 
     private func exists(_ name: String) -> Bool {
         FileManager.default.fileExists(atPath: NSHomeDirectory() + "/" + name)
@@ -415,9 +440,21 @@ final class SetupWindow: NSObject {
         let version = shell.version.isEmpty ? shell.rawValue : shell.version
         let tag = shell == Shell.login ? "login shell" : nil
         if shell.tooOld {
-            return Panel.row(icon: shell.icon, tint: shell.tint, title: shell.rawValue, tag: tag,
-                       detail: "\(version) at \(shell.path ?? ""). Figxit needs \(shell.rawValue) \(shell.minimum ?? 0) or later.",
-                       trailing: [Panel.state("Too old", .bad)])
+            let place = "\(version) at \(shell.path ?? "")."
+            let needs = "Figxit needs \(shell.rawValue) \(shell.minimum ?? 0) or later."
+            var detail = "\(place) \(needs)"
+            var trailing: [NSView] = [Panel.state("Too old", .bad)]
+            if let newer = shell.newer {
+                detail = "\(version) at \(shell.path ?? ""), \(Shell.version(at: newer)) at \(newer)."
+                let fix = NSButton(title: "Copy chsh", target: self, action: #selector(copyLoginFix(_:)))
+                fix.tag = Shell.allCases.firstIndex(of: shell) ?? 0
+                fix.bezelStyle = .rounded
+                fix.toolTip = "Copies the command that makes \(newer) your login shell"
+                trailing.append(fix)
+            } else if shell == Shell.login {
+                detail += " Run brew install \(shell.rawValue)."
+            }
+            return Panel.row(icon: shell.icon, tint: shell.tint, title: shell.rawValue, tag: tag, detail: detail, trailing: trailing)
         }
         if let file = shell.loadedFrom {
             return Panel.row(icon: shell.icon, tint: shell.tint, title: shell.rawValue, tag: tag,
@@ -439,7 +476,7 @@ final class SetupWindow: NSObject {
     private func reload() {
         let shells = Shell.found
         let checks = Checks.all()
-        let key = (shells.map { "\($0)|\($0.loadedFrom ?? "")|\($0.path ?? "")" } + checks.map { "\($0.status)|\($0.detail)" })
+        let key = (shells.map { "\($0)|\($0.loadedFrom ?? "")|\($0.path ?? "")|\($0.newer ?? "")" } + checks.map { "\($0.status)|\($0.detail)" })
             .joined(separator: "\n")
         guard key != shownState else { return }
         shownState = key
@@ -513,9 +550,17 @@ final class SetupWindow: NSObject {
     }
 
     @objc private func checkAgain() {
+        Shell.forgetVersions()
         shownState = ""
         reload()
         status.stringValue = Checks.ready ? "Figxit is ready." : "No shell is set up."
+    }
+
+    @objc private func copyLoginFix(_ sender: NSButton) {
+        guard let fix = Shell.allCases[sender.tag].loginFix else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(fix, forType: .string)
+        status.stringValue = "Copied. Run it in a terminal, open a new terminal, then check again."
     }
 
     @objc private func copyLine(_ sender: NSButton) {

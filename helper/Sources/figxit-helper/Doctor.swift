@@ -72,7 +72,8 @@ final class DoctorWindow: NSObject {
             let look = Self.icons[item.name] ?? ("sf:questionmark", "8E8E93")
             let level: Check.Level = item.level == "ok" ? .ok : item.level == "off" ? .off : .bad
             let shell = Shell(rawValue: item.name) != nil
-            let word = level == .ok ? (shell ? "Set up" : "OK") : level == .off ? (shell ? "Not set up" : "Not found") : "Problem"
+            let old = shell && item.detail.contains("too old")
+            let word = old ? "Too old" : level == .ok ? (shell ? "Set up" : "OK") : level == .off ? (shell ? "Not set up" : "Not found") : "Problem"
             let title = look.icon.hasPrefix("brand:") ? item.name : item.name.prefix(1).uppercased() + item.name.dropFirst()
             return Panel.row(icon: look.icon, tint: look.tint, title: title,
                              tag: nil, detail: item.detail, trailing: [Panel.state(word, level)])

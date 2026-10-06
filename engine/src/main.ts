@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { homedir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { version } from "../package.json";
 import { appPath, bundlePath, ENGINE_SOCK, HELPER_SOCK, specsDir } from "./paths";
@@ -51,12 +51,68 @@ const RC: Record<string, string[]> = {
   fish: [".config/fish/conf.d/figxit.fish", ".config/fish/config.fish"],
 };
 
-function shellRows(short: boolean): [boolean, string, string][] {
-  const PATH = `${process.env.PATH ?? ""}:/opt/homebrew/bin:/usr/local/bin:/bin`;
-  const rows: [boolean, string, string][] = [];
+const MINIMUM: Record<string, number> = { bash: 5, fish: 4 };
+
+function loginPath(): string {
+  try {
+    return userInfo().shell || process.env.SHELL || "/bin/zsh";
+  } catch {
+    return process.env.SHELL ?? "/bin/zsh";
+  }
+}
+
+function loginShell(): string {
+  const name = loginPath().split("/").pop() ?? "";
+  return SHELLS[name] ? name : "zsh";
+}
+
+function executable(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK);
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function shellVersion(path: string): string {
+  try {
+    return /\d+\.\d+(\.\d+)?/.exec(Bun.spawnSync([path, "--version"], { stderr: "ignore" }).stdout.toString())?.[0] ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function findShell(name: string): { path: string; version: string; old: boolean; newer?: string } | null {
+  const dirs = `${process.env.PATH ?? ""}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`.split(":").filter(Boolean);
+  const login = loginShell() === name && loginPath().endsWith(`/${name}`) ? [loginPath()] : [];
+  const seen = new Set<string>();
+  const found = [...login, ...dirs.map((dir) => join(dir, name))].filter((path) => {
+    if (!executable(path)) return false;
+    const real = realpathSync(path);
+    return !seen.has(real) && Boolean(seen.add(real));
+  });
+  if (found.length === 0) return null;
+  const meets = (path: string) => {
+    const major = parseInt(shellVersion(path));
+    return !MINIMUM[name] || Number.isNaN(major) || major >= MINIMUM[name]!;
+  };
+  const path = login.length && found[0] === login[0] ? found[0]! : (found.find(meets) ?? found[0]!);
+  const old = !meets(path);
+  return { path, version: shellVersion(path), old, newer: old ? found.find((other) => other !== path && meets(other)) : undefined };
+}
+
+function shellRows(short: boolean): [boolean | null, string, string][] {
+  const rows: [boolean | null, string, string][] = [];
   for (const name of Object.keys(SHELLS)) {
-    const path = Bun.which(name, { PATH });
-    if (!path) continue;
+    const shell = findShell(name);
+    if (!shell) continue;
+    const place = shell.version ? `${shell.version} at ${shell.path}` : shell.path;
+    if (shell.old) {
+      const fix = shell.newer ? `switch to ${shellVersion(shell.newer)} at ${shell.newer} with chsh -s ${shell.newer}` : `${name} ${MINIMUM[name]} or later is needed`;
+      rows.push([loginShell() === name ? null : false, name, `${place}, too old, ${fix}`]);
+      continue;
+    }
     const file = RC[name]!.find((rc) => {
       try {
         return readFileSync(join(homedir(), rc), "utf8").toLowerCase().includes("figxit");
@@ -64,14 +120,9 @@ function shellRows(short: boolean): [boolean, string, string][] {
         return false;
       }
     });
-    rows.push([file !== undefined, name, file ? `${path}, ${short ? "loaded from" : "set up in"} ~/${file}` : short ? path : `${path}, not set up, ${SHELLS[name]!.setup}`]);
+    rows.push([file !== undefined, name, file ? `${place}, ${short ? "loaded from" : "set up in"} ~/${file}` : short ? place : `${place}, not set up, ${SHELLS[name]!.setup}`]);
   }
   return rows;
-}
-
-function loginShell(): string {
-  const name = (process.env.SHELL ?? "").split("/").pop() ?? "";
-  return SHELLS[name] ? name : "zsh";
 }
 
 function init(shell: string | undefined): number {
@@ -145,7 +196,7 @@ async function doctor(fromApp: boolean, json: boolean): Promise<number> {
   } catch {}
   const login = SHELLS[loginShell()]!;
   const atuin = process.env.FIGXIT_ATUIN_DB ?? join(homedir(), ".local/share/atuin/history.db");
-  const checks: [boolean, string, string][] = [
+  const checks: [boolean | null, string, string][] = [
     [app !== null, "app bundle", app ?? "not found"],
     [await reachable(HELPER_SOCK), "popup helper", HELPER_SOCK],
     [await reachable(ENGINE_SOCK), "engine", ENGINE_SOCK],
@@ -166,7 +217,7 @@ async function doctor(fromApp: boolean, json: boolean): Promise<number> {
   if (!fromApp) checks.push(...shell);
   if (json) {
     const optional = new Set(["atuin history", "tmux", ...Object.keys(SHELLS)]);
-    console.log(JSON.stringify(checks.map(([ok, name, detail]) => ({ level: ok ? "ok" : optional.has(name) ? "off" : "bad", name, detail }))));
+    console.log(JSON.stringify(checks.map(([ok, name, detail]) => ({ level: ok ? "ok" : ok !== null && optional.has(name) ? "off" : "bad", name, detail }))));
     return 0;
   }
   for (const [ok, name, detail] of checks) console.log(`${ok ? "ok  " : "--  "} ${name.padEnd(18)} ${detail}`);
