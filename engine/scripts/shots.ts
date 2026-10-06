@@ -14,7 +14,7 @@ const { suggest } = await import("../src/suggest");
 const { registerSpec } = await import("../src/specs");
 
 mkdirSync(project);
-mkdirSync(out, { recursive: true });
+mkdirSync(join(out, "scene"), { recursive: true });
 writeFileSync(
   join(project, "Makefile"),
   [
@@ -120,6 +120,9 @@ for (const [name, buffer, count, cwd] of shots) {
     const png = join(out, mode === "dark" ? `${name}-dark.png` : `${name}.png`);
     const run = Bun.spawnSync([helper, "snapshot", file, png, mode]);
     console.log(`${run.exitCode === 0 ? "ok  " : "FAIL"} ${name} ${mode} (${items.length} rows)`);
+    const scene = join(out, "scene", mode === "dark" ? `${name}-dark.png` : `${name}.png`);
+    const framed = Bun.spawnSync([helper, "snapshot-scene", file, scene, buffer, cwd ? "~/ops" : "~/shop", mode]);
+    if (framed.exitCode !== 0) console.log(`FAIL scene ${name} ${mode}`);
   }
 }
 rmSync(work, { recursive: true, force: true });
