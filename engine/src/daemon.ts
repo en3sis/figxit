@@ -63,18 +63,22 @@ function hide(s: Session) {
   setVisible(s, false);
 }
 
+function chosen(s: Session, item: Candidate | undefined): boolean {
+  return item !== undefined && Boolean(item.run || (item.pick && s.remove > 0) || s.navigated);
+}
+
 function render(s: Session) {
   if (!s.anchor || s.items.length === 0) return;
   if (s.selected < s.scroll) s.scroll = s.selected;
   if (s.selected >= s.scroll + VISIBLE) s.scroll = s.selected - VISIBLE + 1;
   const items = s.items.slice(s.scroll, s.scroll + VISIBLE).map(({ label, detail, icon, tint }) => ({ label, detail, icon, tint }));
-  helper.send({ cmd: "show", grid: s.anchor, items, selected: s.selected - s.scroll });
+  helper.send({ cmd: "show", grid: s.anchor, items, selected: chosen(s, s.items[s.selected]) ? s.selected - s.scroll : -1 });
   setVisible(s, true);
   s.fresh = true;
 }
 
 function present(s: Session, result: Suggestion, keep: boolean) {
-  const previous = keep ? s.items[s.selected]?.label : undefined;
+  const previous = keep && chosen(s, s.items[s.selected]) ? s.items[s.selected]?.label : undefined;
   s.items = result.items;
   s.remove = result.remove;
   const index = previous === undefined ? -1 : result.items.findIndex((item) => item.label === previous);
@@ -174,7 +178,7 @@ function navigate(s: Session, direction: string) {
     return;
   }
   if (!s.visible || s.items.length === 0) return;
-  const step = direction === "up" ? -1 : 1;
+  const step = direction === "up" ? -1 : chosen(s, s.items[s.selected]) ? 1 : 0;
   s.selected = (s.selected + step + s.items.length) % s.items.length;
   s.navigated = true;
   render(s);
@@ -182,8 +186,7 @@ function navigate(s: Session, direction: string) {
 
 function accept(s: Session, typedOnly: boolean) {
   const item = s.visible && s.fresh ? s.items[s.selected] : undefined;
-  const chosen = item && ((item.pick && s.remove > 0) || s.navigated);
-  if (!item || (typedOnly && (item.run || !chosen))) {
+  if (!item || (typedOnly && (item.run || !chosen(s, item)))) {
     s.socket.write(`A${SEP}-1${SEP}\n`);
     return;
   }

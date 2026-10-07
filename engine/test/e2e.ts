@@ -104,7 +104,8 @@ try {
   check("lists the Makefile targets", show?.items.map((i: any) => i.label).sort().join() === "admin-url,build,deploy,dev", show?.items);
   check("carries the help text", show?.items.find((i: any) => i.label === "dev")?.detail === "Start the stack", show?.items);
   const anchorCol = show?.grid.col;
-  check("anchors at the token start", (real || anchorCol === 7) && show?.selected === 0, show?.grid);
+  check("anchors at the token start", real || anchorCol === 7, show?.grid);
+  check("no row is highlighted before a letter or an arrow key", show?.selected === -1, show);
 
   await keys("de");
   show = lastShow();
@@ -245,6 +246,19 @@ try {
   }
   const median = (values: number[]) => values.sort((a, b) => a - b)[values.length >> 1]?.toFixed(1);
   console.log(`     key to show, median of 7, includes tmux send-keys: new word ${median(word)} ms, next letter ${median(letter)} ms`);
+
+  await keys("C-u");
+  await keys("make ");
+  await keys("Down");
+  check("the first Down highlights the first row", lastShow()?.selected === 0, lastShow());
+  await keys("Down");
+  check("the second Down moves to the second row", lastShow()?.selected === 1, lastShow());
+  await keys("C-u");
+  await keys("make ");
+  const firstRow = lastShow()?.items[0]?.label;
+  check("the first row is not highlighted again after a new line", lastShow()?.selected === -1, lastShow());
+  await keys("Tab");
+  check("Tab inserts the first row when no row is highlighted", new RegExp(`> +make ${firstRow}( |$)`).test(screen().split("\n").at(-1) ?? ""), screen());
 
   await keys("C-u");
   await keys("echo esc-marker");
