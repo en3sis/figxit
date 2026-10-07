@@ -59,8 +59,8 @@ Figxit does not need Accessibility or Screen Recording access. tmux supplies the
 
 | Key | Action |
 |---|---|
-| Up, Down | Move the selection |
-| Tab | Insert the selected row |
+| Up, Down | Move the highlight. A row is highlighted after you type part of it or press Up or Down. The first Down highlights the first row |
+| Tab | Insert the highlighted row. When no row is highlighted, insert the first row |
 | Enter | If you typed part of a word, insert the selected row without running the command. If the word is complete, the first row has a return icon, and Enter runs the command |
 | Esc | Close the list. In zsh vi mode, the same press also goes to command mode |
 | Ctrl-U or more typing | Close the list |

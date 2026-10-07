@@ -193,7 +193,7 @@ final class PopupController {
         if x < visible.minX { x = visible.minX }
 
         list.items = items
-        list.selected = min(max(selected, 0), items.count - 1)
+        list.selected = selected < 0 ? -1 : min(selected, items.count - 1)
         panel.setFrame(NSRect(x: x, y: top - size.height, width: size.width, height: size.height), display: true)
         if list.superview === panel.contentView { list.frame = panel.contentView?.bounds ?? .zero }
         list.needsDisplay = true
