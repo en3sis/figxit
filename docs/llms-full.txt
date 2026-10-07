@@ -61,7 +61,7 @@ Figxit does not need Accessibility or Screen Recording access. tmux supplies the
 |---|---|
 | Up, Down | Move the highlight. The first row is highlighted when you typed part of it, or when your history has it for this command. If no row is highlighted, the first Down highlights the first row |
 | Tab | Insert the highlighted row. When no row is highlighted, insert the first row |
-| Enter | If you typed part of a word, insert the selected row without running the command. If the word is complete, the first row has a return icon, and Enter runs the command |
+| Enter | On a highlighted row: insert it and run the line. A row with a red icon is inserted and not run. On the run row (the return icon, shown first when the typed word is complete): run the line. When no row is highlighted, run the line as typed. To make Enter insert the row and not run the line, turn off "Enter Runs the Highlighted Row" in the menu bar menu |
 | Esc | Close the list. In zsh vi mode, the same press also goes to command mode |
 | Ctrl-U or more typing | Close the list |
 

@@ -165,6 +165,7 @@ _figxit_accept() {
       (( f[2] < 0 )) && return 1
       (( f[2] > 0 )) && LBUFFER=${LBUFFER[1,-f[2]-1]}
       LBUFFER+=$f[3]
+      _figxit_go=${f[4]:-0}
       return 0
     fi
     _figxit_apply $line
@@ -187,7 +188,9 @@ figxit-tab() {
 }
 
 figxit-enter() {
-  (( _figxit_visible && ! _figxit_depth )) && _figxit_accept R && return
+  if (( _figxit_visible && ! _figxit_depth )) && _figxit_accept "R${_figxit_sep}1"; then
+    (( _figxit_go )) || return 0
+  fi
   _figxit_fallback figxit-enter accept-line
 }
 

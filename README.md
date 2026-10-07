@@ -82,7 +82,7 @@ For a command that has a spec, history from other folders is not shown. This kee
 |---|---|
 | Up, Down | Move the highlight. The first row is highlighted when you typed part of it, or when your history has it for this command. If no row is highlighted, the first Down highlights the first row |
 | Tab | Insert the highlighted row. When no row is highlighted, insert the first row |
-| Enter | On a normal row: insert it, when you typed part of it or moved to it. It does not run the line. On the run row (the return icon, shown first when the typed word is complete): run the line. In all other cases, run the line as typed |
+| Enter | On a highlighted row: insert it and run the line. A row with a red icon is inserted and not run. On the run row (the return icon, shown first when the typed word is complete): run the line. When no row is highlighted, run the line as typed. To make Enter insert the row and not run the line, turn off "Enter Runs the Highlighted Row" in the menu bar menu |
 | Esc | Close the popup. In zsh vi mode, the same press also goes to command mode |
 | Ctrl-U or more typing | Close the popup |
 

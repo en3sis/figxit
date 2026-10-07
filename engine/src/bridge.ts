@@ -96,7 +96,7 @@ export class Bridge {
         break;
       case "a":
         this.accepting = f[1] ?? "";
-        if (!this.wires.engine(f[2] === "R" ? "R" : "A")) this.answer(`-1${SEP}`);
+        if (!this.wires.engine(f[2] === "R" ? (f[3] === "1" ? `R${SEP}1` : "R") : "A")) this.answer(`-1${SEP}`);
         return;
       case "p": {
         const found = this.plain && this.wires.locate ? this.wires.locate(f[2] ?? "", f[3] ?? "") : { fields: null, typed: "", busy: false };

@@ -154,6 +154,10 @@ enum Install {
         (AppDelegate.socketPath as NSString).deletingLastPathComponent + "/stopped"
     }
 
+    static var enterInsertsFlag: String {
+        (stoppedFlag as NSString).deletingLastPathComponent + "/enter-inserts"
+    }
+
     static var shellCount: Int {
         let path = (stoppedFlag as NSString).deletingLastPathComponent + "/shells"
         let text = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
@@ -600,6 +604,7 @@ final class StatusController: NSObject, NSMenuDelegate {
     private let stateItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let pauseItem = NSMenuItem(title: "", action: #selector(togglePause), keyEquivalent: "")
     private let restartItem = NSMenuItem(title: "Restart Engine", action: #selector(restart), keyEquivalent: "")
+    private let enterItem = NSMenuItem(title: "Enter Runs the Highlighted Row", action: #selector(toggleEnter), keyEquivalent: "")
     private let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
     private let autoUpdateItem = NSMenuItem(title: "Check for Updates Automatically", action: #selector(toggleAutoUpdate), keyEquivalent: "")
     private var timer: Timer?
@@ -630,6 +635,8 @@ final class StatusController: NSObject, NSMenuDelegate {
         }
         menu.addItem(NSMenuItem(title: "Set Up Shell…", action: #selector(openSetup), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Run Doctor…", action: #selector(doctor), keyEquivalent: ""))
+        menu.addItem(.separator())
+        menu.addItem(enterItem)
         menu.addItem(.separator())
         menu.addItem(loginItem)
         if let updater = updater {
@@ -664,6 +671,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         stateItem.title = running ? (shells > 0 ? "Running, \(shells) \(shells == 1 ? "terminal" : "terminals") connected" : "Running, no terminal connected") : (engine?.paused == true ? "Suggestions are paused" : "Engine is not running")
         pauseItem.title = engine?.paused == true ? "Resume Suggestions" : "Pause Suggestions"
         restartItem.isEnabled = engine?.paused == false
+        enterItem.state = FileManager.default.fileExists(atPath: Install.enterInsertsFlag) ? .off : .on
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         autoUpdateItem.state = updater?.updater.automaticallyChecksForUpdates == true ? .on : .off
     }
@@ -688,6 +696,16 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     @objc private func doctor() {
         doctorWindow.show()
+    }
+
+    @objc private func toggleEnter() {
+        let path = Install.enterInsertsFlag
+        if FileManager.default.fileExists(atPath: path) {
+            try? FileManager.default.removeItem(atPath: path)
+        } else {
+            FileManager.default.createFile(atPath: path, contents: nil)
+        }
+        refresh()
     }
 
     @objc private func toggleAutoUpdate() {
