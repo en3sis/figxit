@@ -207,6 +207,23 @@ figxit-down() {
   _figxit_fallback figxit-down down-line-or-history
 }
 
+figxit-esc() {
+  if (( _figxit_visible && ! _figxit_depth )); then
+    _figxit_send "K${_figxit_sep}esc"
+    return
+  fi
+  _figxit_fallback figxit-esc beep
+}
+
+_figxit_bind_esc() {
+  local widget=$(bindkey -M main '\e')
+  widget=${widget##* }
+  [[ $widget == figxit-esc ]] && return 0
+  [[ -n $_figxit_base[figxit-esc] ]] || _figxit_base[figxit-esc]=$widget
+  _figxit_orig[figxit-esc]=$widget
+  bindkey -M main '\e' figxit-esc
+}
+
 _figxit_bind() {
   local line key widget ours
   for line in ${(f)"$(bindkey -M main)"}; do
@@ -219,6 +236,7 @@ _figxit_bind() {
     _figxit_orig[$ours]=$widget
     bindkey -M main ${(Q)key} $ours
   done
+  _figxit_bind_esc
   bindkey -M main '^[[?' figxit-report
 }
 
@@ -274,6 +292,7 @@ zle -N figxit-report
 zle -N figxit-enter
 zle -N figxit-up
 zle -N figxit-down
+zle -N figxit-esc
 _figxit_hook line-init _figxit_line_init
 _figxit_hook line-pre-redraw _figxit_redraw
 add-zsh-hook preexec _figxit_preexec

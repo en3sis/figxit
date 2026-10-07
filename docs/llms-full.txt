@@ -62,7 +62,8 @@ Figxit does not need Accessibility or Screen Recording access. tmux supplies the
 | Up, Down | Move the selection |
 | Tab | Insert the selected row |
 | Enter | If you typed part of a word, insert the selected row without running the command. If the word is complete, the first row has a return icon, and Enter runs the command |
-| Ctrl-U or more typing | Close the list. Escape does not close it yet |
+| Esc | Close the list |
+| Ctrl-U or more typing | Close the list |
 
 When the popup is closed, the keys do what they did before. Tab still opens your normal completion and Up still searches your history.
 
