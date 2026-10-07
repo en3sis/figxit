@@ -207,6 +207,12 @@ _figxit_move() {
   fi
 }
 
+_figxit_esc() {
+  _figxit_unpush
+  _figxit_drain
+  (( _figxit_visible )) && _figxit_send "K${_figxit_sep}esc"
+}
+
 _figxit_bind() {
   local line key value id=0 name
   local -A function macro command
@@ -259,6 +265,12 @@ _figxit_bind() {
       bind -m emacs "\"$key\": \"\\C-x\\C-_1$name\\C-x\\C-_2$name\""
     fi
   done
+
+  # A bare Escape cannot go through the macro chain above: readline stores a
+  # macro bound to "\e" as Escape + NUL and never dispatches it. Bound with
+  # the raw escape byte to an -x handler it fires, after the timeout that
+  # tells a lone Escape from the start of a sequence such as "\e[A".
+  bind -m emacs -x "\"$(printf '\033')\": _figxit_esc"
 
   if (( _figxit_plain )); then
     bind -m emacs -x '"\C-x\C-_r": _figxit_report'

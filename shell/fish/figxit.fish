@@ -172,9 +172,18 @@ function _figxit_move
     end
 end
 
+function _figxit_esc
+    if _figxit_visible
+        _figxit_send "K$_figxit_sep"esc
+    else
+        _figxit_pass $argv[1]
+        _figxit_hook
+    end
+end
+
 function _figxit_bind
-    set -l keys tab ctrl-i enter ctrl-j ctrl-m up down
-    set -l handlers tab tab enter enter enter 'move up' 'move down'
+    set -l keys tab ctrl-i enter ctrl-j ctrl-m up down escape
+    set -l handlers tab tab enter enter enter 'move up' 'move down' esc
     for line in (bind --preset) (bind --user)
         set -l part (string match -r -- '^bind (?:--preset |--user )?(\S+) (.+)$' $line); or continue
         set -l key $part[2]

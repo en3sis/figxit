@@ -169,6 +169,10 @@ async function checkFocus() {
 }
 
 function navigate(s: Session, direction: string) {
+  if (direction === "esc") {
+    if (s.visible) hide(s);
+    return;
+  }
   if (!s.visible || s.items.length === 0) return;
   const step = direction === "up" ? -1 : 1;
   s.selected = (s.selected + step + s.items.length) % s.items.length;
