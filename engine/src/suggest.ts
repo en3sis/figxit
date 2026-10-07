@@ -159,6 +159,7 @@ async function complete(
         if (!stat || claimed.has(name)) continue;
         claimed.add(name);
         candidate.score += stat.score;
+        if (stat.local > 0 || stat.count > 1) candidate.likely = true;
       }
     }
 

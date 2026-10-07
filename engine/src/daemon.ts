@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Socket } from "bun";
 import { parseShell, termPad, tmuxGrid, tmuxQuery, type Grid, type TmuxTarget } from "./geometry";
@@ -7,6 +7,7 @@ import { History } from "./history";
 import { ENGINE_SOCK } from "./paths";
 import type { Candidate } from "./sources";
 import { suggest, type Suggestion } from "./suggest";
+import { CAUTION } from "./verbs";
 
 const SOCK = ENGINE_SOCK;
 const SEP = "\x1f";
@@ -14,6 +15,7 @@ const VISIBLE = 8;
 const SETTLE_MS = 12;
 const FOCUS_MS = 250;
 const CURSOR_MS = 500;
+const ENTER_INSERTS = join(dirname(SOCK), "enter-inserts");
 const FOCUS_FORMAT = "#{window_active} #{pane_active} #{pane_in_mode}";
 
 interface Session {
@@ -64,7 +66,7 @@ function hide(s: Session) {
 }
 
 function chosen(s: Session, item: Candidate | undefined): boolean {
-  return item !== undefined && Boolean(item.run || (item.pick && s.remove > 0) || s.navigated);
+  return item !== undefined && Boolean(item.run || item.likely || (item.pick && s.remove > 0) || s.navigated);
 }
 
 function render(s: Session) {
@@ -184,7 +186,7 @@ function navigate(s: Session, direction: string) {
   render(s);
 }
 
-function accept(s: Session, typedOnly: boolean) {
+function accept(s: Session, typedOnly: boolean, runs = false) {
   const item = s.visible && s.fresh ? s.items[s.selected] : undefined;
   if (!item || (typedOnly && (item.run || !chosen(s, item)))) {
     s.socket.write(`A${SEP}-1${SEP}\n`);
@@ -195,7 +197,8 @@ function accept(s: Session, typedOnly: boolean) {
     hide(s);
     return;
   }
-  s.socket.write(`A${SEP}${s.remove}${SEP}${item.insert ?? item.label + " "}\n`);
+  const run = typedOnly && runs && item.tint !== CAUTION && !existsSync(ENTER_INSERTS);
+  s.socket.write(`A${SEP}${s.remove}${SEP}${item.insert ?? item.label + " "}${run ? `${SEP}1` : ""}\n`);
   hide(s);
 }
 
@@ -230,7 +233,7 @@ function onLine(s: Session, line: string) {
       accept(s, false);
       break;
     case "R":
-      accept(s, true);
+      accept(s, true, f[1] === "1");
       break;
     case "X":
       s.anchorKey = null;

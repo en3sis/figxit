@@ -129,6 +129,18 @@ describe("suggest", () => {
     expect(result.remove).toBe(0);
   });
 
+  test("a row is likely when history has it in this directory or more than one time", async () => {
+    const cwd = project({ Makefile: "admin-url:\nbuild:\ndeploy:\ndev:\n" });
+    const history = historyOf([
+      ["make dev", cwd, 1],
+      ["make deploy", "/elsewhere", 1],
+      ["make build", "/elsewhere", 1],
+      ["make build", "/elsewhere", 2],
+    ]);
+    const result = (await suggest("make ", 5, cwd, history, NOW))!;
+    expect(result.items.filter((i) => i.likely).map((i) => i.label).sort()).toEqual(["build", "dev"]);
+  });
+
   test("the typed prefix filters and sets the removal length", async () => {
     const cwd = project({ Makefile: "build:\ndeploy:\ndev:\n" });
     const result = (await suggest("make de", 7, cwd, historyOf([]), NOW))!;

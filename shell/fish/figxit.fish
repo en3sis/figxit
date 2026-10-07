@@ -156,7 +156,7 @@ function _figxit_tab
 end
 
 function _figxit_enter
-    if _figxit_accept R
+    if _figxit_accept "R$_figxit_sep"1; and test "$_figxit_reply[4]" != 1
         _figxit_hook
     else
         _figxit_pass $argv[1]

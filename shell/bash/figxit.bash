@@ -149,6 +149,11 @@ _figxit_accept() {
       count=${line%%"$_figxit_sep"*}
       text=${line#*"$_figxit_sep"}
       (( count < 0 )) && return 1
+      _figxit_go=0
+      if [[ $text == *"$_figxit_sep"* ]]; then
+        _figxit_go=${text##*"$_figxit_sep"}
+        text=${text%"$_figxit_sep"*}
+      fi
       READLINE_LINE="${READLINE_LINE:0:READLINE_POINT-count}${text}${READLINE_LINE:READLINE_POINT}"
       READLINE_POINT=$(( READLINE_POINT - count + ${#text} ))
       return 0
@@ -179,7 +184,7 @@ _figxit_tab() {
 
 _figxit_enter() {
   local line=
-  if _figxit_accept R; then
+  if _figxit_accept "R${_figxit_sep}1" && (( ! _figxit_go )); then
     _figxit_to "$1" eat
     _figxit_hook
     return

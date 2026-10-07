@@ -14,6 +14,7 @@ export interface Candidate {
   pick?: boolean;
   hold?: boolean;
   run?: boolean;
+  likely?: boolean;
 }
 
 export interface SourceResult {
