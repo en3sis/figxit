@@ -73,7 +73,7 @@ const env: Record<string, string | undefined> = {
 };
 delete env.TMUX;
 delete env.TMUX_PANE;
-delete env.FIGXIT_APP; // _figxit_start would open this app instead of spawning the test engine
+delete env.FIGXIT_APP;
 
 const tmux = (...args: string[]) =>
   Bun.spawnSync(["tmux", "-L", tmuxName, "-f", "/dev/null", ...args], { env, stdout: "pipe", stderr: "pipe" });
@@ -252,13 +252,9 @@ try {
   await keys("make ");
   check("the popup is open before Escape", messages.at(-1)?.cmd === "show", messages.slice(-2));
   await keys("Escape");
-  // A lone Escape is only dispatched after the shell's disambiguation
-  // timeout (zsh KEYTIMEOUT 0.4s, readline ~0.5s, fish ~0.1s).
   await Bun.sleep(800);
   check("Escape closes the popup", messages.at(-1)?.cmd === "hide", messages.slice(-2));
   await keys("Up");
-  // zsh and bash recall the previous entry, fish searches history by the
-  // `make ` prefix, so any recalled `make ...` line proves the fallback.
   check("Up falls back to history after Escape", name === "fish" ? /> +make\S*/.test(screen()) : /> +echo esc-marker$/.test(screen()), screen());
   await keys("C-u");
 
@@ -266,6 +262,19 @@ try {
   await keys("echo esc-ok");
   await keys("Enter");
   check("the shell works after an Escape with the popup closed", screen().includes("esc-ok") && !/error|not found/i.test(screen()), screen());
+
+  if (name === "zsh") {
+    await keys("bindkey -v");
+    await keys("Enter");
+    await keys("make ");
+    check("vi mode: the popup is open before Escape", messages.at(-1)?.cmd === "show", messages.slice(-2));
+    await keys("Escape");
+    await Bun.sleep(800);
+    check("vi mode: Escape closes the popup, and it stays closed in command mode", messages.at(-1)?.cmd === "hide", messages.slice(-2));
+    await keys("ddiecho vi-ok");
+    await keys("Enter");
+    check("vi mode: the same Escape goes to command mode", /^vi-ok$/m.test(screen()), screen());
+  }
 } finally {
   tmux("kill-server");
   Bun.spawnSync(["pkill", "-f", `daemon ${work}`]);

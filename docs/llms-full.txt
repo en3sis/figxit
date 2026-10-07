@@ -62,7 +62,7 @@ Figxit does not need Accessibility or Screen Recording access. tmux supplies the
 | Up, Down | Move the selection |
 | Tab | Insert the selected row |
 | Enter | If you typed part of a word, insert the selected row without running the command. If the word is complete, the first row has a return icon, and Enter runs the command |
-| Esc | Close the list |
+| Esc | Close the list. In zsh vi mode, the same press also goes to command mode |
 | Ctrl-U or more typing | Close the list |
 
 When the popup is closed, the keys do what they did before. Tab still opens your normal completion and Up still searches your history.
@@ -120,7 +120,7 @@ To build from source, see the [README](https://github.com/en3sis/figxit#developm
 - Without tmux, a native split of the terminal app gets no popup. Use tmux for splits.
 - bash and fish: the popup is off in vi mode.
 - macOS only.
-- Escape does not close the popup yet.
+- zsh and bash: Escape as a prefix for a Meta key (Escape, then `b`) works only when the second key follows within the key timeout of the shell, 0.4 seconds in zsh and 0.5 seconds in bash.
 - After an option that ends in `=`, values are not suggested yet.
 - Spec generators that search the network on each key are turned off.
 - Generators that need a live service, for example `kubectl get`, show nothing when the service does not answer in 1.5 seconds.

@@ -83,7 +83,7 @@ For a command that has a spec, history from other folders is not shown. This kee
 | Up, Down | Move the selection |
 | Tab | Insert the selected row |
 | Enter | On a normal row: insert it, when you typed part of it or moved to it. It does not run the line. On the run row (the return icon, shown first when the typed word is complete): run the line. In all other cases, run the line as typed |
-| Esc | Close the popup |
+| Esc | Close the popup. In zsh vi mode, the same press also goes to command mode |
 | Ctrl-U or more typing | Close the popup |
 
 When the popup is closed, the keys do what they did before. Tab still opens your normal completion and Up still searches your history.
@@ -213,7 +213,7 @@ The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is 
 - Outside tmux, the popup stays hidden in a terminal that does not answer a cursor position query. In a terminal that does not report its cell size, the position is correct only with no tab bar and no split.
 - Outside tmux, a terminal that keeps all its tabs in one window does not tell Figxit about a tab switch. The popup closes at the next key.
 - macOS only.
-- Escape does not close the popup yet.
+- zsh and bash: Escape as a prefix for a Meta key (Escape, then `b`) works only when the second key follows within the key timeout of the shell, 0.4 seconds in zsh and 0.5 seconds in bash.
 - After an option that ends in `=`, values are not suggested yet.
 - Spec generators that search the network on each key are turned off.
 - Generators that need a live service, for example `kubectl get`, show nothing when the service does not answer in 1.5 seconds.
