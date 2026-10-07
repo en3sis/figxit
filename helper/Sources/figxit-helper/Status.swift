@@ -601,12 +601,10 @@ final class StatusController: NSObject, NSMenuDelegate {
     private let setup = SetupWindow()
     private let aboutWindow = AboutWindow()
     private let doctorWindow = DoctorWindow()
+    private let settingsWindow = SettingsWindow()
     private let stateItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let pauseItem = NSMenuItem(title: "", action: #selector(togglePause), keyEquivalent: "")
     private let restartItem = NSMenuItem(title: "Restart Engine", action: #selector(restart), keyEquivalent: "")
-    private let enterItem = NSMenuItem(title: "Enter Runs the Highlighted Row", action: #selector(toggleEnter), keyEquivalent: "")
-    private let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
-    private let autoUpdateItem = NSMenuItem(title: "Check for Updates Automatically", action: #selector(toggleAutoUpdate), keyEquivalent: "")
     private var timer: Timer?
     private var updater: SPUStandardUpdaterController?
 
@@ -636,9 +634,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem(title: "Set Up Shell…", action: #selector(openSetup), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Run Doctor…", action: #selector(doctor), keyEquivalent: ""))
         menu.addItem(.separator())
-        menu.addItem(enterItem)
-        menu.addItem(.separator())
-        menu.addItem(loginItem)
+        menu.addItem(NSMenuItem(title: "Settings…", action: #selector(settings), keyEquivalent: ","))
         if let updater = updater {
             let check = NSMenuItem(
                 title: "Check for Updates…",
@@ -647,7 +643,6 @@ final class StatusController: NSObject, NSMenuDelegate {
             )
             check.target = updater
             menu.addItem(check)
-            menu.addItem(autoUpdateItem)
         }
         menu.addItem(NSMenuItem(title: "About Figxit", action: #selector(about), keyEquivalent: ""))
         menu.addItem(.separator())
@@ -671,9 +666,6 @@ final class StatusController: NSObject, NSMenuDelegate {
         stateItem.title = running ? (shells > 0 ? "Running, \(shells) \(shells == 1 ? "terminal" : "terminals") connected" : "Running, no terminal connected") : (engine?.paused == true ? "Suggestions are paused" : "Engine is not running")
         pauseItem.title = engine?.paused == true ? "Resume Suggestions" : "Pause Suggestions"
         restartItem.isEnabled = engine?.paused == false
-        enterItem.state = FileManager.default.fileExists(atPath: Install.enterInsertsFlag) ? .off : .on
-        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        autoUpdateItem.state = updater?.updater.automaticallyChecksForUpdates == true ? .on : .off
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -698,37 +690,9 @@ final class StatusController: NSObject, NSMenuDelegate {
         doctorWindow.show()
     }
 
-    @objc private func toggleEnter() {
-        let path = Install.enterInsertsFlag
-        if FileManager.default.fileExists(atPath: path) {
-            try? FileManager.default.removeItem(atPath: path)
-        } else {
-            FileManager.default.createFile(atPath: path, contents: nil)
-        }
-        refresh()
-    }
-
-    @objc private func toggleAutoUpdate() {
-        guard let updater = updater?.updater else { return }
-        updater.automaticallyChecksForUpdates.toggle()
-        refresh()
-    }
-
-    @objc private func toggleLogin() {
-        do {
-            if SMAppService.mainApp.status == .enabled {
-                try SMAppService.mainApp.unregister()
-            } else {
-                try SMAppService.mainApp.register()
-            }
-        } catch {
-            let alert = NSAlert()
-            alert.messageText = "Launch at Login could not be changed"
-            alert.informativeText = error.localizedDescription
-            NSApp.activate(ignoringOtherApps: true)
-            alert.runModal()
-        }
-        refresh()
+    @objc private func settings() {
+        settingsWindow.updater = updater?.updater
+        settingsWindow.show()
     }
 
     @objc private func about() {

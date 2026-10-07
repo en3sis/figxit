@@ -237,6 +237,9 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "snapshot-setup
     let dark = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "dark"
     exit(SetupWindow().render(to: CommandLine.arguments[2], dark: dark) ? 0 : 1)
 }
+if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "snapshot-settings" {
+    exit(SettingsWindow().render(to: CommandLine.arguments[2]) ? 0 : 1)
+}
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "snapshot-doctor" {
     exit(DoctorWindow().render(to: CommandLine.arguments[2]) ? 0 : 1)
 }
