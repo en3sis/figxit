@@ -644,6 +644,7 @@ final class StatusController: NSObject, NSMenuDelegate {
             check.target = updater
             menu.addItem(check)
         }
+        menu.addItem(NSMenuItem(title: "What's New…", action: #selector(whatsNew), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "About Figxit", action: #selector(about), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Figxit", action: #selector(quit), keyEquivalent: "q"))
@@ -693,6 +694,11 @@ final class StatusController: NSObject, NSMenuDelegate {
     @objc private func settings() {
         settingsWindow.updater = updater?.updater
         settingsWindow.show()
+    }
+
+    @objc private func whatsNew() {
+        guard let url = URL(string: "https://github.com/en3sis/figxit/releases") else { return }
+        NSWorkspace.shared.open(url)
     }
 
     @objc private func about() {

@@ -158,6 +158,7 @@ The icon shows that Figxit is running. It is dimmed when the engine is stopped. 
 - **Run Doctor**, which checks each part of the installation
 - **Settings**, with three switches: Enter runs the highlighted row, launch at login, and check for updates automatically. The update check is on by default
 - **Check for Updates**, which downloads and installs a new version
+- **What's New**, which opens the release notes on GitHub
 - **Quit Figxit**
 
 ### The `figxit` command
