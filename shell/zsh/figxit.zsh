@@ -210,7 +210,7 @@ figxit-down() {
 figxit-esc() {
   if (( _figxit_visible && ! _figxit_depth )); then
     _figxit_send "K${_figxit_sep}esc"
-    return
+    [[ ${_figxit_orig[figxit-esc]:-undefined-key} == undefined-key ]] && return
   fi
   _figxit_fallback figxit-esc beep
 }
@@ -254,6 +254,10 @@ _figxit_redraw() {
     _figxit_bind
   fi
   (( PENDING )) && return 0
+  if [[ $KEYMAP == vicmd ]]; then
+    (( _figxit_visible )) && _figxit_send "K${_figxit_sep}esc"
+    return 0
+  fi
   local state="$CURSOR$_figxit_sep$BUFFER"
   [[ $state == "$_figxit_last" ]] && return 0
   _figxit_last=$state
