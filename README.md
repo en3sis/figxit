@@ -156,9 +156,8 @@ The icon shows that Figxit is running. It is dimmed when the engine is stopped. 
 - **Pause Suggestions** and **Restart Engine**
 - **Set Up Shell**, which opens the setup window again
 - **Run Doctor**, which checks each part of the installation
-- **Launch at Login**
+- **Settings**, with three switches: Enter runs the highlighted row, launch at login, and check for updates automatically. The update check is on by default
 - **Check for Updates**, which downloads and installs a new version
-- **Check for Updates Automatically**, on by default. Clear it to stop the daily check
 - **Quit Figxit**
 
 ### The `figxit` command
@@ -251,7 +250,7 @@ The end-to-end test starts its own tmux server and a stand-in for the helper, so
 
 Figxit has no telemetry: the app does not report what you type, what you run, or how you use it.
 
-Its only network request is the update check, one time each day, which reads one file from figxit.com. We count those checks by app version, and we count downloads of the app. That is how we know how many installs are in use. The count holds the version and the date, with no IP address and no identifier. To stop the check, clear **Check for Updates Automatically** in the menu.
+Its only network request is the update check, one time each day, which reads one file from figxit.com. We count those checks by app version, and we count downloads of the app. That is how we know how many installs are in use. The count holds the version and the date, with no IP address and no identifier. To stop the check, turn off **Check for updates automatically** in Settings.
 
 Figxit reads your history database and the files in the current folder. Completion specs can run local commands to list values, for example `git branch`. They do not run when the line contains quotes, `$`, or other shell syntax.
 

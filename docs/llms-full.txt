@@ -45,7 +45,7 @@ For a command that has a spec, history from other folders is not shown. This kee
 
 ### Local only
 
-Your commands and history stay on your Mac. The app does not report what you type or how you use it. Its only network request is the daily update check, which reads one file from figxit.com. You can turn the check off in the menu. There is no account.
+Your commands and history stay on your Mac. The app does not report what you type or how you use it. Its only network request is the daily update check, which reads one file from figxit.com. You can turn the check off in Settings. There is no account.
 
 ### No typing delay
 
@@ -145,7 +145,7 @@ The Fig completion specs cover more than 700 tools, for example git, docker, npm
 
 ### Does Figxit send what I type anywhere?
 
-No. It has no telemetry and no account. Its only network request is the update check, one time each day, and you can turn that off in the menu.
+No. It has no telemetry and no account. Its only network request is the update check, one time each day, and you can turn that off in Settings.
 
 ### Do I need tmux?
 
@@ -159,7 +159,7 @@ Yes. Figxit is open source under the MIT licence.
 
 Figxit has no telemetry: the app does not report what you type, what you run, or how you use it.
 
-Its only network request is the update check, one time each day, which reads one file from figxit.com. Those checks are counted by app version, and downloads of the app are counted. The count holds the version and the date, with no IP address and no identifier. To stop the check, clear **Check for Updates Automatically** in the menu.
+Its only network request is the update check, one time each day, which reads one file from figxit.com. Those checks are counted by app version, and downloads of the app are counted. The count holds the version and the date, with no IP address and no identifier. To stop the check, turn off **Check for updates automatically** in Settings.
 
 Figxit reads your history database and the files in the current folder. Completion specs can run local commands to list values, for example `git branch`. They do not run when the line contains quotes, `$`, or other shell syntax.
 
