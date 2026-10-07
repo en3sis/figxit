@@ -64,7 +64,7 @@ function hide(s: Session) {
 }
 
 function chosen(s: Session, item: Candidate | undefined): boolean {
-  return item !== undefined && Boolean(item.run || (item.pick && s.remove > 0) || s.navigated);
+  return item !== undefined && Boolean(item.run || item.likely || (item.pick && s.remove > 0) || s.navigated);
 }
 
 function render(s: Session) {
