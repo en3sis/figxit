@@ -92,15 +92,20 @@ console.log(`${name}, ${plain ? "no tmux geometry" : "tmux"}`);
 try {
   tmux("new-session", "-d", "-s", "main", "-x", "120", "-y", "30", "-c", project, ...shell);
   await Bun.sleep(real ? 4000 : 1500);
+  const connected = async () => (await Bun.file(join(work, "shells")).text().catch(() => "")).trim() === "1";
+  for (let tries = 0; tries < 20 && !(await connected()); tries++) {
+    await keys("", "Enter");
+    await Bun.sleep(600);
+  }
+  await keys("C-l");
   await keys("", "Enter");
-  await Bun.sleep(2500);
   await keys("", "Enter");
   await Bun.sleep(500);
 
   await keys("make ");
   let show = lastShow();
   check("popup opens after 'make '", !!show, messages);
-  check("the engine counts the connected shell", (await Bun.file(join(work, "shells")).text().catch(() => "")).trim() === "1");
+  check("the engine counts the connected shell", await connected());
   check("lists the Makefile targets", show?.items.map((i: any) => i.label).sort().join() === "admin-url,build,deploy,dev", show?.items);
   check("carries the help text", show?.items.find((i: any) => i.label === "dev")?.detail === "Start the stack", show?.items);
   const anchorCol = show?.grid.col;

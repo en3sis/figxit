@@ -22,10 +22,13 @@ site: ## Serve docs/ at http://localhost:4174 and open it. PORT=<n> to change. C
 test: ## Run the unit tests
 	cd engine && bun test
 
-e2e: ## Run the end-to-end test for zsh, bash, and fish in a private tmux server
-	cd engine && for shell in zsh bash fish; do \
-		FIGXIT_E2E_SHELL=$$shell bun run test/e2e.ts && FIGXIT_E2E_SHELL=$$shell FIGXIT_E2E_PLAIN=1 bun run test/e2e.ts || exit 1; \
-	done
+e2e: ## Run the end-to-end test for zsh, bash, and fish, with and without tmux geometry, all at the same time
+	@cd engine && logs=$$(mktemp -d) && pids= && \
+	for shell in zsh bash fish; do for plain in "" 1; do \
+		FIGXIT_E2E_SHELL=$$shell FIGXIT_E2E_PLAIN=$$plain bun run test/e2e.ts >$$logs/$$shell$$plain.log 2>&1 & pids="$$pids $$!"; \
+	done; done; \
+	status=0; for pid in $$pids; do wait $$pid || status=1; done; \
+	cat $$logs/*.log; rm -rf $$logs; exit $$status
 
 smoke: ## Build the app, then test the bundle and the figxit command
 	@SIGN_ID=- scripts/build.sh
