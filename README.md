@@ -1,4 +1,4 @@
-<img src="docs/icon/rounded/icon-256.png" width="128" alt="Figxit app icon">
+<img src="assets/icon.png" width="128" alt="Figxit app icon">
 
 # Figxit
 
@@ -7,8 +7,8 @@ IDE-style autocomplete for the macOS terminal, for zsh, bash, and fish. Figxit c
 It is a free, open source replacement for Fig's autocomplete. It runs locally, with no account, no AI chat, and no telemetry.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/make-dark.png">
-  <img src="docs/img/scene/make.png" width="640" alt="Terminal window with make typed and the popup listing Makefile targets with their section and help text">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/make-dark.png">
+  <img src="assets/make.png" width="640" alt="Terminal window with make typed and the popup listing Makefile targets with their section and help text">
 </picture>
 
 ## Why it exists
@@ -32,8 +32,8 @@ Figxit has all three: a list that opens while you type, completion data for 700+
 The icon comes from the verb in the name: `dev`, `start`, and `serve` share one shape, `test` and `test:e2e` share another, and `dev-down` gets the stop shape. One list of 12 verbs covers most script and target names in popular open source projects.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/scripts-dark.png">
-  <img src="docs/img/scene/scripts.png" width="640" alt="Terminal window with npm run typed and the popup listing package.json scripts with the command each one runs">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/scripts-dark.png">
+  <img src="assets/scripts.png" width="640" alt="Terminal window with npm run typed and the popup listing package.json scripts with the command each one runs">
 </picture>
 
 For a `Makefile`, the right column shows the comments that many projects already write:
@@ -54,18 +54,18 @@ test: ## Run the unit tests
 Figxit loads the open source Fig completion specs. Type a command and a space for its subcommands, or a dash for its options. Options that are already on the line are hidden.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/git-dark.png">
-  <img src="docs/img/scene/git.png" width="640" alt="Terminal window with git ch typed and the popup listing the git subcommands that match">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/git-dark.png">
+  <img src="assets/git.png" width="640" alt="Terminal window with git ch typed and the popup listing the git subcommands that match">
 </picture>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/options-dark.png">
-  <img src="docs/img/scene/options.png" width="640" alt="Terminal window with docker run and two dashes typed and the popup listing options with descriptions">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/options-dark.png">
+  <img src="assets/options.png" width="640" alt="Terminal window with docker run and two dashes typed and the popup listing options with descriptions">
 </picture>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/scene/commands-dark.png">
-  <img src="docs/img/scene/commands.png" width="640" alt="Terminal window with the letter p typed and the popup listing commands with product icons">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/commands-dark.png">
+  <img src="assets/commands.png" width="640" alt="Terminal window with the letter p typed and the popup listing commands with product icons">
 </picture>
 
 Specs can also supply live values, for example git branches after `git checkout `, hosts after `ssh `, and files and folders where a command takes a path.
@@ -229,7 +229,7 @@ make build    # build and sign dist/Figxit.app
 make dmg      # build the disk image with the drag-to-Applications window
 ```
 
-Builds get an ad hoc signature, which is enough to run the app on your own Mac. Signed releases are made by the owner, see [docs/RELEASING.md](docs/RELEASING.md).
+Builds get an ad hoc signature, which is enough to run the app on your own Mac. Signed releases are made by the owner.
 
 `make build` needs [Bun](https://bun.sh) and the Xcode command line tools. Run `bun install` in `engine/` one time first. `make dmg` also needs `create-dmg` and `rsvg-convert` from Homebrew.
 

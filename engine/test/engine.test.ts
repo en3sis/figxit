@@ -11,7 +11,6 @@ import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest"
 import { registerSpec } from "../src/specs";
 import { commandWords, historySegments, scan } from "../src/tokenize";
 import { verbIcon, verbOf } from "../src/verbs";
-import { classify } from "../../worker/stats";
 
 const NOW = 1_800_000_000_000;
 const DAY = 86_400_000;
@@ -320,25 +319,6 @@ describe("caution colour", () => {
   test("package scripts: capitals or prod in the name", () => {
     const scripts = parseScripts(JSON.stringify({ scripts: { dev: "vite", "deploy:prod": "x", "build:production": "x", MIGRATE: "x", "live-reload": "x" } }));
     expect(red(scripts)).toEqual(["MIGRATE", "build:production", "deploy:prod"]);
-  });
-});
-
-describe("stats worker", () => {
-  const sparkle = "Figxit/0.0.1 Sparkle/2.10.0";
-  const browser = "Mozilla/5.0 (Macintosh)";
-
-  test("counts update checks from the app only", () => {
-    expect(classify("GET", "/appcast.xml", sparkle, null)).toEqual({ kind: "check", app: "0.0.1", file: "" });
-    expect(classify("GET", "/appcast.xml", browser, null)).toBeNull();
-    expect(classify("HEAD", "/appcast.xml", sparkle, null)).toBeNull();
-  });
-
-  test("counts installs and updates one time for each download", () => {
-    expect(classify("GET", "/download/Figxit.dmg", browser, null)).toEqual({ kind: "install", app: "", file: "latest" });
-    expect(classify("GET", "/download/Figxit-0.0.2.dmg", sparkle, null)).toEqual({ kind: "update", app: "0.0.1", file: "0.0.2" });
-    expect(classify("GET", "/download/Figxit0.0.2-0.0.1.delta", sparkle, "bytes=0-")).toEqual({ kind: "update", app: "0.0.1", file: "0.0.2" });
-    expect(classify("GET", "/download/Figxit-0.0.2.dmg", sparkle, "bytes=4096-")).toBeNull();
-    expect(classify("GET", "/index.html", browser, null)).toBeNull();
   });
 });
 

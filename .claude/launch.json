@@ -4,7 +4,7 @@
     {
       "name": "landing",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4173", "--directory", "docs"],
+      "runtimeArgs": ["-m", "http.server", "4173", "--directory", "internal/docs"],
       "port": 4173
     }
   ]

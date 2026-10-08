@@ -10,9 +10,9 @@ done
 iconutil -c icns "$ICON.iconset" -o "$ICON.icns"
 rm -rf "$ICON.iconset"
 
-rm -rf docs/icon
-mkdir -p docs/icon/rounded docs/icon/square
+rm -rf internal/docs/icon
+mkdir -p internal/docs/icon/rounded internal/docs/icon/square
 for size in 16 32 64 128 256 512 1024; do
-  rsvg-convert -w $size -h $size "$ICON.svg" -o "docs/icon/rounded/icon-$size.png"
-  rsvg-convert -w $size -h $size "${ICON}Square.svg" -o "docs/icon/square/icon-$size.png"
+  rsvg-convert -w $size -h $size "$ICON.svg" -o "internal/docs/icon/rounded/icon-$size.png"
+  rsvg-convert -w $size -h $size "${ICON}Square.svg" -o "internal/docs/icon/square/icon-$size.png"
 done

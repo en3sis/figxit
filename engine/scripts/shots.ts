@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const root = join(import.meta.dir, "../..");
-const out = join(root, "docs/img");
+const out = join(root, "internal/docs/img");
 const helper = join(root, "dist/Figxit.app/Contents/MacOS/figxit-helper");
 const work = mkdtempSync(join(tmpdir(), "figxit-shots-"));
 const project = join(work, "shop");
