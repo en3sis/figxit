@@ -289,6 +289,20 @@ describe("commands", () => {
     expect(await suggest("box exec", 8, "/", historyOf([]), NOW)).toBeNull();
     expect(await suggest("box prune", 9, "/", historyOf([]), NOW)).toBeNull();
   });
+
+  test("a word that is the alias of a subcommand with a required argument still lists the longer names", async () => {
+    registerSpec("pkg", {
+      name: "pkg",
+      subcommands: [
+        { name: ["uninstall", "r", "rm"], args: { name: "package" } },
+        { name: ["run-script", "run"], args: { name: "script" } },
+        { name: "restart" },
+      ],
+    });
+    const short = await suggest("pkg r", 5, "/", historyOf([]), NOW);
+    expect(short?.items.map((i) => [i.label, i.run === true])).toEqual([["restart", false], ["run-script", false]]);
+    expect(await suggest("pkg run", 7, "/", historyOf([]), NOW)).toBeNull();
+  });
 });
 
 describe("caution colour", () => {

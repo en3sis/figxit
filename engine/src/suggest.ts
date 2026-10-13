@@ -204,7 +204,7 @@ async function complete(
       }
     }
     if (!exact && known) exact = { label: prefix, detail: "", score: 0 };
-    if (exact?.hold) return null;
+    const held = exact?.hold === true;
 
     let items: Candidate[] = [];
     let prefixed = false;
@@ -222,10 +222,10 @@ async function complete(
       items.push(item);
     }
     if (prefix !== "" && (prefixed || exact)) items = items.filter((item) => matches.get(item)! >= 0.9);
-    if (items.length === 0 && !exact) return null;
+    if (items.length === 0 && (!exact || held)) return null;
 
     items.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
-    if (exact) items.unshift({ label: prefix, detail: "Run", score: 0, icon: "sf:return", tint: "3A3A3C", run: true });
+    if (exact && !held) items.unshift({ label: prefix, detail: "Run", score: 0, icon: "sf:return", tint: "3A3A3C", run: true });
     return { items: items.slice(0, MAX_ITEMS), remove: cursor - parsed.tokenStart, tokenStart: parsed.tokenStart };
   };
 
