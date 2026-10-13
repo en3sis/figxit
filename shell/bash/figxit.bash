@@ -94,12 +94,18 @@ _figxit_hook() {
 }
 
 _figxit_read() {
-  local LC_ALL=C got= row= col= size4= size6=
+  local LC_ALL=C got= part= row= col= size4= size6=
   local cpr=$'^(.*)\e\\[([0-9]+);([0-9]+)$' size=$'^(.*)\e\\[([46]);([0-9]+);([0-9]+)t(.*)$'
-  IFS= read -rs -d R -t 0.1 got
-  if [[ $got =~ $cpr ]]; then
-    got=${BASH_REMATCH[1]} row=${BASH_REMATCH[2]} col=${BASH_REMATCH[3]}
-  fi
+  local points=$'^(.*)\e\\]1337;ReportCellSize=([0-9.]+);([0-9.]+)(;[0-9.]+)?(\e\\\\|\a)(.*)$'
+  while IFS= read -rs -d R -t 0.1 part; do
+    got+=$part
+    if [[ $got =~ $cpr ]]; then
+      got=${BASH_REMATCH[1]} row=${BASH_REMATCH[2]} col=${BASH_REMATCH[3]}
+      break
+    fi
+    got+=R
+  done
+  [[ -n $row ]] || got+=$part
   [[ $got =~ ^($'\e'\[\?)?[0-9\;]*c(.*)$ ]] && got=${BASH_REMATCH[2]}
   while [[ $got =~ $size ]]; do
     if [[ ${BASH_REMATCH[2]} == 4 ]]; then
@@ -109,6 +115,10 @@ _figxit_read() {
     fi
     got=${BASH_REMATCH[1]}${BASH_REMATCH[5]}
   done
+  if [[ $got =~ $points ]]; then
+    size6="${BASH_REMATCH[2]}${_figxit_sep}${BASH_REMATCH[3]}"
+    got=${BASH_REMATCH[1]}${BASH_REMATCH[6]}
+  fi
   [[ -n $size4$size6 ]] && _figxit_cell="${size6:-$_figxit_sep}${_figxit_sep}${size4}"
   REPLY=$got
   if [[ -z $row ]]; then

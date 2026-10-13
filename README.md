@@ -209,7 +209,8 @@ The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is 
 - bash: each key clears and draws the input line again, which is how bash runs a key hook.
 - fish, outside tmux: a key that is not text, Enter, Tab, or Backspace is lost, with the keys typed after it, if it arrives in the short time in which the bridge reads the cursor position.
 - bash and fish: each shell keeps one bridge process, about 28 MB.
-- Outside tmux, the popup stays hidden in a native split of the terminal app, because the window list gives the window and not the pane. Use one pane for each window or tab, or use tmux for splits.
+- The popup stays hidden in a native split of the terminal app, because the window list gives the window and not the pane. Use one pane for each window or tab, or use tmux for splits.
+- The popup stays hidden in a terminal that is a panel of another application's window, such as the terminal of VS Code, because the window list gives the window and not the panel.
 - Outside tmux, the popup stays hidden in a terminal that does not answer a cursor position query. In a terminal that does not report its cell size, the position is correct only with no tab bar and no split.
 - Outside tmux, a terminal that keeps all its tabs in one window does not tell Figxit about a tab switch. The popup closes at the next key.
 - macOS only.

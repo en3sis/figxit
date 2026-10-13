@@ -12,7 +12,8 @@ const WATCH_MS = 2000;
 const LOCATE_MS = 60;
 const ROTATE = 65536;
 const FOLLOW_TURNS = 50;
-const CELL = "\x1b[14t\x1b[16t";
+const ITERM = process.env.TERM_PROGRAM === "iTerm.app";
+const CELL = `\x1b[14t\x1b[16t${ITERM ? "\x1b]1337;ReportCellSize\x07" : ""}`;
 export const QUERY = `\x1b[c${CELL}\x1b[6n`;
 
 export interface Located {
@@ -36,6 +37,10 @@ export function parseReports(raw: string, cols: string, lines: string, cell: str
   rest = rest.replace(/\x1b\[\?[0-9;]*c/g, "");
   rest = rest.replace(/\x1b\[([46]);(\d+);(\d+)t/g, (_all, kind: string, height: string, width: string) => {
     size[kind] = `${height}${SEP}${width}`;
+    return "";
+  });
+  rest = rest.replace(/\x1b\]1337;ReportCellSize=([\d.]+);([\d.]+)(?:;[\d.]+)?(?:\x1b\\|\x07)/, (_all, height: string, width: string) => {
+    size["6"] = `${height}${SEP}${width}`;
     return "";
   });
   if (size["4"] || size["6"]) cell = `${size["6"] ?? SEP}${SEP}${size["4"] ?? ""}`;

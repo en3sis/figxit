@@ -45,6 +45,15 @@ describe("terminal reports", () => {
     expect(parsed.typed).toBe("abc");
   });
 
+  test("takes the cell size in points from the ReportCellSize reply of iTerm2", () => {
+    const stable = parseReports("\x1b[?64;1;2c\x1b[4;777;987t\x1b]1337;ReportCellSize=21.0;8.0;1.0\x1b\\x\x1b[25;1R", "120", "35", SEP);
+    expect(stable.fields).toEqual(["25", "1", "120", "35", line("21.0", "8.0", 777, 987)]);
+    expect(stable.typed).toBe("x");
+    const both = parseReports("\x1b[4;777;987t\x1b[6;17;7t\x1b]1337;ReportCellSize=16.9;7.8\x07\x1b[1;1R", "120", "35", SEP);
+    expect(both.fields).toEqual(["1", "1", "120", "35", line("16.9", "7.8", 777, 987)]);
+    expect(both.typed).toBe("");
+  });
+
   test("keeps the known cell size when the terminal sends only the cursor", () => {
     const parsed = parseReports("\x1b[3;9R", "80", "24", line(18, 9, "", ""));
     expect(parsed.fields).toEqual(["3", "9", "80", "24", line(18, 9, "", "")]);

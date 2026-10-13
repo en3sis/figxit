@@ -155,6 +155,10 @@ enum Geometry {
             top = base.minY + max(0, spareH)
         } else if grid.pane == true, source == "cg", cellH < 1.6 * cellW || cellH > 3 * cellW {
             return nil
+        } else if grid.pane != true, source == "cg", grid.cellPxW != nil, grid.cellPxH != nil {
+            let spareW = base.width - cols * cellW - 2 * padX
+            let spareH = base.height - rows * cellH - 2 * padY
+            if spareW > 0.12 * base.width || spareH > max(100, 0.2 * base.height) { return nil }
         }
 
         let x = base.minX + padX + CGFloat(grid.col) * cellW
