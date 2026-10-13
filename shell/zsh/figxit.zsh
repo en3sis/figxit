@@ -120,6 +120,7 @@ figxit-report() {
   local REPLY
   _figxit_report
   [[ -n $REPLY ]] && zle -U -- $REPLY
+  return 0
 }
 
 _figxit_apply() {
