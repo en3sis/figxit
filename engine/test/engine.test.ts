@@ -593,6 +593,8 @@ describe("parseShell", () => {
     const grid = parseShell(["1", "1", "100", "40", "", "", "1360", "1650"], pad)!;
     expect([grid.cellPxW, grid.cellPxH]).toEqual([16.5, 34]);
     expect(parseShell(["1", "1", "100", "40", "34", "16", "1400", "1700"], pad)!.cellPxW).toBe(16);
+    const points = parseShell(["1", "1", "120", "35", "21.0", "8.5", "777", "987"], pad)!;
+    expect([points.cellPxW, points.cellPxH]).toEqual([8.5, 21]);
   });
 
   test("sends no cell size when the terminal reports none", () => {

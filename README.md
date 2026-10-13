@@ -123,7 +123,7 @@ The rule applies to Makefile targets, `package.json` scripts, and live values su
 - A Mac with Apple Silicon.
 - macOS 13 or later. The glass background needs macOS 26 or later.
 - zsh, bash 5 or later, or fish 4, in tmux or directly in a terminal that reports its cursor position. The `/bin/bash` of macOS is version 3.2 and does not work.
-- tmux is optional. In tmux, each terminal app works. Without tmux, the popup is tested in Ghostty, iTerm2, and Terminal. WezTerm, Alacritty, and kitty are not tested yet without tmux.
+- tmux is optional. In tmux, each terminal app works. The terminal inside an editor, such as VS Code, does not: see [Limits](#limits). Without tmux, the popup is tested in Ghostty, iTerm2, and Terminal. WezTerm, Alacritty, and kitty are not tested yet without tmux.
 - Atuin, optional, for ranking.
 
 No Accessibility or Screen Recording permission is needed.
@@ -209,7 +209,8 @@ The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is 
 - bash: each key clears and draws the input line again, which is how bash runs a key hook.
 - fish, outside tmux: a key that is not text, Enter, Tab, or Backspace is lost, with the keys typed after it, if it arrives in the short time in which the bridge reads the cursor position.
 - bash and fish: each shell keeps one bridge process, about 28 MB.
-- Outside tmux, the popup stays hidden in a native split of the terminal app, because the window list gives the window and not the pane. Use one pane for each window or tab, or use tmux for splits.
+- The popup stays hidden in a native split of the terminal app, because the window list gives the window and not the pane. Use one pane for each window or tab, or use tmux for splits.
+- The popup stays hidden in a terminal that is a panel of another application's window, such as the terminal of VS Code, Cursor, or another editor, with tmux and without. The window list gives the window and not the panel, and these terminals do not report where the panel is. Use a terminal app.
 - Outside tmux, the popup stays hidden in a terminal that does not answer a cursor position query. In a terminal that does not report its cell size, the position is correct only with no tab bar and no split.
 - Outside tmux, a terminal that keeps all its tabs in one window does not tell Figxit about a tab switch. The popup closes at the next key.
 - macOS only.

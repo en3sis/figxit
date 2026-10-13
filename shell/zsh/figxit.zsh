@@ -78,6 +78,7 @@ _figxit_ask() {
     _figxit_size="$COLUMNS $LINES"
     _figxit_cell=
     ask=$'\e[c\e[14t\e[16t\e[6n'
+    [[ $TERM_PROGRAM == iTerm.app ]] && ask=$'\e[c\e[14t\e[16t\e]1337;ReportCellSize\a\e[6n'
   fi
   _figxit_asked=$1
   _figxit_asked_at=$EPOCHREALTIME
@@ -104,6 +105,10 @@ _figxit_report() {
     size[$match[2]]="$match[3]${_figxit_sep}$match[4]"
     got=$match[1]$match[5]
   done
+  if [[ $got == (#b)(*)$'\e]1337;ReportCellSize='([0-9.]##)';'([0-9.]##)(';'[0-9.]##|)($'\e\\'|$'\a')(*) ]]; then
+    size[6]="$match[2]${_figxit_sep}$match[3]"
+    got=$match[1]$match[6]
+  fi
   (( $#size )) && _figxit_cell="${size[6]:-$_figxit_sep}${_figxit_sep}${size[4]}"
   REPLY=$got
   _figxit_asked=
