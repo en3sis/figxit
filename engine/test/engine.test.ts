@@ -464,7 +464,7 @@ describe("specs", () => {
         trigger: "/",
         getQueryTerm: (token: string) => token.slice(token.lastIndexOf("/") + 1),
         custom: async (tokens: string[]) =>
-          (tokens[tokens.length - 1]!.includes("/") ? ["c/", "my dir/", ".git/"] : ["b/", "x y/"]).map((name) => ({
+          (tokens[tokens.length - 1]!.includes("/") ? ["c/", "my dir/", ".git/", "../"] : ["b/", "x y/"]).map((name) => ({
             name,
             type: "folder",
             insertValue: name,
@@ -523,10 +523,13 @@ describe("specs", () => {
     ]);
     const result = (await suggest("walk b/", 7, "/seg", historyOf([]), NOW))!;
     expect(result.items.map((i) => [i.label, i.insert])).toEqual([
+      ["b/", undefined],
       ["b/c/", "b/c/"],
       ["b/my dir/", "b/my\\ dir/"],
     ]);
+    expect(result.items.map((i) => i.run === true)).toEqual([true, false, false]);
     expect(result.remove).toBe(2);
+    expect(await labels("walk ../", "/seg")).toEqual(["../", "../../", "../c/", "../my dir/"]);
     expect(await labels("walk b/c", "/seg")).toEqual(["b/c/"]);
     expect(await labels("walk b/.", "/seg")).toEqual(["b/.git/"]);
   });

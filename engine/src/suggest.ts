@@ -157,6 +157,7 @@ async function complete(
         candidate.tint = CAUTION;
       }
       if (head !== "") {
+        if (candidate.label === "../" && !/^(\.\.\/)+$/.test(head)) continue;
         if (candidate.insert === undefined && UNSAFE.test(candidate.label)) continue;
         candidate.insert = escapePath(head) + (candidate.insert ?? `${candidate.label} `);
         candidate.label = head + candidate.label;
@@ -204,6 +205,15 @@ async function complete(
       }
     }
     if (!exact && known) exact = { label: prefix, detail: "", score: 0 };
+    if (!exact && prefix.endsWith("/")) {
+      for (const candidate of merged.values()) {
+        const path = candidate.icon === ICONS.folder.icon || candidate.icon === ICONS.file.icon;
+        if (path && candidate.label.startsWith(prefix)) {
+          exact = { label: prefix, detail: "", score: 0 };
+          break;
+        }
+      }
+    }
     const held = exact?.hold === true;
 
     let items: Candidate[] = [];
