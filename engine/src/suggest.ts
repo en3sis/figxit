@@ -124,8 +124,9 @@ async function complete(
     if (emitted.templates.size > 0) {
       files.push(...fileCandidates(prefix, cwd, !emitted.templates.has("filepaths")));
     }
-    if (project.candidates.length === 0 && ![...words, prefix].some((word) => SHELL.test(word) || BARE.test(word))) {
-      const ctx: GenContext = { tokens: [...words, prefix], cwd, prefix };
+    if (project.candidates.length === 0) {
+      const plain = ![...words, prefix].some((word) => SHELL.test(word) || BARE.test(word));
+      const ctx: GenContext = { tokens: [...words, prefix], cwd, prefix, plain };
       for (const generator of emitted.generators) {
         slots.push({ found: lookup(generator, ctx, now), head: queryHead(generator, prefix) });
       }

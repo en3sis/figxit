@@ -1,6 +1,6 @@
 import { readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { ICONS } from "./brands";
 import { resolveCommand } from "./paths";
 import type { Candidate } from "./sources";
@@ -10,6 +10,7 @@ export interface GenContext {
   tokens: string[];
   cwd: string;
   prefix: string;
+  plain: boolean;
 }
 
 export interface ExecResult {
@@ -28,6 +29,10 @@ const SCRIPT_TIMEOUT = 1500;
 const CUSTOM_TIMEOUT = 2500;
 const MAX_ENTRIES = 300;
 const MAX_FILES = 300;
+const INTERPRETERS = new Set([
+  "sh", "bash", "zsh", "fish", "dash", "ksh", "csh", "tcsh", "env", "xargs", "sudo",
+  "python", "python3", "node", "bun", "deno", "ruby", "perl", "php", "osascript", "awk", "sed",
+]);
 const ESCAPE = /([ \\'"`$&|;()<>*?!#\[\]{}])/g;
 
 const cache = new Map<string, { at: number; value: unknown[] }>();
@@ -35,7 +40,7 @@ const running = new Map<string, Promise<unknown[]>>();
 const ids = new WeakMap<object, number>();
 let nextId = 1;
 
-export async function execute(input: unknown, cwd: string, timeout = SCRIPT_TIMEOUT): Promise<ExecResult> {
+export async function execute(input: unknown, cwd: string, timeout = SCRIPT_TIMEOUT, plain = true): Promise<ExecResult> {
   const failed = { stdout: "", stderr: "", status: 1 };
   let cmd: string[];
   let env: Record<string, string | undefined> = process.env;
@@ -53,6 +58,7 @@ export async function execute(input: unknown, cwd: string, timeout = SCRIPT_TIME
     return failed;
   }
   if (cmd.length === 0 || !cmd[0]) return failed;
+  if (!plain && (typeof input === "string" || INTERPRETERS.has(basename(cmd[0])))) return failed;
   try {
     cmd[0] = resolveCommand(cmd[0]);
     const proc = Bun.spawn(cmd, { cwd, env: { ...env }, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
@@ -78,7 +84,7 @@ async function run(generator: Spec, ctx: GenContext): Promise<unknown[]> {
     if (typeof generator.custom === "function") {
       const result = await limit(
         Promise.resolve(
-          generator.custom(ctx.tokens, (input: unknown) => execute(input, ctx.cwd), {
+          generator.custom(ctx.tokens, (input: unknown) => execute(input, ctx.cwd, SCRIPT_TIMEOUT, ctx.plain), {
             currentWorkingDirectory: ctx.cwd,
             currentProcess: "zsh",
             sshPrefix: "",
@@ -95,7 +101,7 @@ async function run(generator: Spec, ctx: GenContext): Promise<unknown[]> {
     const script = typeof generator.script === "function" ? generator.script(ctx.tokens) : generator.script;
     if (!script) return [];
     const timeout = typeof generator.scriptTimeout === "number" ? generator.scriptTimeout : SCRIPT_TIMEOUT;
-    const { stdout } = await limit(execute(script, ctx.cwd, timeout), timeout + 500, { stdout: "", stderr: "", status: 1 });
+    const { stdout } = await limit(execute(script, ctx.cwd, timeout, ctx.plain), timeout + 500, { stdout: "", stderr: "", status: 1 });
     if (typeof generator.postProcess === "function") {
       const result = generator.postProcess(stdout, ctx.tokens);
       return Array.isArray(result) ? result : [];
@@ -119,7 +125,7 @@ function keyOf(generator: Spec, ctx: GenContext): string {
     ids.set(generator, id);
   }
   const scope = generator.trigger ? ctx.prefix.slice(0, ctx.prefix.lastIndexOf("/") + 1) : "";
-  return [id, ctx.cwd, ctx.tokens.slice(0, -1).join(" "), scope].join("\0");
+  return [id, ctx.cwd, ctx.plain, scope, ...ctx.tokens.slice(0, -1)].join("\0");
 }
 
 export function queryHead(generator: Spec, prefix: string): string {
