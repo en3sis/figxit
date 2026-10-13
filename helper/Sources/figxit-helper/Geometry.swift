@@ -143,22 +143,24 @@ enum Geometry {
             top = base.minY + assumedTitlebar
         }
 
+        func fills(_ cellW: CGFloat, _ cellH: CGFloat) -> Bool {
+            let spareW = base.width - cols * cellW - 2 * padX
+            let spareH = base.height - rows * cellH - 2 * padY
+            return spareW >= -0.02 * base.width && spareW <= 0.12 * base.width
+                && spareH >= -0.02 * base.height && spareH <= max(100, 0.2 * base.height)
+        }
+
         if grid.pane == true, source == "cg", let pxW = grid.cellPxW, let pxH = grid.cellPxH {
             let fits = cols * CGFloat(pxW) <= base.width * 1.02 && rows * CGFloat(pxH) <= base.height * 1.02
             let unit = terminal.bundleId == physicalPixels || !fits ? scale : 1
             cellW = CGFloat(pxW) / unit
             cellH = CGFloat(pxH) / unit
-            let spareW = base.width - cols * cellW - 2 * padX
-            let spareH = base.height - rows * cellH - 2 * padY
-            if spareW < -0.02 * base.width || spareW > 0.12 * base.width { return nil }
-            if spareH < -0.02 * base.height || spareH > max(100, 0.2 * base.height) { return nil }
-            top = base.minY + max(0, spareH)
+            guard fills(cellW, cellH) else { return nil }
+            top = base.minY + max(0, base.height - rows * cellH - 2 * padY)
         } else if grid.pane == true, source == "cg", cellH < 1.6 * cellW || cellH > 3 * cellW {
             return nil
-        } else if grid.pane != true, source == "cg", grid.cellPxW != nil, grid.cellPxH != nil {
-            let spareW = base.width - cols * cellW - 2 * padX
-            let spareH = base.height - rows * cellH - 2 * padY
-            if spareW > 0.12 * base.width || spareH > max(100, 0.2 * base.height) { return nil }
+        } else if grid.pane != true, source == "cg", grid.cellPxW != nil, grid.cellPxH != nil, !fills(cellW, cellH) {
+            return nil
         }
 
         let x = base.minX + padX + CGFloat(grid.col) * cellW
