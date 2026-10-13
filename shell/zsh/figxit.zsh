@@ -1,4 +1,15 @@
 [[ -o interactive ]] || return 0
+
+figxit() {
+  if [[ -n $FIGXIT_APP ]]; then
+    "$FIGXIT_APP/Contents/MacOS/figxit-engine" "$@"
+  elif [[ -f $FIGXIT_HOME/engine/src/main.ts ]] && (( $+commands[bun] )); then
+    bun run "$FIGXIT_HOME/engine/src/main.ts" "$@"
+  else
+    "$FIGXIT_HOME/dist/Figxit.app/Contents/MacOS/figxit-engine" "$@"
+  fi
+}
+
 zmodload zsh/net/socket zsh/datetime 2>/dev/null || return 0
 autoload -Uz add-zle-hook-widget add-zsh-hook
 

@@ -1,4 +1,15 @@
 status is-interactive; or return 0
+
+function figxit
+    if test -n "$FIGXIT_APP"
+        $FIGXIT_APP/Contents/MacOS/figxit-engine $argv
+    else if test -f $_figxit_home/engine/src/main.ts; and command -q bun
+        bun run $_figxit_home/engine/src/main.ts $argv
+    else
+        $_figxit_home/dist/Figxit.app/Contents/MacOS/figxit-engine $argv
+    end
+end
+
 set -q _figxit_sep; and return 0
 if string match -q -r '^[0-3]\.' -- $version
     echo "figxit: fish 4 or later is needed, this shell is fish $version" >&2

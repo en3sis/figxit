@@ -45,12 +45,12 @@ try {
 
   const init = run("init", "zsh");
   check("init prints the app path", init.out.includes(`export FIGXIT_APP="${app}"`), init);
-  const loaded = Bun.spawnSync(["zsh", "-ic", `eval "$(${cli} init zsh)"; print -r -- "$FIGXIT_APP|$+widgets[figxit-tab]"`], {
+  const loaded = Bun.spawnSync(["zsh", "-ic", `eval "$(${cli} init zsh)"; print -r -- "$FIGXIT_APP|$+widgets[figxit-tab]|$(figxit --version)"`], {
     env: { ...env, ZDOTDIR: work },
     stdout: "pipe",
     stderr: "pipe",
   });
-  check("the init lines load the adapter in zsh", loaded.stdout.toString().trim() === `${app}|1`, loaded.stdout.toString());
+  check("the init lines load the adapter and the figxit command in zsh", loaded.stdout.toString().trim() === `${app}|1|${version.out.trim()}`, loaded.stdout.toString());
 
   const doctor = run("doctor");
   check("doctor reports the helper, engine, and specs", /ok\s+popup helper/.test(doctor.out) && /ok\s+engine/.test(doctor.out) && /ok\s+completion specs\s+\d{3}/.test(doctor.out), doctor.out);
