@@ -27,19 +27,19 @@ async function reachable(path: string): Promise<boolean> {
 const SHELLS: Record<string, { file: string; lines: string[]; setup: string; reload: string }> = {
   zsh: {
     file: "shell/zsh/figxit.zsh",
-    lines: ['source "$FIGXIT_APP/Contents/Resources/shell/zsh/figxit.zsh"', 'figxit() { "$FIGXIT_APP/Contents/MacOS/figxit-engine" "$@" }'],
+    lines: ['source "$FIGXIT_APP/Contents/Resources/shell/zsh/figxit.zsh"'],
     setup: 'add to ~/.zshrc: eval "$(figxit init zsh)"',
     reload: "exec zsh",
   },
   bash: {
     file: "shell/bash/figxit.bash",
-    lines: ['source "$FIGXIT_APP/Contents/Resources/shell/bash/figxit.bash"', 'figxit() { "$FIGXIT_APP/Contents/MacOS/figxit-engine" "$@"; }'],
+    lines: ['source "$FIGXIT_APP/Contents/Resources/shell/bash/figxit.bash"'],
     setup: 'add to ~/.bashrc: eval "$(figxit init bash)"',
     reload: "exec bash",
   },
   fish: {
     file: "shell/fish/figxit.fish",
-    lines: ['source "$FIGXIT_APP/Contents/Resources/shell/fish/figxit.fish"', 'function figxit; "$FIGXIT_APP/Contents/MacOS/figxit-engine" $argv; end'],
+    lines: ['source "$FIGXIT_APP/Contents/Resources/shell/fish/figxit.fish"'],
     setup: "add to ~/.config/fish/conf.d/figxit.fish: figxit init fish | source",
     reload: "exec fish",
   },

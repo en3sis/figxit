@@ -242,7 +242,7 @@ source /path/to/figxit/shell/bash/figxit.bash    # bash
 source /path/to/figxit/shell/fish/figxit.fish    # fish
 ```
 
-From the repository, the bash and fish adapters run the bridge with `bun run engine/src/main.ts bridge`.
+From the repository, the bash and fish adapters run the bridge with `bun run engine/src/main.ts bridge`. The `figxit` command runs `engine/src/main.ts` in the same way.
 
 With that line the adapter starts nothing by itself. `make dev` runs the helper and the engine in the foreground and reloads the engine when its source changes. Ctrl-C stops both.
 

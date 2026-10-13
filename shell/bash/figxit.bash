@@ -1,11 +1,22 @@
 [[ $- == *i* ]] || return 0
+
+figxit() {
+  if [[ -n $FIGXIT_APP ]]; then
+    "$FIGXIT_APP/Contents/MacOS/figxit-engine" "$@"
+  elif [[ -f $FIGXIT_HOME/engine/src/main.ts ]] && type -P bun >/dev/null; then
+    bun run "$FIGXIT_HOME/engine/src/main.ts" "$@"
+  else
+    "$FIGXIT_HOME/dist/Figxit.app/Contents/MacOS/figxit-engine" "$@"
+  fi
+}
+
 [[ -z ${_figxit_sep-} ]] || return 0
+FIGXIT_HOME=${FIGXIT_HOME:-$(cd "${BASH_SOURCE[0]%/*}/../.." 2>/dev/null && pwd -P)}
 if (( BASH_VERSINFO[0] < 5 )); then
   echo "figxit: bash 5 or later is needed, this shell is bash $BASH_VERSION" >&2
   return 0
 fi
 
-FIGXIT_HOME=${FIGXIT_HOME:-$(cd "${BASH_SOURCE[0]%/*}/../.." 2>/dev/null && pwd -P)}
 _figxit_sep=$'\x1f'
 _figxit_out= _figxit_in= _figxit_pid= _figxit_last= _figxit_cell=
 _figxit_visible=0 _figxit_retry=0 _figxit_bound=0 _figxit_pushed=0 _figxit_trap=1
