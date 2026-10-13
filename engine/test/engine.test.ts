@@ -358,28 +358,39 @@ describe("safety", () => {
     expect(result?.items.map((i) => i.label)).toEqual(["plain"]);
   });
 
-  test("generators do not run when an earlier word has shell syntax", async () => {
-    let runs = 0;
-    registerSpec("multi", {
-      name: "multi",
+  test("a word with a space or shell syntax stops shell strings and interpreters, not argument lists", async () => {
+    const forms: [string, unknown][] = [
+      ["x-text", "echo ok"],
+      ["x-list", ["echo", "ok"]],
+      ["x-object", { command: "echo", args: ["ok"] }],
+      ["x-shell", ["sh", "-c", "echo ok"]],
+      ["x-path", { command: "/bin/bash", args: ["-c", "echo ok"] }],
+    ];
+    registerSpec("probe", {
+      name: "probe",
       args: {
         name: "item",
         isVariadic: true,
         generators: [
           {
-            custom: async () => {
-              runs++;
-              return [{ name: "one" }];
+            custom: async (_tokens: string[], exec: (input: unknown) => Promise<{ stdout: string }>) => {
+              const ran = await Promise.all(forms.map(async ([name, input]) => ((await exec(input)).stdout ? name : "")));
+              return ran.filter(Boolean).map((name) => ({ name }));
             },
           },
+          { script: (tokens: string[]) => `echo x-script-${tokens.length}`, splitOn: "\n" },
+          { script: ["echo", "x-argv"], splitOn: "\n" },
         ],
       },
     });
-    await suggest("multi a b", 9, "/", historyOf([]), NOW);
-    expect(runs).toBe(1);
-    await suggest('multi "$(touch x)" b', 20, "/", historyOf([]), NOW);
-    await suggest('multi "a; b" c', 14, "/", historyOf([]), NOW);
-    expect(runs).toBe(1);
+    const ran = async (buffer: string) =>
+      ((await suggest(buffer, buffer.length, "/", historyOf([]), NOW))?.items ?? []).map((i) => i.label).sort();
+    expect(await ran("probe a x")).toEqual(["x-argv", "x-list", "x-object", "x-path", "x-script-3", "x-shell", "x-text"]);
+    expect(await ran('probe "a b" x')).toEqual(["x-argv", "x-list", "x-object"]);
+    expect(await ran('probe "$(touch x)" x')).toEqual(["x-argv", "x-list", "x-object"]);
+    expect(await ran('probe "a; b" x')).toEqual(["x-argv", "x-list", "x-object"]);
+    expect(await ran('probe "c d" x')).toEqual(["x-argv", "x-list", "x-object"]);
+    expect((await ran("probe c d x")).length).toBe(7);
   });
 
   test("no list opens for the next value of a repeating argument until a letter is typed", async () => {
