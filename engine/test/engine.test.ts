@@ -517,6 +517,13 @@ describe("specs", () => {
     expect(await labels("walk b/.", "/seg")).toEqual(["b/.git/"]);
   });
 
+  test("figxit has a spec of its own with specs off", async () => {
+    expect(await labels("figxit ")).toEqual(["doctor", "init", "start", "stop"]);
+    expect(await labels("figxit init ")).toEqual(["bash", "fish", "zsh"]);
+    expect(await labels("figxit doctor -")).toEqual(["--json"]);
+    expect((await labels("figxit -")).sort()).toEqual(["--help", "--version"]);
+  });
+
   test("generator results arrive in the second phase and are cached", async () => {
     const first = await suggestAsync("tool checkout ", 14, "/gen", historyOf([]), NOW);
     expect(first.now).toBeNull();
