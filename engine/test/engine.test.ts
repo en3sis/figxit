@@ -548,11 +548,11 @@ describe("specs", () => {
     const cwd = project({ "subway.txt": "" });
     await Bun.$`mkdir -p ${cwd}/sub/deep ${cwd}/empty`;
     expect(await rows("tool run su", cwd)).toEqual(["sub/", "subway.txt"]);
-    expect(await rows("tool run sub", cwd)).toEqual(["run sub/", "sub/deep/", "subway.txt"]);
+    expect(await rows("tool run sub", cwd)).toEqual(["run sub/", "subway.txt", "sub/deep/"]);
     expect(await rows("tool run empty", cwd)).toEqual(["empty/"]);
     const result = (await suggest("tool run sub", 12, cwd, historyOf([]), NOW))!;
     expect(result.remove).toBe(3);
-    expect(result.items[1]!.insert).toBe("sub/deep/");
+    expect(result.items[2]!.insert).toBe("sub/deep/");
   });
 
   test("generator results arrive in the second phase and are cached", async () => {

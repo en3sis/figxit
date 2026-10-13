@@ -105,7 +105,9 @@ async function inside(base: Result, buffer: string, cursor: number, cwd: string,
     const inner = (wait && found.more ? await found.more : null) ?? found.now;
     if (!inner) return list;
     const rest = list.items.filter((item, index) => index !== at && !item.run);
-    return { ...list, items: [...inner.items, ...rest].slice(0, MAX_ITEMS) };
+    const runs = inner.items.filter((item) => item.run);
+    const below = inner.items.filter((item) => !item.run);
+    return { ...list, items: [...runs, ...rest, ...below].slice(0, MAX_ITEMS) };
   };
   const first = await merge(base.now, false);
   if (base.more) return { now: first, more: base.more.then((list) => merge(list, true)) };
