@@ -439,7 +439,7 @@ describe("specs", () => {
         trigger: "/",
         getQueryTerm: (token: string) => token.slice(token.lastIndexOf("/") + 1),
         custom: async (tokens: string[]) =>
-          (tokens[tokens.length - 1]!.includes("/") ? ["c/", "e/", ".git/"] : ["b/"]).map((name) => ({
+          (tokens[tokens.length - 1]!.includes("/") ? ["c/", "my dir/", ".git/"] : ["b/", "x y/"]).map((name) => ({
             name,
             type: "folder",
             insertValue: name,
@@ -491,11 +491,15 @@ describe("specs", () => {
   });
 
   test("a generator that lists one path segment keeps the folders before it", async () => {
-    expect(await labels("walk ", "/seg")).toEqual(["b/"]);
+    const top = (await suggest("walk ", 5, "/seg", historyOf([]), NOW))!;
+    expect(top.items.map((i) => [i.label, i.insert])).toEqual([
+      ["b/", "b/"],
+      ["x y/", "x\\ y/"],
+    ]);
     const result = (await suggest("walk b/", 7, "/seg", historyOf([]), NOW))!;
     expect(result.items.map((i) => [i.label, i.insert])).toEqual([
       ["b/c/", "b/c/"],
-      ["b/e/", "b/e/"],
+      ["b/my dir/", "b/my\\ dir/"],
     ]);
     expect(result.remove).toBe(2);
     expect(await labels("walk b/c", "/seg")).toEqual(["b/c/"]);

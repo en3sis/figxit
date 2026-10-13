@@ -147,6 +147,11 @@ async function complete(
         const dotted = candidate.label.startsWith(".") && !candidate.label.startsWith("../");
         if (dotted && !prefix.startsWith(".", head.length)) continue;
         candidate.score = Math.min(candidate.score, 0.65);
+        const text = candidate.insert ?? `${candidate.label} `;
+        if (!/[\\'"]/.test(text)) {
+          const body = text.endsWith(" ") ? text.slice(0, -1) : text;
+          candidate.insert = escapePath(body) + text.slice(body.length);
+        }
       } else if (cautious(candidate.label)) {
         candidate.tint = CAUTION;
       }
