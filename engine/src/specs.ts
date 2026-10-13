@@ -28,7 +28,30 @@ const MAX_DETAIL = 64;
 const CONTROL = /[\x00-\x1f]/;
 const NAME = /^[\w@.+-]+(\/[\w@.+-]+)*$/;
 
-const modules = new Map<string, Promise<Spec | null>>();
+const OWN: Spec = {
+  name: "figxit",
+  description: "Completion popup for the terminal",
+  subcommands: [
+    {
+      name: "init",
+      description: "Print the lines that load Figxit in a shell",
+      args: { name: "shell", suggestions: ["zsh", "bash", "fish"] },
+    },
+    { name: "start", description: "Start the popup helper and the engine" },
+    { name: "stop", description: "Stop the popup helper and the engine" },
+    {
+      name: "doctor",
+      description: "Check the installation",
+      options: [{ name: "--json", description: "Print the result as JSON" }],
+    },
+  ],
+  options: [
+    { name: ["--version", "-v"], description: "Print the version" },
+    { name: "--help", description: "Print the commands" },
+  ],
+};
+
+const modules = new Map<string, Promise<Spec | null>>([["figxit", Promise.resolve(OWN)]]);
 let directory: string | null | undefined;
 let names: Promise<Set<string>> | null = null;
 
