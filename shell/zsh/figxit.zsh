@@ -196,18 +196,12 @@ figxit-enter() {
 }
 
 figxit-up() {
-  if (( _figxit_visible && ! _figxit_depth )); then
-    _figxit_send "K${_figxit_sep}up"
-    return
-  fi
+  (( _figxit_visible && ! _figxit_depth )) && _figxit_send "K${_figxit_sep}up" && return
   _figxit_fallback figxit-up up-line-or-history
 }
 
 figxit-down() {
-  if (( _figxit_visible && ! _figxit_depth )); then
-    _figxit_send "K${_figxit_sep}down"
-    return
-  fi
+  (( _figxit_visible && ! _figxit_depth )) && _figxit_send "K${_figxit_sep}down" && return
   _figxit_fallback figxit-down down-line-or-history
 }
 
