@@ -530,7 +530,7 @@ describe("specs", () => {
     expect(result.items.map((i) => i.run === true)).toEqual([true, false, false]);
     expect(result.remove).toBe(2);
     expect(await labels("walk ../", "/seg")).toEqual(["../", "../../", "../c/", "../my dir/"]);
-    expect(await labels("walk b/c", "/seg")).toEqual(["b/c/"]);
+    expect(await labels("walk b/c", "/seg")).toEqual(["b/c/", "b/c/c/", "b/c/my dir/"]);
     expect(await labels("walk b/.", "/seg")).toEqual(["b/.git/"]);
   });
 
@@ -539,6 +539,20 @@ describe("specs", () => {
     expect(await labels("figxit init ")).toEqual(["bash", "fish", "zsh"]);
     expect(await labels("figxit doctor -")).toEqual(["--json"]);
     expect((await labels("figxit -")).sort()).toEqual(["--help", "--version"]);
+  });
+
+  test("the name of a folder with no slash lists Run and the folders in it", async () => {
+    const rows = async (buffer: string, cwd: string) =>
+      ((await suggest(buffer, buffer.length, cwd, historyOf([]), NOW))?.items ?? []).map((i) => (i.run ? `run ${i.label}` : i.label));
+    expect(await rows("walk b", "/seg")).toEqual(["run b/", "b/c/", "b/my dir/"]);
+    const cwd = project({ "subway.txt": "" });
+    await Bun.$`mkdir -p ${cwd}/sub/deep ${cwd}/empty`;
+    expect(await rows("tool run su", cwd)).toEqual(["sub/", "subway.txt"]);
+    expect(await rows("tool run sub", cwd)).toEqual(["run sub/", "sub/deep/", "subway.txt"]);
+    expect(await rows("tool run empty", cwd)).toEqual(["empty/"]);
+    const result = (await suggest("tool run sub", 12, cwd, historyOf([]), NOW))!;
+    expect(result.remove).toBe(3);
+    expect(result.items[1]!.insert).toBe("sub/deep/");
   });
 
   test("generator results arrive in the second phase and are cached", async () => {

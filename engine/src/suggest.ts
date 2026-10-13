@@ -66,7 +66,7 @@ export async function suggest(
   history: History,
   now = Date.now(),
 ): Promise<Result> {
-  const base = await complete(buffer, cursor, cwd, history, now);
+  const base = await inside(await complete(buffer, cursor, cwd, history, now), buffer, cursor, cwd, history, now);
   const head = buffer.slice(0, cursor);
   if (cursor !== buffer.length || !COMMAND.test(head) || keyword(head) || !(await loadSpec(head))) return base;
 
@@ -87,6 +87,30 @@ export async function suggest(
     now: base.now,
     more: next.more.then(async (list) => ahead(list) ?? (base.more ? await base.more : base.now)),
   };
+}
+
+async function inside(base: Result, buffer: string, cursor: number, cwd: string, history: History, now: number): Promise<Result> {
+  const named = (list: Suggestion | null): number => {
+    if (!list) return -1;
+    const token = buffer.slice(list.tokenStart, cursor);
+    if (token === "") return -1;
+    return list.items.findIndex((item) => item.icon === ICONS.folder.icon && item.insert === `${token}/`);
+  };
+  let next: Promise<Result> | null = null;
+  const merge = async (list: Suggestion | null, wait: boolean): Promise<Suggestion | null> => {
+    const at = named(list);
+    if (!list || at < 0) return list;
+    next ??= complete(`${buffer.slice(0, cursor)}/${buffer.slice(cursor)}`, cursor + 1, cwd, history, now);
+    const found = await next;
+    const inner = (wait && found.more ? await found.more : null) ?? found.now;
+    if (!inner) return list;
+    const rest = list.items.filter((item, index) => index !== at && !item.run);
+    return { ...list, items: [...inner.items, ...rest].slice(0, MAX_ITEMS) };
+  };
+  const first = await merge(base.now, false);
+  if (base.more) return { now: first, more: base.more.then((list) => merge(list, true)) };
+  const pending = next !== null && (await (next as Promise<Result>)).more !== null;
+  return { now: first, more: pending ? merge(base.now, true) : null };
 }
 
 async function complete(
