@@ -122,6 +122,21 @@ function keyOf(generator: Spec, ctx: GenContext): string {
   return [id, ctx.cwd, ctx.tokens.slice(0, -1).join(" "), scope].join("\0");
 }
 
+export function queryHead(generator: Spec, prefix: string): string {
+  const term = generator.getQueryTerm;
+  if (typeof term === "string" && term) {
+    const at = prefix.lastIndexOf(term);
+    return at < 0 ? "" : prefix.slice(0, at + term.length);
+  }
+  if (typeof term !== "function") return "";
+  try {
+    const query = term(prefix);
+    return typeof query === "string" && prefix.endsWith(query) ? prefix.slice(0, prefix.length - query.length) : "";
+  } catch {
+    return "";
+  }
+}
+
 export function lookup(generator: Spec, ctx: GenContext, now = Date.now()): Lookup {
   const key = keyOf(generator, ctx);
   const hit = cache.get(key);

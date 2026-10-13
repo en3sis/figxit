@@ -1,5 +1,5 @@
 import { brandIcon, ICONS, type Icon } from "./brands";
-import { fileCandidates, lookup, type GenContext, type Lookup } from "./generators";
+import { escapePath, fileCandidates, lookup, queryHead, type GenContext, type Lookup } from "./generators";
 import type { History } from "./history";
 import { projectCandidates, repoRoot, type Candidate } from "./sources";
 import { emit, loadSpec, locate, toCandidate, type Emitted } from "./specs";
@@ -119,18 +119,20 @@ async function complete(
   const brand = brandIcon(command) ?? ICONS.command;
 
   const files: Candidate[] = [];
-  const slots: Lookup[] = [];
+  const slots: { found: Lookup; head: string }[] = [];
   if (emitted && !project.authoritative) {
     if (emitted.templates.size > 0) {
       files.push(...fileCandidates(prefix, cwd, !emitted.templates.has("filepaths")));
     }
     if (project.candidates.length === 0 && ![...words, prefix].some((word) => SHELL.test(word) || BARE.test(word))) {
       const ctx: GenContext = { tokens: [...words, prefix], cwd, prefix };
-      for (const generator of emitted.generators) slots.push(lookup(generator, ctx, now));
+      for (const generator of emitted.generators) {
+        slots.push({ found: lookup(generator, ctx, now), head: queryHead(generator, prefix) });
+      }
     }
   }
 
-  const assemble = (dynamic: unknown[]): Suggestion | null => {
+  const assemble = (dynamic: { item: unknown; head: string }[]): Suggestion | null => {
     const merged = new Map<string, Candidate>();
     const add = (candidate: Candidate | null) => {
       if (candidate && !merged.has(candidate.label)) merged.set(candidate.label, { ...candidate });
@@ -138,15 +140,26 @@ async function complete(
     const pick = (candidate: Candidate) => add({ ...candidate, pick: true });
     project.candidates.forEach(pick);
     emitted?.statics.forEach(pick);
-    for (const item of dynamic) {
+    for (const { item, head } of dynamic) {
       const candidate = toCandidate(item as never, brand, "suggestion");
       if (!candidate) continue;
       if (candidate.icon === ICONS.folder.icon || candidate.icon === ICONS.file.icon) {
         const dotted = candidate.label.startsWith(".") && !candidate.label.startsWith("../");
-        if (dotted && !prefix.startsWith(".")) continue;
+        if (dotted && !prefix.startsWith(".", head.length)) continue;
         candidate.score = Math.min(candidate.score, 0.65);
+        const text = candidate.insert ?? `${candidate.label} `;
+        if (!/[\\'"]/.test(text)) {
+          const body = text.endsWith(" ") ? text.slice(0, -1) : text;
+          candidate.insert = escapePath(body) + text.slice(body.length);
+        }
       } else if (cautious(candidate.label)) {
         candidate.tint = CAUTION;
+      }
+      if (head !== "") {
+        if (candidate.insert === undefined && UNSAFE.test(candidate.label)) continue;
+        candidate.insert = escapePath(head) + (candidate.insert ?? `${candidate.label} `);
+        candidate.label = head + candidate.label;
+        candidate.aliases = candidate.aliases?.map((name) => head + name);
       }
       pick(candidate);
     }
@@ -215,12 +228,15 @@ async function complete(
     return { items: items.slice(0, MAX_ITEMS), remove: cursor - parsed.tokenStart, tokenStart: parsed.tokenStart };
   };
 
-  const cached = slots.flatMap((slot) => slot.value ?? []);
-  const pending = slots.some((slot) => slot.refresh);
+  const tagged = (items: unknown[], head: string) => items.map((item) => ({ item, head }));
+  const cached = slots.flatMap((slot) => tagged(slot.found.value ?? [], slot.head));
+  const pending = slots.some((slot) => slot.found.refresh);
   return {
     now: assemble(cached),
     more: pending
-      ? Promise.all(slots.map((slot) => slot.refresh ?? slot.value ?? [])).then((lists) => assemble(lists.flat()))
+      ? Promise.all(
+          slots.map(async (slot) => tagged(await (slot.found.refresh ?? slot.found.value ?? []), slot.head)),
+        ).then((lists) => assemble(lists.flat()))
       : null,
   };
 }

@@ -431,6 +431,23 @@ describe("specs", () => {
     options: [{ name: "--verbose", isPersistent: true }, { name: "--root-only" }],
   });
 
+  registerSpec("walk", {
+    name: "walk",
+    args: {
+      name: "folder",
+      generators: {
+        trigger: "/",
+        getQueryTerm: (token: string) => token.slice(token.lastIndexOf("/") + 1),
+        custom: async (tokens: string[]) =>
+          (tokens[tokens.length - 1]!.includes("/") ? ["c/", "my dir/", ".git/"] : ["b/", "x y/"]).map((name) => ({
+            name,
+            type: "folder",
+            insertValue: name,
+          })),
+      },
+    },
+  });
+
   const labels = async (buffer: string, cwd = "/here", history = historyOf([])) =>
     ((await suggest(buffer, buffer.length, cwd, history, NOW))?.items ?? []).map((i) => i.label);
 
@@ -471,6 +488,22 @@ describe("specs", () => {
     expect([...byLabel.keys()].sort()).toEqual(["a.txt", "b c.txt", "sub/"]);
     expect(byLabel.get("sub/")).toBe("sub/");
     expect(byLabel.get("b c.txt")).toBe("b\\ c.txt ");
+  });
+
+  test("a generator that lists one path segment keeps the folders before it", async () => {
+    const top = (await suggest("walk ", 5, "/seg", historyOf([]), NOW))!;
+    expect(top.items.map((i) => [i.label, i.insert])).toEqual([
+      ["b/", "b/"],
+      ["x y/", "x\\ y/"],
+    ]);
+    const result = (await suggest("walk b/", 7, "/seg", historyOf([]), NOW))!;
+    expect(result.items.map((i) => [i.label, i.insert])).toEqual([
+      ["b/c/", "b/c/"],
+      ["b/my dir/", "b/my\\ dir/"],
+    ]);
+    expect(result.remove).toBe(2);
+    expect(await labels("walk b/c", "/seg")).toEqual(["b/c/"]);
+    expect(await labels("walk b/.", "/seg")).toEqual(["b/.git/"]);
   });
 
   test("generator results arrive in the second phase and are cached", async () => {
