@@ -1,0 +1,72 @@
+name: Bug report
+description: Something in Figxit is not working
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report. Most fields are one click.
+  - type: textarea
+    id: what
+    attributes:
+      label: What went wrong?
+      description: Tell us what you typed, what you saw, and what you expected.
+      placeholder: I typed `git checkout ` and the popup listed files, not branches.
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshot or recording
+      description: Drag a file here if you can. Shift-Cmd-5 takes a screenshot or records the screen. Check that no secrets are visible.
+  - type: dropdown
+    id: shell
+    attributes:
+      label: Shell
+      options:
+        - zsh
+        - bash
+        - fish
+    validations:
+      required: true
+  - type: dropdown
+    id: terminal
+    attributes:
+      label: Terminal
+      options:
+        - Ghostty
+        - iTerm2
+        - Terminal
+        - WezTerm
+        - Alacritty
+        - kitty
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: tmux
+    attributes:
+      label: tmux
+      options:
+        - Not using tmux
+        - Inside tmux
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Figxit version
+      description: Run `figxit --version`.
+      placeholder: 0.2.3
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor output
+      description: Optional, but it often shows the cause. Run `figxit doctor` and paste the output.
+      render: shell
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Want to fix it?
+      description: Pull requests are welcome. The README has a [Development](https://github.com/en3sis/figxit#development) section to get you started.
+      options:
+        - label: I would like to open a pull request

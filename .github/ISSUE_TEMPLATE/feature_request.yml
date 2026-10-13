@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest something Figxit should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: Tell us what you type today and what the popup should show.
+      placeholder: When I type `just ` in a folder with a justfile, list its recipes.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Completions for a tool
+        - Popup look or position
+        - Keys
+        - Shell or terminal support
+        - Settings
+        - Other
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshot or mockup
+      description: Drag a file here if you have one. A capture of another tool that does this helps.
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Want to build it?
+      description: Pull requests are welcome. The README has a [Development](https://github.com/en3sis/figxit#development) section to get you started.
+      options:
+        - label: I would like to open a pull request

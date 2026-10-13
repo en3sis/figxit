@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Known limits
+    url: https://github.com/en3sis/figxit#limits
+    about: A short list of things Figxit does not do yet. Worth a look before you file a bug.
