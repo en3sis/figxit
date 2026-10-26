@@ -69,7 +69,7 @@ function _figxit_open
     set _figxit_pid $last_pid
     disown $_figxit_pid 2>/dev/null
     set _figxit_lost 0
-    _figxit_send "H$_figxit_sep$fish_pid$_figxit_sep"(string split -m1 , -- "$TMUX")[1]"$_figxit_sep$TMUX_PANE$_figxit_sep"(string join : -- $PATH)"$_figxit_sep$TERM_PROGRAM"
+    _figxit_send "H$_figxit_sep$fish_pid$_figxit_sep"(string split -m1 , -- "$TMUX")[1]"$_figxit_sep$TMUX_PANE$_figxit_sep"(string join : -- $PATH)"$_figxit_sep$TERM_PROGRAM$_figxit_sep$HERDR_PANE_ID$_figxit_sep$HERDR_SOCKET_PATH$_figxit_sep$HERDR_BIN_PATH"
 end
 
 function _figxit_wait
@@ -174,12 +174,19 @@ function _figxit_enter
     end
 end
 
+function _figxit_recalled
+    _figxit_state
+    set _figxit_last "$_figxit_cursor$_figxit_sep$_figxit_buffer"
+    set _figxit_painted $_figxit_cursor
+    _figxit_send N
+end
+
 function _figxit_move
     if _figxit_visible
         _figxit_send "K$_figxit_sep$argv[2]"
     else
         _figxit_pass $argv[1]
-        _figxit_hook
+        _figxit_recalled
     end
 end
 

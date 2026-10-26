@@ -68,7 +68,7 @@ _figxit_connect() {
   fi
   _figxit_fd=$REPLY
   zle -F -w $_figxit_fd _figxit_recv
-  _figxit_send "H${_figxit_sep}$$${_figxit_sep}${TMUX%%,*}${_figxit_sep}${TMUX_PANE}${_figxit_sep}${PATH}${_figxit_sep}${TERM_PROGRAM}"
+  _figxit_send "H${_figxit_sep}$$${_figxit_sep}${TMUX%%,*}${_figxit_sep}${TMUX_PANE}${_figxit_sep}${PATH}${_figxit_sep}${TERM_PROGRAM}${_figxit_sep}${HERDR_PANE_ID}${_figxit_sep}${HERDR_SOCKET_PATH}${_figxit_sep}${HERDR_BIN_PATH}"
 }
 
 _figxit_ask() {
@@ -211,14 +211,22 @@ figxit-enter() {
   _figxit_fallback figxit-enter accept-line
 }
 
+_figxit_recalled() {
+  _figxit_last="$CURSOR$_figxit_sep$BUFFER"
+  _figxit_send N
+  return $1
+}
+
 figxit-up() {
   (( _figxit_visible && ! _figxit_depth )) && _figxit_send "K${_figxit_sep}up" && return
   _figxit_fallback figxit-up up-line-or-history
+  _figxit_recalled $?
 }
 
 figxit-down() {
   (( _figxit_visible && ! _figxit_depth )) && _figxit_send "K${_figxit_sep}down" && return
   _figxit_fallback figxit-down down-line-or-history
+  _figxit_recalled $?
 }
 
 figxit-esc() {

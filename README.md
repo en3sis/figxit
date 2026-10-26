@@ -86,7 +86,7 @@ For a command that has a spec, history from other folders is not shown. This kee
 | Esc | Close the popup. In zsh vi mode, the same press also goes to command mode |
 | Ctrl-U or more typing | Close the popup |
 
-When the popup is closed, the keys do what they did before. Tab still opens your normal completion and Up still searches your history.
+When the popup is closed, the keys do what they did before. Tab still opens your normal completion and Up still searches your history. A line that Up or Down brings back from history does not open the popup, so the next Up goes further back. Type a key to open it.
 
 ## Conventions
 
@@ -124,6 +124,7 @@ The rule applies to Makefile targets, `package.json` scripts, and live values su
 - macOS 13 or later. The glass background needs macOS 26 or later.
 - zsh, bash 5 or later, or fish 4, in tmux or directly in a terminal that reports its cursor position. The `/bin/bash` of macOS is version 3.2 and does not work.
 - tmux is optional. In tmux, each terminal app works. The terminal inside an editor, such as VS Code, does not: see [Limits](#limits). Without tmux, the popup is tested in Ghostty, iTerm2, and Terminal. WezTerm, Alacritty, and kitty are not tested yet without tmux.
+- [herdr](https://herdr.dev) works too, with its panes and splits. Figxit asks herdr where the pane is with `herdr pane layout` and reads the border and tab bar settings from `~/.config/herdr/config.toml`.
 - Atuin, optional, for ranking.
 
 No Accessibility or Screen Recording permission is needed.
@@ -212,6 +213,7 @@ The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is 
 - The popup stays hidden in a native split of the terminal app, because the window list gives the window and not the pane. Use one pane for each window or tab, or use tmux for splits.
 - The popup stays hidden in a terminal that is a panel of another application's window, such as the terminal of VS Code, Cursor, or another editor, with tmux and without. The window list gives the window and not the panel, and these terminals do not report where the panel is. Use a terminal app.
 - Outside tmux, the popup stays hidden in a terminal that does not answer a cursor position query. In a terminal that does not report its cell size, the position is correct only with no tab bar and no split.
+- herdr: when the terminal app does not report its cell size, herdr reports a default size, and the popup can be in the wrong place. With `tab_bar_position = "bottom"` and `hide_tab_bar_when_single_tab = true`, the popup is one row too low while the workspace has one tab. A config file set with `HERDR_CONFIG_PATH` or `XDG_CONFIG_HOME` is not read.
 - Outside tmux, a terminal that keeps all its tabs in one window does not tell Figxit about a tab switch. The popup closes at the next key.
 - macOS only.
 - zsh and bash: Escape as a prefix for a Meta key (Escape, then `b`) works only when the second key follows within the key timeout of the shell, 0.4 seconds in zsh and 0.5 seconds in bash.

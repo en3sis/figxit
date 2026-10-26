@@ -194,6 +194,18 @@ try {
     await keys("Up");
     check("Up falls back to history when hidden", /> +echo hi$/.test(screen()), screen());
     await keys("C-u");
+
+    await keys("make dev");
+    await keys("Enter");
+    const recalled = messages.length;
+    await keys("Up");
+    check("a line from history opens no popup", /> +make dev$/.test(screen()) && !messages.slice(recalled).some((m) => m.cmd === "show"), messages.slice(recalled));
+    await keys("Up");
+    check("a second Up goes further back in history", /> +echo hi$/.test(screen()), screen());
+    await keys("C-u");
+    await keys("make dev");
+    check("typing opens the popup again after a recall", lastShow()?.items[0]?.label === "dev" && messages.at(-1)?.cmd === "show", messages.slice(-2));
+    await keys("C-u");
   }
 
   await keys("make ");

@@ -1,4 +1,6 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { resolveCommand } from "./paths";
 
 export interface Grid {
@@ -11,12 +13,40 @@ export interface Grid {
   padX: number;
   padY: number;
   pane?: boolean;
+  right?: boolean;
 }
 
 export interface TmuxTarget {
   socket: string;
   pane: string;
 }
+
+export interface HerdrTarget {
+  bin: string;
+  socket: string;
+  pane: string;
+}
+
+export interface HerdrUi {
+  borders: string;
+  outer: boolean;
+  bottom: boolean;
+}
+
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface HerdrLayout {
+  area: Box;
+  zoomed?: boolean;
+  panes: { pane_id: string; rect: Box }[];
+}
+
+const HERDR_CONFIG = join(homedir(), ".config/herdr/config.toml");
 
 const FORMAT =
   "#{pane_left} #{pane_top} #{cursor_x} #{cursor_y} #{client_width} #{client_height} #{client_cell_width} #{client_cell_height} #{status} #{status-position} #{client_termname}";
@@ -96,4 +126,60 @@ export async function tmuxGrid(target: TmuxTarget): Promise<Grid | null> {
   const out = await tmuxQuery(target, FORMAT);
   if (out === null) return null;
   return parseTmux(out, termPad);
+}
+
+export function herdrUi(path = HERDR_CONFIG): HerdrUi {
+  const ui: HerdrUi = { borders: "auto", outer: true, bottom: false };
+  try {
+    const config = (Bun.TOML.parse(readFileSync(path, "utf8")) as { ui?: Record<string, unknown> }).ui ?? {};
+    if (typeof config.pane_borders === "string") ui.borders = config.pane_borders.toLowerCase();
+    if (typeof config.pane_outer_borders === "boolean") ui.outer = config.pane_outer_borders;
+    ui.bottom = config.tab_bar_position === "bottom";
+  } catch {}
+  return ui;
+}
+
+export function placeHerdr(grid: Grid, reply: string, pane: string, ui: HerdrUi): Grid | null {
+  let layout: HerdrLayout | undefined;
+  try {
+    layout = JSON.parse(reply)?.result?.layout;
+  } catch {
+    return null;
+  }
+  const own = layout?.panes?.find((entry) => entry.pane_id === pane);
+  if (!layout?.area || !own) return null;
+  const bordered = ui.borders !== "off" && (layout.panes.length > 1 || ui.borders === "always");
+  let rect = own.rect;
+  let left = 0;
+  let top = 0;
+  if (layout.zoomed) {
+    rect = layout.area;
+    left = top = bordered && ui.outer ? 1 : 0;
+  } else if (bordered) {
+    left = ui.outer || rect.x > Math.min(...layout.panes.map((entry) => entry.rect.x)) ? 1 : 0;
+    top = ui.outer || rect.y > Math.min(...layout.panes.map((entry) => entry.rect.y)) ? 1 : 0;
+  }
+  return {
+    ...grid,
+    col: rect.x - layout.area.x + left + grid.col,
+    row: rect.y - layout.area.y + top + grid.row,
+    cols: layout.area.width,
+    rows: layout.area.height + (ui.bottom ? 1 : 0),
+    right: true,
+  };
+}
+
+export async function herdrGrid(target: HerdrTarget, grid: Grid): Promise<Grid | null> {
+  try {
+    const env: Record<string, string | undefined> = { ...process.env, HERDR_SOCKET_PATH: target.socket };
+    delete env.HERDR_SESSION;
+    const proc = Bun.spawn([target.bin, "pane", "layout", "--pane", target.pane], { env, stdout: "pipe", stderr: "ignore" });
+    const timer = setTimeout(() => proc.kill(9), 1000);
+    const out = await new Response(proc.stdout).text();
+    const status = await proc.exited;
+    clearTimeout(timer);
+    return status === 0 ? placeHerdr(grid, out, target.pane, herdrUi()) : null;
+  } catch {
+    return null;
+  }
 }

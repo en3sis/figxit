@@ -115,6 +115,9 @@ export class Bridge {
         this.idle();
         if (f[1]) this.wires.shell(`s${SEP}${f[1]}`);
         break;
+      case "N":
+        this.idle();
+        break;
       case "X":
         this.idle();
         this.wires.engine(line);
