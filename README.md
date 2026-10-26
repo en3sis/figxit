@@ -27,7 +27,7 @@ Figxit has all three: a list that opens while you type, completion data for 700+
 
 ### Project targets and scripts
 
-`make ` lists the targets of the `Makefile` in the current folder. `npm run `, `pnpm `, `yarn `, and `bun run ` list the scripts of `package.json`.
+`make ` lists the targets of the `Makefile` in the current folder, and of the files it includes with `include` or `-include`. `npm run `, `pnpm `, `yarn `, and `bun run ` list the scripts of `package.json`.
 
 The icon comes from the verb in the name: `dev`, `start`, and `serve` share one shape, `test` and `test:e2e` share another, and `dev-down` gets the stop shape. One list of 12 verbs covers most script and target names in popular open source projects.
 

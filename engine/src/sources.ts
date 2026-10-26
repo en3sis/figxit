@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { ICONS } from "./brands";
 import { CAUTION, cautious, verbIcon } from "./verbs";
 
@@ -25,6 +25,9 @@ export interface SourceResult {
 const MAKEFILES = ["GNUmakefile", "makefile", "Makefile"];
 const TARGET = /^([A-Za-z0-9][A-Za-z0-9_.\/-]*)\s*:(?![=:])(.*)$/;
 const SECTION = /^##@\s*(.+)$/;
+const INCLUDE = /^ *(?:-include|sinclude|include)\s+(.*)$/;
+const INCLUDE_DEPTH = 4;
+const MAX_FILE = 512 * 1024;
 const MAX_DETAIL = 64;
 const MAKE_ELSEWHERE = /^(-C|-f|--directory|--file|--makefile)/;
 const MAKE_VALUE = /^-[jlokIW]$/;
@@ -33,13 +36,14 @@ const BRANCH_COMMANDS = new Set(["checkout", "switch", "merge", "rebase", "cherr
 const SCRIPT_RUNNERS: Record<string, number[]> = { npm: [2], pnpm: [1, 2], yarn: [1, 2], bun: [1, 2] };
 
 const fileCache = new Map<string, { mtime: number; value: Candidate[] }>();
+const makeCache = new Map<string, { files: Map<string, number>; value: Candidate[] }>();
 const rootCache = new Map<string, string | null>();
 const branchCache = new Map<string, { at: number; value: Candidate[] }>();
 
 function cached(path: string, build: (text: string) => Candidate[]): Candidate[] {
   try {
     const stat = statSync(path);
-    if (stat.size > 512 * 1024) return [];
+    if (stat.size > MAX_FILE) return [];
     const hit = fileCache.get(path);
     if (hit && hit.mtime === stat.mtimeMs) return hit.value;
     const value = build(readFileSync(path, "utf8"));
@@ -55,31 +59,75 @@ function describe(section: string, help: string): string {
   return text.length > MAX_DETAIL ? text.slice(0, MAX_DETAIL - 1) + "…" : text;
 }
 
-export function parseMakefile(text: string): Candidate[] {
+export function parseMakefile(text: string, read: (name: string) => string | null = () => null): Candidate[] {
   const seen = new Map<string, Candidate>();
-  let section = "";
-  for (const line of text.split("\n")) {
-    const header = SECTION.exec(line);
-    if (header) {
-      section = header[1]!.trim();
-      continue;
+  const walk = (body: string, depth: number) => {
+    let section = "";
+    for (const line of body.split("\n")) {
+      const include = INCLUDE.exec(line);
+      if (include) {
+        if (depth >= INCLUDE_DEPTH) continue;
+        for (const name of include[1]!.replace(/#.*$/, "").trim().split(/\s+/)) {
+          if (!name || /[$*?[]/.test(name)) continue;
+          const included = read(name);
+          if (included !== null) walk(included, depth + 1);
+        }
+        continue;
+      }
+      const header = SECTION.exec(line);
+      if (header) {
+        section = header[1]!.trim();
+        continue;
+      }
+      const match = TARGET.exec(line);
+      if (!match || match[1]!.includes("%")) continue;
+      const noted = /##\s*(.+)$/.exec(match[2]!)?.[1]!.trim() ?? "";
+      const help = noted.replace(CAUTION_TAG, "");
+      const flagged = help !== noted || cautious(match[1]!);
+      const existing = seen.get(match[1]!);
+      if (existing) {
+        if (help) existing.detail = describe(section, help);
+        if (flagged) existing.tint = CAUTION;
+        continue;
+      }
+      const candidate: Candidate = { label: match[1]!, detail: describe(section, help), score: 1, ...verbIcon(match[1]!) };
+      if (flagged) candidate.tint = CAUTION;
+      seen.set(match[1]!, candidate);
     }
-    const match = TARGET.exec(line);
-    if (!match || match[1]!.includes("%")) continue;
-    const noted = /##\s*(.+)$/.exec(match[2]!)?.[1]!.trim() ?? "";
-    const help = noted.replace(CAUTION_TAG, "");
-    const flagged = help !== noted || cautious(match[1]!);
-    const existing = seen.get(match[1]!);
-    if (existing) {
-      if (help) existing.detail = describe(section, help);
-      if (flagged) existing.tint = CAUTION;
-      continue;
-    }
-    const candidate: Candidate = { label: match[1]!, detail: describe(section, help), score: 1, ...verbIcon(match[1]!) };
-    if (flagged) candidate.tint = CAUTION;
-    seen.set(match[1]!, candidate);
-  }
+  };
+  walk(text, 0);
   return [...seen.values()];
+}
+
+function stamp(path: string): number {
+  try {
+    const stat = statSync(path);
+    return stat.size > MAX_FILE ? -2 : stat.mtimeMs;
+  } catch {
+    return -1;
+  }
+}
+
+export function makeTargets(path: string): Candidate[] {
+  const hit = makeCache.get(path);
+  if (hit && [...hit.files].every(([file, time]) => stamp(file) === time)) return hit.value;
+  const dir = dirname(path);
+  const files = new Map<string, number>();
+  const load = (file: string): string | null => {
+    if (files.has(file)) return null;
+    const time = stamp(file);
+    files.set(file, time);
+    if (time < 0) return null;
+    try {
+      return readFileSync(file, "utf8");
+    } catch {
+      return null;
+    }
+  };
+  const text = load(path);
+  const value = text === null ? [] : parseMakefile(text, (name) => load(isAbsolute(name) ? name : join(dir, name)));
+  makeCache.set(path, { files, value });
+  return value;
 }
 
 export function parseScripts(text: string): Candidate[] {
@@ -156,7 +204,7 @@ export function projectCandidates(words: string[], prefix: string, cwd: string, 
     const given = rest.some((word, index) => !word.startsWith("-") && !word.includes("=") && !MAKE_VALUE.test(rest[index - 1] ?? ""));
     for (const name of MAKEFILES) {
       const path = join(cwd, name);
-      if (existsSync(path)) return { candidates: given ? [] : cached(path, parseMakefile), authoritative: true };
+      if (existsSync(path)) return { candidates: given ? [] : makeTargets(path), authoritative: true };
     }
     return none;
   }
