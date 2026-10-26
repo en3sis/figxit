@@ -19,7 +19,7 @@ fi
 
 _figxit_sep=$'\x1f'
 _figxit_out= _figxit_in= _figxit_pid= _figxit_last= _figxit_cell=
-_figxit_visible=0 _figxit_retry=0 _figxit_bound=0 _figxit_pushed=0 _figxit_trap=1
+_figxit_visible=0 _figxit_retry=0 _figxit_bound=0 _figxit_pushed=0 _figxit_trap=1 _figxit_recall=0
 _figxit_plain=1
 [[ -n $TMUX && -n $TMUX_PANE ]] && _figxit_plain=0
 _figxit_run=()
@@ -69,7 +69,7 @@ _figxit_open() {
   _figxit_pid=$_figxit_co_PID
   exec {_figxit_out}>&"${_figxit_co[1]}" {_figxit_in}<&"${_figxit_co[0]}"
   disown "$_figxit_pid" 2>/dev/null
-  _figxit_send "H${_figxit_sep}$$${_figxit_sep}${TMUX%%,*}${_figxit_sep}${TMUX_PANE}${_figxit_sep}${PATH}${_figxit_sep}${TERM_PROGRAM}"
+  _figxit_send "H${_figxit_sep}$$${_figxit_sep}${TMUX%%,*}${_figxit_sep}${TMUX_PANE}${_figxit_sep}${PATH}${_figxit_sep}${TERM_PROGRAM}${_figxit_sep}${HERDR_PANE_ID}${_figxit_sep}${HERDR_SOCKET_PATH}${_figxit_sep}${HERDR_BIN_PATH}"
 }
 
 _figxit_apply() {
@@ -96,6 +96,12 @@ _figxit_unpush() {
 
 _figxit_hook() {
   _figxit_unpush
+  if (( _figxit_recall )); then
+    _figxit_recall=0
+    _figxit_last="$READLINE_POINT$_figxit_sep$READLINE_LINE"
+    _figxit_send N
+    return 0
+  fi
   [[ -n $_figxit_out ]] || return 0
   read -t 0 && return 0
   local state="$READLINE_POINT$_figxit_sep$READLINE_LINE"
@@ -230,6 +236,7 @@ _figxit_move() {
     _figxit_to "$1" eat
   else
     _figxit_to "$1" pass
+    _figxit_recall=1
   fi
 }
 

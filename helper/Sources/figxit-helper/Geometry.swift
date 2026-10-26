@@ -112,6 +112,7 @@ enum Geometry {
     }
 
     static func placement(grid: Grid, terminal: Terminal) -> Placement? {
+        if grid.right == true, grid.cellPxW == nil || grid.cellPxH == nil { return nil }
         let padX = CGFloat(grid.padX ?? 0)
         let padY = CGFloat(grid.padY ?? 0)
         let cols = CGFloat(max(grid.cols, 1))
@@ -143,8 +144,12 @@ enum Geometry {
             top = base.minY + assumedTitlebar
         }
 
+        func span(_ cellW: CGFloat) -> CGFloat {
+            grid.right == true ? max(cols, ((base.width - 2 * padX) / cellW + 0.01).rounded(.down)) : cols
+        }
+
         func fills(_ cellW: CGFloat, _ cellH: CGFloat) -> Bool {
-            let spareW = base.width - cols * cellW - 2 * padX
+            let spareW = base.width - span(cellW) * cellW - 2 * padX
             let spareH = base.height - rows * cellH - 2 * padY
             return spareW >= -0.02 * base.width && spareW <= 0.12 * base.width
                 && spareH >= -0.02 * base.height && spareH <= max(100, 0.2 * base.height)
@@ -163,7 +168,11 @@ enum Geometry {
             return nil
         }
 
-        let x = base.minX + padX + CGFloat(grid.col) * cellW
+        if grid.right == true {
+            top = base.minY + max(0, base.height - rows * cellH - 2 * padY)
+        }
+
+        let x = base.minX + padX + (span(cellW) - cols + CGFloat(grid.col)) * cellW
         let yTop = top + padY + CGFloat(grid.row) * cellH
         return Placement(
             source: source,

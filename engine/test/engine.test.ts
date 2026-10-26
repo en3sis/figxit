@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseShell, parseTmux } from "../src/geometry";
+import { herdrUi, parseShell, parseTmux, placeHerdr } from "../src/geometry";
 import { History } from "../src/history";
 import { parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
@@ -607,6 +607,80 @@ describe("parseTmux", () => {
 
   test("rejects short output", () => {
     expect(parseTmux("", pad)).toBeNull();
+  });
+});
+
+describe("placeHerdr", () => {
+  const defaults = { borders: "auto", outer: true, bottom: false };
+  const reply = (panes: [string, number, number, number, number][], zoomed = false) =>
+    JSON.stringify({
+      result: {
+        layout: {
+          area: { x: 0, y: 0, width: 134, height: 49 },
+          zoomed,
+          panes: panes.map(([pane_id, x, y, width, height]) => ({ pane_id, rect: { x, y, width, height } })),
+        },
+      },
+    });
+  const cursor = parseShell(["5", "3", "133", "49", "32", "16"], { x: 0, y: 0 })!;
+  const split = reply([
+    ["w1:p1", 0, 0, 67, 25],
+    ["w1:p3", 67, 0, 67, 25],
+    ["w1:p2", 0, 25, 134, 24],
+  ]);
+
+  test("a lone pane has no border and sits at the start of the area", () => {
+    expect(placeHerdr(cursor, reply([["w1:p1", 0, 0, 134, 49]]), "w1:p1", defaults)).toEqual({
+      ...cursor,
+      cols: 134,
+      rows: 49,
+      col: 2,
+      row: 4,
+      right: true,
+    });
+  });
+
+  test("a pane in a split is moved past its rect and its border", () => {
+    const right = placeHerdr(cursor, split, "w1:p3", defaults)!;
+    expect([right.col, right.row]).toEqual([70, 5]);
+    const below = placeHerdr(cursor, split, "w1:p2", defaults)!;
+    expect([below.col, below.row]).toEqual([3, 30]);
+  });
+
+  test("without outer borders only the inner edges have a border", () => {
+    const ui = { ...defaults, outer: false };
+    const first = placeHerdr(cursor, split, "w1:p1", ui)!;
+    expect([first.col, first.row]).toEqual([2, 4]);
+    const below = placeHerdr(cursor, split, "w1:p2", ui)!;
+    expect([below.col, below.row]).toEqual([2, 30]);
+  });
+
+  test("no borders when they are off, a border on a lone pane when always", () => {
+    const off = placeHerdr(cursor, split, "w1:p3", { ...defaults, borders: "off" })!;
+    expect([off.col, off.row]).toEqual([69, 4]);
+    const always = placeHerdr(cursor, reply([["w1:p1", 0, 0, 134, 49]]), "w1:p1", { ...defaults, borders: "always" })!;
+    expect([always.col, always.row]).toEqual([3, 5]);
+  });
+
+  test("a zoomed pane fills the area", () => {
+    const zoomed = placeHerdr(cursor, reply([["w1:p1", 0, 0, 67, 25], ["w1:p2", 0, 25, 134, 24]], true), "w1:p2", defaults)!;
+    expect([zoomed.col, zoomed.row]).toEqual([3, 5]);
+  });
+
+  test("a tab bar at the bottom adds a row under the area", () => {
+    expect(placeHerdr(cursor, split, "w1:p1", { ...defaults, bottom: true })!.rows).toBe(50);
+  });
+
+  test("an unknown pane or a broken reply places nothing", () => {
+    expect(placeHerdr(cursor, split, "w9:p9", defaults)).toBeNull();
+    expect(placeHerdr(cursor, "not json", "w1:p1", defaults)).toBeNull();
+    expect(placeHerdr(cursor, "{}", "w1:p1", defaults)).toBeNull();
+  });
+
+  test("reads the pane and tab bar settings from the herdr config", () => {
+    const dir = project({ "config.toml": '[ui]\npane_borders = "Off"\npane_outer_borders = false\ntab_bar_position = "bottom"\n' });
+    expect(herdrUi(join(dir, "config.toml"))).toEqual({ borders: "off", outer: false, bottom: true });
+    expect(herdrUi(join(dir, "missing.toml"))).toEqual(defaults);
   });
 });
 

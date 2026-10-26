@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Socket } from "bun";
-import { parseShell, termPad, tmuxGrid, tmuxQuery, type Grid, type TmuxTarget } from "./geometry";
+import { herdrGrid, parseShell, termPad, tmuxGrid, tmuxQuery, type Grid, type HerdrTarget, type TmuxTarget } from "./geometry";
 import { Helper } from "./helper";
 import { History } from "./history";
 import { ENGINE_SOCK } from "./paths";
@@ -23,6 +23,7 @@ interface Session {
   decoder: TextDecoder;
   pending: string;
   tmux: TmuxTarget | null;
+  herdr: HerdrTarget | null;
   term: string;
   cursor: ((grid: Grid | null) => void) | null;
   items: Candidate[];
@@ -111,7 +112,8 @@ async function tmuxSettled(s: Session, seq: number): Promise<Grid | null> {
 async function anchor(s: Session, seq: number, result: Suggestion, cwd: string, buffer: string): Promise<boolean> {
   const key = `${cwd}\n${buffer.slice(0, result.tokenStart)}`;
   if (s.anchorKey === key && s.anchor) return true;
-  const grid = s.tmux ? await tmuxSettled(s, seq) : await shellGrid(s, seq);
+  let grid = s.tmux ? await tmuxSettled(s, seq) : await shellGrid(s, seq);
+  if (grid && !s.tmux && s.herdr && seq === s.seq) grid = await herdrGrid(s.herdr, grid);
   if (seq !== s.seq) return false;
   if (!grid) {
     hide(s);
@@ -214,6 +216,7 @@ function onLine(s: Session, line: string) {
       }
       if (f[4]) process.env.PATH = f[4];
       s.term = f[5] ?? "";
+      s.herdr = s.term === "herdr" && f[6] && f[7] ? { pane: f[6], socket: f[7], bin: f[8] || "herdr" } : null;
       break;
     case "C":
       if (Number(f[1]) === s.seq) s.cursor?.(parseShell(f.slice(2), termPad(s.term)));
@@ -237,6 +240,9 @@ function onLine(s: Session, line: string) {
       break;
     case "X":
       s.anchorKey = null;
+      hide(s);
+      break;
+    case "N":
       hide(s);
       break;
   }
@@ -267,6 +273,7 @@ export async function daemon() {
           decoder: new TextDecoder(),
           pending: "",
           tmux: null,
+          herdr: null,
           term: "",
           cursor: null,
           items: [],
