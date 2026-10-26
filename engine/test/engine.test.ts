@@ -1,12 +1,12 @@
 process.env.FIGXIT_SPECS = "off";
 
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseShell, parseTmux, placeHerdr } from "../src/geometry";
 import { History } from "../src/history";
-import { parseMakefile, parseScripts } from "../src/sources";
+import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { registerSpec } from "../src/specs";
 import { commandWords, historySegments, scan } from "../src/tokenize";
@@ -81,6 +81,26 @@ describe("sources", () => {
     expect(targets.map((t) => t.label)).toEqual(["dev", "build"]);
     expect(targets[0]!.detail).toBe("Start the stack");
     expect(targets[1]!.detail).toBe("make target");
+  });
+
+  test("parseMakefile reads the targets of included makefiles where they are included", () => {
+    const files: Record<string, string> = { "a.mk": "##@ Release\nrelease: ## Publish\n", "b.mk": "deploy:\n" };
+    const targets = parseMakefile("##@ Build\nbuild:\n-include a.mk\ninclude b.mk missing.mk # local\nsinclude $(HOME)/x.mk *.mk\nlint:\n", (name) => files[name] ?? null);
+    expect(targets.map((t) => t.label)).toEqual(["build", "release", "deploy", "lint"]);
+    expect(targets.map((t) => t.detail)).toEqual(["Build", "Release · Publish", "make target", "Build"]);
+  });
+
+  test("makeTargets follows includes from the makefile folder and sees when they change", () => {
+    const dir = project({ Makefile: "dev:\n-include internal/local.mk\n-include later.mk\n" });
+    mkdirSync(join(dir, "internal"));
+    writeFileSync(join(dir, "internal/local.mk"), "release: ## [prod] Publish\ninclude internal/local.mk\n");
+    const path = join(dir, "Makefile");
+    expect(makeTargets(path).map((t) => t.label)).toEqual(["dev", "release"]);
+    writeFileSync(join(dir, "internal/local.mk"), "release:\nr2:\n");
+    utimesSync(join(dir, "internal/local.mk"), new Date(), new Date(Date.now() + 5000));
+    expect(makeTargets(path).map((t) => t.label)).toEqual(["dev", "release", "r2"]);
+    writeFileSync(join(dir, "later.mk"), "stats:\n");
+    expect(makeTargets(path).map((t) => t.label)).toEqual(["dev", "release", "r2", "stats"]);
   });
 
   test("parseMakefile adds the ##@ section to the detail", () => {
