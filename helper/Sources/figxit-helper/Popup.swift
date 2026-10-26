@@ -34,20 +34,28 @@ enum IconStore {
         if let hit = cache[name] { return hit }
         var image: NSImage?
         if name.hasPrefix("sf:") {
-            let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
-            image = NSImage(systemSymbolName: String(name.dropFirst(3)), accessibilityDescription: nil)?
-                .withSymbolConfiguration(config)
-        } else if name.hasPrefix("brand:"), let directory = directory {
-            image = NSImage(contentsOf: directory.appendingPathComponent(String(name.dropFirst(6)) + ".svg"))
+            image = symbol(String(name.dropFirst(3)))
+        } else if name.hasPrefix("brand:"), let directory = directory,
+                  let svg = NSImage(contentsOf: directory.appendingPathComponent(String(name.dropFirst(6)) + ".svg")) {
+            let scale = glyphBox / max(svg.size.width, svg.size.height, 1)
+            svg.size = NSSize(width: (svg.size.width * scale).rounded(), height: (svg.size.height * scale).rounded())
+            image = svg
         }
         cache[name] = image
         return image
     }
 
+    static func symbol(_ name: String) -> NSImage? {
+        func sized(_ points: CGFloat) -> NSImage? {
+            NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: points, weight: .semibold))
+        }
+        guard let natural = sized(11) else { return nil }
+        return sized(11 * glyphBox / max(natural.size.width, natural.size.height, 1)) ?? natural
+    }
+
     static func tinted(_ image: NSImage, color: NSColor) -> NSImage {
-        let scale = min(glyphBox / max(image.size.width, 1), glyphBox / max(image.size.height, 1))
-        let size = NSSize(width: image.size.width * scale, height: image.size.height * scale)
-        return NSImage(size: size, flipped: false) { rect in
+        NSImage(size: image.size, flipped: false) { rect in
             image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
             color.set()
             rect.fill(using: .sourceIn)
@@ -92,12 +100,12 @@ final class ListView: NSView {
         path.stroke()
         let ink: NSColor = IconStore.luminance(tint) > 0.72 ? NSColor.black.withAlphaComponent(0.85) : .white
         let image = IconStore.tinted(glyph, color: ink)
-        let target = NSRect(
+        let target = backingAlignedRect(NSRect(
             x: tile.midX - image.size.width / 2,
             y: tile.midY - image.size.height / 2,
             width: image.size.width,
             height: image.size.height
-        )
+        ), options: .alignAllEdgesNearest)
         image.draw(in: target, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
     }
 
