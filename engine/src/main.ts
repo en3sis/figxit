@@ -27,7 +27,7 @@ async function reachable(path: string): Promise<boolean> {
 async function accessibility(): Promise<boolean | null> {
   return new Promise((resolve) => {
     let reply = "";
-    const timer = setTimeout(() => resolve(null), 1000);
+    const timer = setTimeout(() => resolve(null), 300);
     Bun.connect({
       unix: HELPER_SOCK,
       socket: {

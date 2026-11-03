@@ -16,6 +16,12 @@ export interface Grid {
   right?: boolean;
 }
 
+export interface Origin {
+  grid: Grid;
+  cols: number;
+  rows: number;
+}
+
 export interface TmuxTarget {
   socket: string;
   pane: string;
@@ -49,7 +55,7 @@ interface HerdrLayout {
 const HERDR_CONFIG = join(homedir(), ".config/herdr/config.toml");
 
 const FORMAT =
-  "#{pane_left} #{pane_top} #{cursor_x} #{cursor_y} #{client_width} #{client_height} #{client_cell_width} #{client_cell_height} #{status} #{status-position} #{client_termname}";
+  "#{pane_left} #{pane_top} #{cursor_x} #{cursor_y} #{client_width} #{client_height} #{client_cell_width} #{client_cell_height} #{status} #{status-position} #{client_termname} #{pane_width} #{pane_height}";
 const GHOSTTY = "/Applications/Ghostty.app/Contents/MacOS/ghostty";
 
 let ghosttyPadding: { x: number; y: number } | null = null;
@@ -84,6 +90,19 @@ export function parseTmux(line: string, padFor: (term: string) => { x: number; y
     grid.cellPxH = n[7]!;
   }
   return grid;
+}
+
+export function parseOrigin(line: string, padFor: (term: string) => { x: number; y: number }): Origin | null {
+  const grid = parseTmux(line, padFor);
+  const f = line.replace(/\n$/, "").split(" ");
+  const [x, y, cols, rows] = [f[2], f[3], f[11], f[12]].map(Number);
+  if (!grid || ![x, y, cols, rows].every(Number.isInteger)) return null;
+  return { grid: { ...grid, col: grid.col - x!, row: grid.row - y! }, cols: cols!, rows: rows! };
+}
+
+export function placeInPane(origin: Origin, cursor: Grid): Grid | null {
+  if (cursor.cols !== origin.cols || cursor.rows !== origin.rows) return null;
+  return { ...origin.grid, col: origin.grid.col + cursor.col, row: origin.grid.row + cursor.row };
 }
 
 export function parseShell(f: string[], pad: { x: number; y: number }): Grid | null {
@@ -126,6 +145,11 @@ export async function tmuxGrid(target: TmuxTarget): Promise<Grid | null> {
   const out = await tmuxQuery(target, FORMAT);
   if (out === null) return null;
   return parseTmux(out, termPad);
+}
+
+export async function tmuxOrigin(target: TmuxTarget): Promise<Origin | null> {
+  const out = await tmuxQuery(target, FORMAT);
+  return out === null ? null : parseOrigin(out, termPad);
 }
 
 export function herdrUi(path = HERDR_CONFIG): HerdrUi {

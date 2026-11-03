@@ -10,6 +10,7 @@ struct Terminal {
 enum Geometry {
     static let assumedTitlebar: CGFloat = 28
     static let physicalPixels = "com.mitchellh.ghostty"
+    static let axTimeout: Float = 0.05
 
     static func frontTerminal() -> Terminal? {
         guard let app = NSWorkspace.shared.frontmostApplication,
@@ -112,10 +113,10 @@ enum Geometry {
     }
 
     static func placement(grid: Grid, terminal: Terminal) -> Placement? {
-        locate(grid: grid, terminal: terminal).placement
+        locate(grid: grid, terminal: terminal, window: cgWindowFrame(pid: terminal.pid)).placement
     }
 
-    static func locate(grid: Grid, terminal: Terminal) -> (placement: Placement?, split: Bool) {
+    static func locate(grid: Grid, terminal: Terminal, window: CGRect?) -> (placement: Placement?, split: Bool) {
         if grid.right == true, grid.cellPxW == nil || grid.cellPxH == nil { return (nil, false) }
         let padX = CGFloat(grid.padX ?? 0)
         let padY = CGFloat(grid.padY ?? 0)
@@ -129,7 +130,6 @@ enum Geometry {
             surface = frame
             source = "ax"
         }
-        let window = cgWindowFrame(pid: terminal.pid)
         guard let base = surface ?? window else { return (nil, false) }
 
         let scale = screen(containing: base)?.backingScaleFactor ?? 2
@@ -207,7 +207,7 @@ enum Geometry {
         let cg = cgWindowFrame(pid: terminal.pid)
         let window = trusted ? axWindow(pid: terminal.pid) : nil
         let scale = cg.flatMap { screen(containing: $0)?.backingScaleFactor } ?? 0
-        let located = grid.map { locate(grid: $0, terminal: terminal) }
+        let located = grid.map { locate(grid: $0, terminal: terminal, window: cg) }
         return ProbeReply(
             app: terminal.name,
             bundleId: terminal.bundleId,

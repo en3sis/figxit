@@ -90,6 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             exit(1)
         }
         self.server = server
+        AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), Geometry.axTimeout)
         if engine != nil { Install.markStopped(false) }
         engine?.start()
         if ProcessInfo.processInfo.environment["FIGXIT_HELPER_SOCK"] == nil {
@@ -141,7 +142,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             server?.broadcast(Data(#"{"event":"hidden"}"#.utf8))
             return
         }
-        if current?.frame != shown.frame, let placement = Geometry.placement(grid: shown.grid, terminal: terminal) {
+        if current?.frame != shown.frame,
+           let placement = Geometry.locate(grid: shown.grid, terminal: terminal, window: current?.frame).placement {
             self.shown?.frame = current?.frame
             popup.show(items: shown.items, selected: shown.selected, placement: placement)
         }
@@ -166,7 +168,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return try? encoder.encode(StatusReply(ok: false, error: "show needs grid and items", placement: nil))
             }
             let terminal = Geometry.frontTerminal()
-            let located = terminal.map { Geometry.locate(grid: grid, terminal: $0) }
+            let window = terminal.flatMap { Geometry.cgWindow(pid: $0.pid) }
+            let located = terminal.map { Geometry.locate(grid: grid, terminal: $0, window: window?.frame) }
             guard let terminal = terminal, let placement = located?.placement else {
                 if located?.split == true, !AXIsProcessTrusted() { status?.splitWithoutAccess() }
                 forget()
@@ -174,11 +177,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 server?.broadcast(Data(#"{"event":"hidden"}"#.utf8))
                 return try? encoder.encode(StatusReply(ok: false, error: "no terminal window", placement: nil))
             }
-            let window = Geometry.cgWindow(pid: terminal.pid)
             shown = (terminal.pid, window?.id, window?.frame, grid, items, request.selected ?? 0)
             watch()
             popup.show(items: items, selected: request.selected ?? 0, placement: placement)
             return try? encoder.encode(StatusReply(ok: true, error: nil, placement: placement))
+        case "select":
+            guard let selected = request.selected, shown != nil else {
+                return try? encoder.encode(StatusReply(ok: false, error: "nothing shown", placement: nil))
+            }
+            shown?.selected = selected
+            popup.select(selected)
+            return try? encoder.encode(StatusReply(ok: true, error: nil, placement: nil))
         case "hide":
             forget()
             popup.hide()

@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { herdrUi, parseShell, parseTmux, placeHerdr } from "../src/geometry";
+import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { History } from "../src/history";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
@@ -627,6 +627,31 @@ describe("parseTmux", () => {
 
   test("rejects short output", () => {
     expect(parseTmux("", pad)).toBeNull();
+  });
+});
+
+describe("pane origin", () => {
+  const pad = () => ({ x: 0, y: 0 });
+  const origin = parseOrigin("100 1 7 20 200 52 17 37 on top xterm-ghostty 100 50\n", pad)!;
+
+  test("keeps the pane corner and the pane size", () => {
+    expect(origin.grid.col).toBe(100);
+    expect(origin.grid.row).toBe(2);
+    expect([origin.cols, origin.rows]).toEqual([100, 50]);
+  });
+
+  test("adds the cursor the shell reports in the pane", () => {
+    const cursor = parseShell(["4", "9", "100", "50"], { x: 0, y: 0 })!;
+    expect(placeInPane(origin, cursor)).toMatchObject({ cols: 200, rows: 52, col: 108, row: 5, cellPxW: 17, cellPxH: 37 });
+  });
+
+  test("a pane of another size needs a new origin", () => {
+    const cursor = parseShell(["4", "9", "80", "50"], { x: 0, y: 0 })!;
+    expect(placeInPane(origin, cursor)).toBeNull();
+  });
+
+  test("rejects output without the pane size", () => {
+    expect(parseOrigin("0 1 7 20 200 52 17 37 on top xterm-ghostty", pad)).toBeNull();
   });
 });
 
