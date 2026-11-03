@@ -25,6 +25,7 @@ interface Session {
   tmux: TmuxTarget | null;
   herdr: HerdrTarget | null;
   term: string;
+  size: string;
   cursor: ((grid: Grid | null) => void) | null;
   items: Candidate[];
   selected: number;
@@ -110,7 +111,7 @@ async function tmuxSettled(s: Session, seq: number): Promise<Grid | null> {
 }
 
 async function anchor(s: Session, seq: number, result: Suggestion, cwd: string, buffer: string): Promise<boolean> {
-  const key = `${cwd}\n${buffer.slice(0, result.tokenStart)}`;
+  const key = `${cwd}\n${s.size}\n${buffer.slice(0, result.tokenStart)}`;
   if (s.anchorKey === key && s.anchor) return true;
   let grid = s.tmux ? await tmuxSettled(s, seq) : await shellGrid(s, seq);
   if (grid && !s.tmux && s.herdr && seq === s.seq) grid = await herdrGrid(s.herdr, grid);
@@ -227,6 +228,7 @@ function onLine(s: Session, line: string) {
       hide(s);
       break;
     case "E":
+      s.size = f[4] ?? "";
       edit(s, Number(f[1]) || 0, f[2] ?? "", (f[3] ?? "").replaceAll("\x1e", "\n"));
       break;
     case "K":
@@ -275,6 +277,7 @@ export async function daemon() {
           tmux: null,
           herdr: null,
           term: "",
+          size: "",
           cursor: null,
           items: [],
           selected: 0,

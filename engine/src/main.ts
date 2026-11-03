@@ -24,6 +24,41 @@ async function reachable(path: string): Promise<boolean> {
   }
 }
 
+async function accessibility(): Promise<boolean | null> {
+  return new Promise((resolve) => {
+    let reply = "";
+    const timer = setTimeout(() => resolve(null), 1000);
+    Bun.connect({
+      unix: HELPER_SOCK,
+      socket: {
+        open(socket) {
+          socket.write('{"cmd":"probe"}\n');
+        },
+        data(socket, chunk) {
+          reply += chunk.toString();
+          if (!reply.includes("\n")) return;
+          clearTimeout(timer);
+          socket.end();
+          try {
+            resolve(Boolean(JSON.parse(reply).axTrusted));
+          } catch {
+            resolve(null);
+          }
+        },
+      },
+    }).catch(() => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+  });
+}
+
+function accessDetail(allowed: boolean, splitSeen: boolean): string {
+  if (allowed) return "allowed, the popup finds the pane in a split (Cmd+D)";
+  const hidden = "not allowed, the popup stays hidden in a split pane (Cmd+D)";
+  return splitSeen ? `${hidden}. A split was used: open Figxit Setup and click Allow… on Split panes` : `${hidden}, optional`;
+}
+
 const SHELLS: Record<string, { file: string; lines: string[]; setup: string; reload: string }> = {
   zsh: {
     file: "shell/zsh/figxit.zsh",
@@ -213,10 +248,13 @@ async function doctor(fromApp: boolean, json: boolean): Promise<number> {
     ],
   ];
   const tmux = Bun.which("tmux", { PATH: `${process.env.PATH ?? ""}:/opt/homebrew/bin:/usr/local/bin` });
+  const access = fromApp ? null : await accessibility();
   checks.push(...shellRows(json), [tmux !== null, "tmux", tmux ?? "optional"]);
+  const splitSeen = existsSync(join(dirname(HELPER_SOCK), "split-pane"));
+  if (access !== null) checks.push([access, "accessibility", accessDetail(access, splitSeen)]);
   if (!fromApp) checks.push(...shell);
   if (json) {
-    const optional = new Set(["atuin history", "tmux", ...Object.keys(SHELLS)]);
+    const optional = new Set(["atuin history", "tmux", ...(splitSeen ? [] : ["accessibility"]), ...Object.keys(SHELLS)]);
     console.log(JSON.stringify(checks.map(([ok, name, detail]) => ({ level: ok ? "ok" : ok !== null && optional.has(name) ? "off" : "bad", name, detail }))));
     return 0;
   }

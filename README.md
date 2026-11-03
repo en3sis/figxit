@@ -127,7 +127,7 @@ The rule applies to Makefile targets, `package.json` scripts, and live values su
 - [herdr](https://herdr.dev) works too, with its panes and splits. Figxit asks herdr where the pane is with `herdr pane layout` and reads the border and tab bar settings from `~/.config/herdr/config.toml`.
 - Atuin, optional, for ranking.
 
-No Accessibility or Screen Recording permission is needed.
+No Screen Recording permission is needed. Accessibility is optional and only needed for a split pane of the terminal app: see [Split panes and Accessibility](#split-panes-and-accessibility).
 
 ## Install
 
@@ -152,12 +152,13 @@ The line also defines the `figxit` command in your shell, so nothing needs to be
 
 ### The menu bar icon
 
-The icon shows that Figxit is running. It is dimmed when the engine is stopped. Its menu has:
+The icon shows that Figxit is running. It is dimmed when the engine is stopped. It has a red dot after Figxit finds a split pane without Accessibility, until you allow it. Its menu has:
 
 - **Pause Suggestions** and **Restart Engine**
 - **Set Up Shell**, which opens the setup window again
 - **Run Doctor**, which checks each part of the installation
-- **Settings**, with three switches: Enter runs the highlighted row, launch at login, and check for updates automatically. The update check is on by default
+- **Allow Accessibility for Split Panes**, with a red dot, shown after Figxit finds a split pane without the permission
+- **Settings**, with three switches: Enter runs the highlighted row, launch at login, and check for updates automatically. The update check is on by default. Settings also shows the Accessibility permission, with an **Allow** button when it is off
 - **Check for Updates**, which downloads and installs a new version
 - **What's New**, which opens the release notes on GitHub
 - **Quit Figxit**
@@ -171,6 +172,23 @@ The icon shows that Figxit is running. It is dimmed when the engine is stopped. 
 | `figxit stop` | Stop them |
 | `figxit doctor` | Check each part of the installation |
 | `figxit --version` | Print the version |
+
+## Split panes and Accessibility
+
+To place the popup, Figxit needs the cursor cell and the position of the text area on the screen. The shell or tmux gives the cursor cell. Without Accessibility, macOS gives only the position of the window. That is enough when one shell fills the window, but a split of the terminal app (Cmd+D in iTerm2 or Ghostty) has two text areas in one window, and the terminal does not tell which one you type in. With Accessibility, Figxit reads the frame of the focused text area, which is the pane.
+
+| Layout | Without Accessibility | With Accessibility |
+|---|---|---|
+| One shell in each window or tab | Works | Works |
+| tmux panes in a window | Works, tmux gives the pane | Works |
+| herdr panes | Works, herdr gives the pane | Works |
+| Split of the terminal app (Cmd+D) | Popup hidden | Works |
+| tmux in a split of the terminal app | Popup hidden | Works |
+| One tmux session attached in two splits | Popup hidden | Works, in the focused split |
+
+To allow it, click **Allow…** on the Split panes row of Figxit Setup or on the Accessibility row of Settings, then turn on Figxit in the list that System Settings opens: Privacy & Security > Accessibility, named Device Control and Data Access in macOS 27. The first time Figxit finds a split pane without the permission, it opens Figxit Setup and adds **Allow Accessibility for Split Panes** to the menu. The `accessibility` row of `figxit doctor` shows the state, and it is a problem after a split pane was found without the permission.
+
+Figxit uses Accessibility to read the position and size of the focused text area. It does not read the text, and it does not click or type.
 
 ## How it works
 
@@ -192,7 +210,7 @@ Figxit has three parts that talk over unix sockets in `~/.local/state/figxit/`.
 
 **Engine** (`engine/`). A Bun process that keeps your history and the loaded specs in memory. For each key it parses the line, collects candidates from the project files, the spec, and your history, merges and ranks them, and sends the visible rows to the helper. Values that need a command (git branches, for example) arrive in a second pass, so the first rows are never delayed.
 
-**Helper** (`helper/`). A small macOS app with no Dock icon. It starts the engine and restarts it after a crash. It shows a floating panel that does not take keyboard focus. It finds the terminal window through the public window list. In tmux, tmux supplies the pane offset, the cursor cell, and the cell size in pixels. Outside tmux, the terminal supplies the cursor cell and the cell size. In zsh and bash the question goes out when a new word starts, and the answer is read as a key sequence, so typed keys keep their order. In fish the bridge asks and reads the answer while the key hook waits, and it does not ask while more typed keys are waiting. The helper hides the popup when you switch app, window, or tab.
+**Helper** (`helper/`). A small macOS app with no Dock icon. It starts the engine and restarts it after a crash. It shows a floating panel that does not take keyboard focus. It finds the terminal window through the public window list, or with Accessibility, through the focused text area, which is the pane in a split. In tmux, tmux supplies the pane offset, the cursor cell, and the cell size in pixels. Outside tmux, the terminal supplies the cursor cell and the cell size. In zsh and bash the question goes out when a new word starts, and the answer is read as a key sequence, so typed keys keep their order. In fish the bridge asks and reads the answer while the key hook waits, and it does not ask while more typed keys are waiting. The helper hides the popup when you switch app, window, or tab.
 
 ## Configuration
 
@@ -210,7 +228,7 @@ The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is 
 - bash: each key clears and draws the input line again, which is how bash runs a key hook.
 - fish, outside tmux: a key that is not text, Enter, Tab, or Backspace is lost, with the keys typed after it, if it arrives in the short time in which the bridge reads the cursor position.
 - bash and fish: each shell keeps one bridge process, about 28 MB.
-- The popup stays hidden in a native split of the terminal app, because the window list gives the window and not the pane. Use one pane for each window or tab, or use tmux for splits.
+- Without Accessibility, the popup stays hidden in a split of the terminal app, with tmux and without: see [Split panes and Accessibility](#split-panes-and-accessibility). Splits with Accessibility are tested in iTerm2 and Ghostty.
 - The popup stays hidden in a terminal that is a panel of another application's window, such as the terminal of VS Code, Cursor, or another editor, with tmux and without. The window list gives the window and not the panel, and these terminals do not report where the panel is. Use a terminal app.
 - Outside tmux, the popup stays hidden in a terminal that does not answer a cursor position query. In a terminal that does not report its cell size, the position is correct only with no tab bar and no split.
 - herdr: when the terminal app does not report its cell size, herdr reports a default size, and the popup can be in the wrong place. With `tab_bar_position = "bottom"` and `hide_tab_bar_when_single_tab = true`, the popup is one row too low while the workspace has one tab. A config file set with `HERDR_CONFIG_PATH` or `XDG_CONFIG_HOME` is not read.
@@ -256,7 +274,7 @@ Figxit has no telemetry: the app does not report what you type, what you run, or
 
 Its only network request is the update check, one time each day, which reads one file from figxit.com. We count those checks by app version, and we count downloads of the app. That is how we know how many installs are in use. The count holds the version and the date, with no IP address and no identifier. To stop the check, turn off **Check for updates automatically** in Settings.
 
-Figxit reads your history database and the files in the current folder. Completion specs can run local commands to list values, for example `git branch`. They do not run when the line contains quotes, `$`, or other shell syntax.
+Figxit reads your history database and the files in the current folder. With Accessibility allowed, it reads the position and size of the terminal's focused text area, not its text. Completion specs can run local commands to list values, for example `git branch`. They do not run when the line contains quotes, `$`, or other shell syntax.
 
 Words from your history that look like a secret are not shown: a value after `--token` or `--password`, an assignment such as `API_KEY=...`, and long random strings. This filter cannot find all secrets, for example a password written directly after `-p`.
 

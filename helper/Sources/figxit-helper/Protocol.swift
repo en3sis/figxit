@@ -67,6 +67,7 @@ struct ProbeReply: Encodable {
     let axFocused: AXNode?
     let axTree: [AXNode]
     let placement: Placement?
+    let split: Bool?
 }
 
 struct StatusReply: Encodable {

@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import ServiceManagement
 import Sparkle
 
@@ -154,6 +155,14 @@ enum Install {
         (AppDelegate.socketPath as NSString).deletingLastPathComponent + "/stopped"
     }
 
+    static var splitFlag: String {
+        (stoppedFlag as NSString).deletingLastPathComponent + "/split-pane"
+    }
+
+    static var splitSeen: Bool {
+        FileManager.default.fileExists(atPath: splitFlag)
+    }
+
     static var enterInsertsFlag: String {
         (stoppedFlag as NSString).deletingLastPathComponent + "/enter-inserts"
     }
@@ -199,6 +208,18 @@ enum Install {
     }
 }
 
+enum Access {
+    static let detail = "Needs Accessibility to show the popup in a split pane (Cmd+D)."
+
+    static func request() {
+        let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        if AXIsProcessTrustedWithOptions([prompt: true] as CFDictionary) { return }
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+}
+
 struct Check {
     enum Level { case ok, bad, off }
     let icon: String
@@ -207,6 +228,7 @@ struct Check {
     let detail: String
     let status: String
     let level: Level
+    var action: (title: String, selector: Selector)? = nil
 }
 
 enum Checks {
@@ -227,6 +249,7 @@ enum Checks {
         let shells = Install.shellCount
         let tmux = find("tmux") != nil
         let history = FileManager.default.fileExists(atPath: NSHomeDirectory() + "/.local/share/atuin/history.db")
+        let access = AXIsProcessTrusted()
         return [
             Check(icon: "sf:bolt.fill", tint: "3A3A3C", title: "Engine",
                   detail: running ? "Makes the rows of the popup." : "Select Resume Suggestions in the menu.",
@@ -235,8 +258,12 @@ enum Checks {
                   detail: shells > 0 ? "Terminals that have Figxit now." : "Open a new terminal, or run exec \(Shell.login.rawValue) in an open one.",
                   status: shells > 0 ? "\(shells) connected" : "None", level: shells > 0 ? .ok : .bad),
             Check(icon: "brand:tmux", tint: "1BB91F", title: "tmux",
-                  detail: "Optional. Without it, a split of the terminal app gets no popup.",
+                  detail: "Optional. Its panes get the popup without Accessibility.",
                   status: tmux ? "Found" : "Not found", level: tmux ? .ok : .off),
+            Check(icon: "sf:rectangle.split.2x1.fill", tint: "0A84FF", title: "Split panes",
+                  detail: access ? "Accessibility is on. The popup finds the pane." : Access.detail,
+                  status: access ? "Allowed" : "Not allowed", level: access ? .ok : Install.splitSeen ? .bad : .off,
+                  action: access ? nil : ("Allow…", #selector(SetupWindow.allowAccess))),
             Check(icon: "sf:clock.arrow.circlepath", tint: "8E8E93", title: "Atuin history",
                   detail: "Optional. Ranks the rows by your history.",
                   status: history ? "Found" : "Not found", level: history ? .ok : .off),
@@ -406,9 +433,9 @@ final class SetupWindow: NSObject {
     private var timer: Timer?
     private var shownState = ""
 
-    func show() {
+    func show(note: String = "") {
         if window == nil { build() }
-        status.stringValue = ""
+        status.stringValue = note
         reload()
         NSApp.activate(ignoringOtherApps: true)
         window?.center()
@@ -436,8 +463,13 @@ final class SetupWindow: NSObject {
     }
 
     private func row(_ check: Check) -> NSView {
-        Panel.row(icon: check.icon, tint: check.tint, title: check.title, tag: nil, detail: check.detail,
-            trailing: [Panel.state(check.status, check.level)])
+        var trailing: [NSView] = [Panel.state(check.status, check.level)]
+        if let action = check.action {
+            let button = NSButton(title: action.title, target: self, action: action.selector)
+            button.bezelStyle = .rounded
+            trailing.append(button)
+        }
+        return Panel.row(icon: check.icon, tint: check.tint, title: check.title, tag: nil, detail: check.detail, trailing: trailing)
     }
 
     private func row(_ shell: Shell) -> NSView {
@@ -560,6 +592,11 @@ final class SetupWindow: NSObject {
         status.stringValue = Checks.ready ? "Figxit is ready." : "No shell is set up."
     }
 
+    @objc func allowAccess() {
+        Access.request()
+        status.stringValue = "Turn on Figxit in the list that System Settings opened."
+    }
+
     @objc private func copyLoginFix(_ sender: NSButton) {
         guard let fix = Shell.allCases[sender.tag].loginFix else { return }
         NSPasteboard.general.clearContents()
@@ -605,6 +642,8 @@ final class StatusController: NSObject, NSMenuDelegate {
     private let stateItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let pauseItem = NSMenuItem(title: "", action: #selector(togglePause), keyEquivalent: "")
     private let restartItem = NSMenuItem(title: "Restart Engine", action: #selector(restart), keyEquivalent: "")
+    private let accessItem = NSMenuItem(title: "Allow Accessibility for Split Panes…", action: #selector(allowAccess), keyEquivalent: "")
+    private let dot = CALayer()
     private var timer: Timer?
     private var updater: SPUStandardUpdaterController?
 
@@ -616,6 +655,12 @@ final class StatusController: NSObject, NSMenuDelegate {
         }
         item.button?.image = Install.statusIcon()
         item.button?.toolTip = "Figxit"
+        item.button?.wantsLayer = true
+        dot.backgroundColor = NSColor.systemRed.cgColor
+        dot.cornerRadius = 3.5
+        dot.isHidden = true
+        item.button?.layer?.addSublayer(dot)
+        accessItem.image = Self.dotImage()
 
         let menu = NSMenu()
         menu.delegate = self
@@ -625,6 +670,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         stateItem.isEnabled = false
         menu.addItem(header)
         menu.addItem(stateItem)
+        menu.addItem(accessItem)
         menu.addItem(.separator())
         if engine != nil {
             menu.addItem(pauseItem)
@@ -660,6 +706,13 @@ final class StatusController: NSObject, NSMenuDelegate {
         setup.show()
     }
 
+    func splitWithoutAccess() {
+        guard !Install.splitSeen else { return }
+        FileManager.default.createFile(atPath: Install.splitFlag, contents: nil)
+        refresh()
+        setup.show(note: "The popup is hidden in this split pane. Click Allow… on Split panes.")
+    }
+
     private func refresh() {
         let running = Install.engineRunning
         item.button?.appearsDisabled = !running
@@ -667,6 +720,22 @@ final class StatusController: NSObject, NSMenuDelegate {
         stateItem.title = running ? (shells > 0 ? "Running, \(shells) \(shells == 1 ? "terminal" : "terminals") connected" : "Running, no terminal connected") : (engine?.paused == true ? "Suggestions are paused" : "Engine is not running")
         pauseItem.title = engine?.paused == true ? "Resume Suggestions" : "Pause Suggestions"
         restartItem.isEnabled = engine?.paused == false
+        let attention = Install.splitSeen && !AXIsProcessTrusted()
+        accessItem.isHidden = !attention
+        dot.isHidden = !attention
+        if let button = item.button {
+            button.toolTip = attention ? "Figxit: allow Accessibility for split panes" : "Figxit"
+            dot.frame = CGRect(x: button.bounds.width - 8, y: button.isFlipped ? button.bounds.height - 9 : 2, width: 7, height: 7)
+        }
+    }
+
+    private static func dotImage() -> NSImage {
+        let image = NSImage(size: NSSize(width: 8, height: 8), flipped: false) { rect in
+            NSColor.systemRed.setFill()
+            NSBezierPath(ovalIn: rect).fill()
+            return true
+        }
+        return image
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -681,6 +750,10 @@ final class StatusController: NSObject, NSMenuDelegate {
 
     @objc private func restart() {
         engine?.restart()
+    }
+
+    @objc private func allowAccess() {
+        Access.request()
     }
 
     @objc private func openSetup() {

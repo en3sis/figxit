@@ -112,7 +112,11 @@ enum Geometry {
     }
 
     static func placement(grid: Grid, terminal: Terminal) -> Placement? {
-        if grid.right == true, grid.cellPxW == nil || grid.cellPxH == nil { return nil }
+        locate(grid: grid, terminal: terminal).placement
+    }
+
+    static func locate(grid: Grid, terminal: Terminal) -> (placement: Placement?, split: Bool) {
+        if grid.right == true, grid.cellPxW == nil || grid.cellPxH == nil { return (nil, false) }
         let padX = CGFloat(grid.padX ?? 0)
         let padY = CGFloat(grid.padY ?? 0)
         let cols = CGFloat(max(grid.cols, 1))
@@ -126,7 +130,7 @@ enum Geometry {
             source = "ax"
         }
         let window = cgWindowFrame(pid: terminal.pid)
-        guard let base = surface ?? window else { return nil }
+        guard let base = surface ?? window else { return (nil, false) }
 
         let scale = screen(containing: base)?.backingScaleFactor ?? 2
         var cellW = cellPoints(px: grid.cellPxW, scale: scale, estimate: (base.width - 2 * padX) / cols)
@@ -148,11 +152,20 @@ enum Geometry {
             grid.right == true ? max(cols, ((base.width - 2 * padX) / cellW + 0.01).rounded(.down)) : cols
         }
 
+        func spare(_ cellW: CGFloat, _ cellH: CGFloat) -> (w: CGFloat, h: CGFloat) {
+            (base.width - span(cellW) * cellW - 2 * padX, base.height - rows * cellH - 2 * padY)
+        }
+
         func fills(_ cellW: CGFloat, _ cellH: CGFloat) -> Bool {
-            let spareW = base.width - span(cellW) * cellW - 2 * padX
-            let spareH = base.height - rows * cellH - 2 * padY
+            let (spareW, spareH) = spare(cellW, cellH)
             return spareW >= -0.02 * base.width && spareW <= 0.12 * base.width
                 && spareH >= -0.02 * base.height && spareH <= max(100, 0.2 * base.height)
+        }
+
+        func split(_ cellW: CGFloat, _ cellH: CGFloat) -> Bool {
+            let (spareW, spareH) = spare(cellW, cellH)
+            return spareW >= -0.02 * base.width && spareH >= -0.02 * base.height
+                && (spareW > 0.12 * base.width || spareH > max(100, 0.2 * base.height))
         }
 
         if grid.pane == true, source == "cg", let pxW = grid.cellPxW, let pxH = grid.cellPxH {
@@ -160,12 +173,12 @@ enum Geometry {
             let unit = terminal.bundleId == physicalPixels || !fits ? scale : 1
             cellW = CGFloat(pxW) / unit
             cellH = CGFloat(pxH) / unit
-            guard fills(cellW, cellH) else { return nil }
+            guard fills(cellW, cellH) else { return (nil, split(cellW, cellH)) }
             top = base.minY + max(0, base.height - rows * cellH - 2 * padY)
         } else if grid.pane == true, source == "cg", cellH < 1.6 * cellW || cellH > 3 * cellW {
-            return nil
+            return (nil, false)
         } else if grid.pane != true, source == "cg", grid.cellPxW != nil, grid.cellPxH != nil, !fills(cellW, cellH) {
-            return nil
+            return (nil, split(cellW, cellH))
         }
 
         if grid.right == true {
@@ -174,7 +187,7 @@ enum Geometry {
 
         let x = base.minX + padX + (span(cellW) - cols + CGFloat(grid.col)) * cellW
         let yTop = top + padY + CGFloat(grid.row) * cellH
-        return Placement(
+        return (Placement(
             source: source,
             surface: Rect(base),
             cellW: Double(cellW),
@@ -182,18 +195,19 @@ enum Geometry {
             x: Double(x),
             yTop: Double(yTop),
             yBelow: Double(yTop + cellH)
-        )
+        ), false)
     }
 
     static func probe(grid: Grid?) -> ProbeReply {
         let trusted = AXIsProcessTrusted()
         guard let terminal = frontTerminal() else {
             return ProbeReply(app: nil, bundleId: nil, axTrusted: trusted, scale: 0, cgWindow: nil,
-                              axWindow: nil, axFocused: nil, axTree: [], placement: nil)
+                              axWindow: nil, axFocused: nil, axTree: [], placement: nil, split: nil)
         }
         let cg = cgWindowFrame(pid: terminal.pid)
         let window = trusted ? axWindow(pid: terminal.pid) : nil
         let scale = cg.flatMap { screen(containing: $0)?.backingScaleFactor } ?? 0
+        let located = grid.map { locate(grid: $0, terminal: terminal) }
         return ProbeReply(
             app: terminal.name,
             bundleId: terminal.bundleId,
@@ -203,7 +217,8 @@ enum Geometry {
             axWindow: window.flatMap(axFrame).map(Rect.init),
             axFocused: trusted ? axFocused(pid: terminal.pid)?.node : nil,
             axTree: window.map { axTree($0) } ?? [],
-            placement: grid.flatMap { placement(grid: $0, terminal: terminal) }
+            placement: located?.placement,
+            split: located?.split
         )
     }
 }

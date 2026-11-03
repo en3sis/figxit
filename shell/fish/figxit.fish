@@ -109,7 +109,7 @@ function _figxit_hook
     end
     set _figxit_last "$_figxit_cursor$_figxit_sep$_figxit_buffer"
     set _figxit_painted $_figxit_cursor
-    _figxit_send "E$_figxit_sep$_figxit_cursor$_figxit_sep$PWD$_figxit_sep"(string replace -a \n \x1e -- $_figxit_buffer)
+    _figxit_send "E$_figxit_sep$_figxit_cursor$_figxit_sep$PWD$_figxit_sep"(string replace -a \n \x1e -- $_figxit_buffer)"$_figxit_sep$COLUMNS $LINES"
     switch "$key"
         case enter
             _figxit_enter enter

@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 
 final class EngineSupervisor {
     private let url: URL
@@ -164,9 +165,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let grid = request.grid, let items = request.items else {
                 return try? encoder.encode(StatusReply(ok: false, error: "show needs grid and items", placement: nil))
             }
-            guard let terminal = Geometry.frontTerminal(),
-                  let placement = Geometry.placement(grid: grid, terminal: terminal)
-            else {
+            let terminal = Geometry.frontTerminal()
+            let located = terminal.map { Geometry.locate(grid: grid, terminal: $0) }
+            guard let terminal = terminal, let placement = located?.placement else {
+                if located?.split == true, !AXIsProcessTrusted() { status?.splitWithoutAccess() }
                 forget()
                 popup.hide()
                 server?.broadcast(Data(#"{"event":"hidden"}"#.utf8))

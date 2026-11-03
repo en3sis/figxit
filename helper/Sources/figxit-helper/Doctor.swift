@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 
 struct DoctorRow: Decodable {
     let level: String
@@ -18,6 +19,7 @@ final class DoctorWindow: NSObject {
         "bash": ("brand:gnubash", "4EAA25"),
         "fish": ("brand:fishshell", "34C534"),
         "tmux": ("brand:tmux", "1BB91F"),
+        "accessibility": ("sf:rectangle.split.2x1.fill", "0A84FF"),
     ]
 
     private var window: NSWindow?
@@ -65,7 +67,15 @@ final class DoctorWindow: NSObject {
 
     private func reload() {
         let data = run(["doctor", "--app", "--json"]) ?? Data()
-        let found = (try? JSONDecoder().decode([DoctorRow].self, from: data)) ?? []
+        var found = (try? JSONDecoder().decode([DoctorRow].self, from: data)) ?? []
+        if !found.isEmpty {
+            let access = AXIsProcessTrusted()
+            let seen = Install.splitSeen
+            found.append(DoctorRow(level: access ? "ok" : seen ? "bad" : "off", name: "accessibility",
+                                   detail: access ? "Allowed. The popup finds the pane in a split (Cmd+D)."
+                                       : seen ? "Not allowed. The popup stays hidden in split panes. Allow it in Setup."
+                                       : Access.detail))
+        }
         report = found.map { "\($0.level == "ok" ? "ok  " : "--  ") \($0.name.padding(toLength: 18, withPad: " ", startingAt: 0)) \($0.detail)" }
             .joined(separator: "\n")
         let views = found.map { item -> NSView in
@@ -73,7 +83,7 @@ final class DoctorWindow: NSObject {
             let level: Check.Level = item.level == "ok" ? .ok : item.level == "off" ? .off : .bad
             let shell = Shell(rawValue: item.name) != nil
             let old = shell && item.detail.contains("too old")
-            let word = old ? "Too old" : level == .ok ? (shell ? "Set up" : "OK") : level == .off ? (shell ? "Not set up" : "Not found") : "Problem"
+            let word = old ? "Too old" : level == .ok ? (shell ? "Set up" : "OK") : level == .off ? (shell ? "Not set up" : item.name == "accessibility" ? "Not allowed" : "Not found") : "Problem"
             let title = look.icon.hasPrefix("brand:") ? item.name : item.name.prefix(1).uppercased() + item.name.dropFirst()
             return Panel.row(icon: look.icon, tint: look.tint, title: title,
                              tag: nil, detail: item.detail, trailing: [Panel.state(word, level)])
