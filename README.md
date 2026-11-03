@@ -233,6 +233,7 @@ The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is 
 - bash and fish: each shell keeps one bridge process, about 28 MB.
 - Without Accessibility, the popup stays hidden in a split of the terminal app, with tmux and without: see [Panes, editors, and Accessibility](#panes-editors-and-accessibility). Splits with Accessibility are tested in iTerm2 and Ghostty.
 - Without Accessibility, the popup stays hidden in the terminal of an editor, such as VS Code, with tmux and without.
+- The popup stays hidden in the terminal of Zed. Zed does not report its terminal panel to Accessibility, only the window.
 - Outside tmux, the popup stays hidden in a terminal that does not answer a cursor position query. In a terminal that does not report its cell size, the position is correct only with no tab bar and no split.
 - herdr: when the terminal app does not report its cell size, herdr reports a default size, and the popup can be in the wrong place. With `tab_bar_position = "bottom"` and `hide_tab_bar_when_single_tab = true`, the popup is one row too low while the workspace has one tab. A config file set with `HERDR_CONFIG_PATH` or `XDG_CONFIG_HOME` is not read.
 - Outside tmux and without Accessibility, a terminal that keeps all its tabs in one window does not tell Figxit about a tab switch. The popup closes at the next key.

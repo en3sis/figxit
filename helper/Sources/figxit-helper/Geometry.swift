@@ -85,7 +85,7 @@ enum Geometry {
             element = axElement(app, kAXFocusedUIElementAttribute)
         }
         for _ in 0...surfaceDepth {
-            guard let current = element else { return nil }
+            guard let current = element, axRole(current) != kAXWindowRole as String else { return nil }
             if let frame = axFrame(current), frame.width > 100, frame.height > 100 { return frame }
             element = axElement(current, kAXParentAttribute)
         }
