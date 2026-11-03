@@ -82,7 +82,7 @@ const keys = async (...args: string[]) => {
   await Bun.sleep(400);
 };
 const screen = () => tmux("capture-pane", "-p", "-t", "main").stdout.toString().trimEnd();
-const lastShow = () => messages.filter((m) => m.cmd === "show").at(-1);
+const lastShow = () => messages.reduce((shown, m) => (m.cmd === "show" ? m : m.cmd === "select" && shown ? { ...shown, selected: m.selected } : shown), undefined);
 const check = (name: string, ok: boolean, detail?: unknown) => {
   console.log(`${ok ? "ok  " : "FAIL"} ${name}${ok ? "" : " -> " + JSON.stringify(detail)}`);
   if (!ok) failures.push(name);
@@ -117,6 +117,7 @@ try {
   const filtered: string[] = show?.items.map((i: any) => i.label) ?? [];
   check("typing filters the list", filtered.slice().sort().join() === "deploy,dev", show?.items);
   check("the anchor column does not move", show?.grid.col === anchorCol, show?.grid);
+  if (!plain) check("tmux gives the pane position", show?.grid.pane !== true && (real || (show?.grid.row === 2 && show?.grid.col === 7)), show?.grid);
   if (plain) {
     check("the shell reports the cursor cell", show?.grid.pane === true && (real || show?.grid.row === 2) && show?.grid.cols === 120 && show?.grid.rows === 30, show?.grid);
     await keys("C-u");

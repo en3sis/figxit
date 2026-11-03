@@ -8,6 +8,7 @@ final class PopupPanel: NSPanel {
 enum IconStore {
     static let glyphBox: CGFloat = 13
     private static var cache: [String: NSImage] = [:]
+    private static var inked: [String: NSImage] = [:]
     private static let directory: URL? = {
         if let override = ProcessInfo.processInfo.environment["FIGXIT_ICONS"] {
             return URL(fileURLWithPath: override)
@@ -54,6 +55,15 @@ enum IconStore {
         return sized(11 * glyphBox / max(natural.size.width, natural.size.height, 1)) ?? natural
     }
 
+    static func inked(_ name: String, dark: Bool) -> NSImage? {
+        let key = "\(name)|\(dark)"
+        if let hit = inked[key] { return hit }
+        guard let glyph = glyph(name) else { return nil }
+        let image = tinted(glyph, color: dark ? NSColor.black.withAlphaComponent(0.85) : .white)
+        inked[key] = image
+        return image
+    }
+
     static func tinted(_ image: NSImage, color: NSColor) -> NSImage {
         NSImage(size: image.size, flipped: false) { rect in
             image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
@@ -66,6 +76,7 @@ enum IconStore {
 
 final class ListView: NSView {
     static let rowHeight: CGFloat = 28
+    static let maxWidth: CGFloat = 580
     static let inset: CGFloat = 5
     static let tile: CGFloat = 20
     static let labelOffset: CGFloat = 36
@@ -84,13 +95,14 @@ final class ListView: NSView {
             let detail = item.detail.map { ($0 as NSString).size(withAttributes: [.font: detailFont]).width + 24 } ?? 0
             return label + detail
         }.max() ?? 0
-        let width = min(max(widest + 2 * inset + labelOffset + 14, 260), 580)
+        let width = min(max(widest + 2 * inset + labelOffset + 14, 260), maxWidth)
         return NSSize(width: width, height: CGFloat(items.count) * rowHeight + 2 * inset)
     }
 
     private func drawIcon(_ item: Item, in row: NSRect) {
-        guard let name = item.icon, let glyph = IconStore.glyph(name) else { return }
+        guard let name = item.icon else { return }
         let tint = IconStore.color(hex: item.tint)
+        guard let image = IconStore.inked(name, dark: IconStore.luminance(tint) > 0.72) else { return }
         let tile = NSRect(x: row.minX + 7, y: row.midY - Self.tile / 2, width: Self.tile, height: Self.tile)
         let path = NSBezierPath(roundedRect: tile, xRadius: 5.5, yRadius: 5.5)
         tint.setFill()
@@ -98,8 +110,6 @@ final class ListView: NSView {
         NSColor.white.withAlphaComponent(0.18).setStroke()
         path.lineWidth = 0.5
         path.stroke()
-        let ink: NSColor = IconStore.luminance(tint) > 0.72 ? NSColor.black.withAlphaComponent(0.85) : .white
-        let image = IconStore.tinted(glyph, color: ink)
         let target = backingAlignedRect(NSRect(
             x: tile.midX - image.size.width / 2,
             y: tile.midY - image.size.height / 2,
@@ -109,18 +119,24 @@ final class ListView: NSView {
         image.draw(in: target, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
     }
 
+    func rowRect(_ index: Int) -> NSRect {
+        NSRect(x: Self.inset, y: Self.inset + CGFloat(index) * Self.rowHeight, width: bounds.width - 2 * Self.inset, height: Self.rowHeight)
+    }
+
+    func select(_ index: Int) {
+        guard index != selected else { return }
+        for row in [selected, index] where row >= 0 && row < items.count { setNeedsDisplay(rowRect(row)) }
+        selected = index
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         if let background = background {
             background.setFill()
             bounds.fill()
         }
         for (index, item) in items.enumerated() {
-            let row = NSRect(
-                x: Self.inset,
-                y: Self.inset + CGFloat(index) * Self.rowHeight,
-                width: bounds.width - 2 * Self.inset,
-                height: Self.rowHeight
-            )
+            let row = rowRect(index)
+            guard row.intersects(dirtyRect) else { continue }
             let active = index == selected
             if active {
                 NSColor.controlAccentColor.setFill()
@@ -145,6 +161,9 @@ final class ListView: NSView {
 final class PopupController {
     private let panel: PopupPanel
     private let list = ListView()
+    private var width: CGFloat = 0
+    static let widthStep: CGFloat = 20
+    static let fade: TimeInterval = 0.08
 
     init() {
         panel = PopupPanel(
@@ -187,7 +206,10 @@ final class PopupController {
 
     func show(items: [Item], selected: Int, placement: Placement) {
         guard !items.isEmpty else { return hide() }
-        let size = ListView.size(for: items)
+        let opening = !panel.isVisible
+        let needed = ListView.size(for: items)
+        width = min(max(opening ? 0 : width, (needed.width / Self.widthStep).rounded(.up) * Self.widthStep), ListView.maxWidth)
+        let size = NSSize(width: width, height: needed.height)
         let primary = Geometry.primaryHeight()
         let anchor = CGRect(x: placement.x, y: placement.yTop, width: 1, height: placement.yBelow - placement.yTop)
         let visible = (Geometry.screen(containing: anchor) ?? NSScreen.main)?.visibleFrame ?? .zero
@@ -202,13 +224,26 @@ final class PopupController {
 
         list.items = items
         list.selected = selected < 0 ? -1 : min(selected, items.count - 1)
-        panel.setFrame(NSRect(x: x, y: top - size.height, width: size.width, height: size.height), display: true)
+        let frame = NSRect(x: x, y: top - size.height, width: size.width, height: size.height)
+        if panel.frame != frame { panel.setFrame(frame, display: false) }
         if list.superview === panel.contentView { list.frame = panel.contentView?.bounds ?? .zero }
         list.needsDisplay = true
+        guard opening else { return }
+        panel.alphaValue = 0
         panel.orderFrontRegardless()
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Self.fade
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().alphaValue = 1
+        }
+    }
+
+    func select(_ index: Int) {
+        list.select(index)
     }
 
     func hide() {
         panel.orderOut(nil)
+        panel.alphaValue = 1
     }
 }

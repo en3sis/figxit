@@ -18,6 +18,7 @@ dev: ## Run the helper and the engine from source, with reload. Ctrl-C stops bot
 
 test: ## Run the unit tests
 	cd engine && bun test
+	cd helper && xcrun swift test
 
 e2e: ## Run the end-to-end test for zsh, bash, and fish, with and without tmux geometry, all at the same time
 	@cd engine && logs=$$(mktemp -d) && pids= && \

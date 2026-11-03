@@ -20,8 +20,6 @@ fi
 _figxit_sep=$'\x1f'
 _figxit_out= _figxit_in= _figxit_pid= _figxit_last= _figxit_cell=
 _figxit_visible=0 _figxit_retry=0 _figxit_bound=0 _figxit_pushed=0 _figxit_trap=1 _figxit_recall=0
-_figxit_plain=1
-[[ -n $TMUX && -n $TMUX_PANE ]] && _figxit_plain=0
 _figxit_run=()
 declare -A _figxit_pass _figxit_route
 _figxit_eat=
@@ -69,7 +67,7 @@ _figxit_open() {
   _figxit_pid=$_figxit_co_PID
   exec {_figxit_out}>&"${_figxit_co[1]}" {_figxit_in}<&"${_figxit_co[0]}"
   disown "$_figxit_pid" 2>/dev/null
-  _figxit_send "H${_figxit_sep}$$${_figxit_sep}${TMUX%%,*}${_figxit_sep}${TMUX_PANE}${_figxit_sep}${PATH}${_figxit_sep}${TERM_PROGRAM}${_figxit_sep}${HERDR_PANE_ID}${_figxit_sep}${HERDR_SOCKET_PATH}${_figxit_sep}${HERDR_BIN_PATH}"
+  _figxit_send "H${_figxit_sep}$$${_figxit_sep}${TMUX%%,*}${_figxit_sep}${TMUX_PANE}${_figxit_sep}${PATH}${_figxit_sep}${TERM_PROGRAM}${_figxit_sep}${HERDR_PANE_ID}${_figxit_sep}${HERDR_SOCKET_PATH}${_figxit_sep}${HERDR_BIN_PATH}${_figxit_sep}1"
 }
 
 _figxit_apply() {
@@ -220,7 +218,6 @@ _figxit_enter() {
   _figxit_visible=0
   _figxit_last=
   _figxit_send X || return 0
-  (( _figxit_plain )) || return 0
   while IFS= read -r -t 0.05 -u "$_figxit_in" line; do
     [[ $line == Z"$_figxit_sep"* ]] && break
     _figxit_apply "$line"
@@ -301,10 +298,8 @@ _figxit_bind() {
 
   bind -m emacs -x "\"$(printf '\033')\": _figxit_esc"
 
-  if (( _figxit_plain )); then
-    bind -m emacs -x '"\C-x\C-_r": _figxit_report'
-    bind -m emacs '"\e[?": "\C-x\C-_r\C-x\C-_p"'
-  fi
+  bind -m emacs -x '"\C-x\C-_r": _figxit_report'
+  bind -m emacs '"\e[?": "\C-x\C-_r\C-x\C-_p"'
 }
 
 _figxit_prompt() {

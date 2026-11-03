@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Socket } from "bun";
-import { herdrGrid, parseShell, termPad, tmuxGrid, tmuxQuery, type Grid, type HerdrTarget, type TmuxTarget } from "./geometry";
+import { herdrGrid, parseShell, placeInPane, termPad, tmuxGrid, tmuxOrigin, tmuxQuery, type Grid, type HerdrTarget, type Origin, type TmuxTarget } from "./geometry";
 import { Helper } from "./helper";
 import { History } from "./history";
 import { ENGINE_SOCK } from "./paths";
@@ -15,6 +15,7 @@ const VISIBLE = 8;
 const SETTLE_MS = 12;
 const FOCUS_MS = 250;
 const CURSOR_MS = 500;
+const ORIGIN_MS = 1000;
 const ENTER_INSERTS = join(dirname(SOCK), "enter-inserts");
 const FOCUS_FORMAT = "#{window_active} #{pane_active} #{pane_in_mode}";
 
@@ -26,6 +27,8 @@ interface Session {
   herdr: HerdrTarget | null;
   term: string;
   size: string;
+  origin: Origin | null;
+  originAt: number;
   cursor: ((grid: Grid | null) => void) | null;
   items: Candidate[];
   selected: number;
@@ -71,10 +74,14 @@ function chosen(s: Session, item: Candidate | undefined): boolean {
   return item !== undefined && Boolean(item.run || item.likely || (item.pick && s.remove > 0) || s.navigated);
 }
 
-function render(s: Session) {
-  if (!s.anchor || s.items.length === 0) return;
+function follow(s: Session) {
   if (s.selected < s.scroll) s.scroll = s.selected;
   if (s.selected >= s.scroll + VISIBLE) s.scroll = s.selected - VISIBLE + 1;
+}
+
+function render(s: Session) {
+  if (!s.anchor || s.items.length === 0) return;
+  follow(s);
   const items = s.items.slice(s.scroll, s.scroll + VISIBLE).map(({ label, detail, icon, tint }) => ({ label, detail, icon, tint }));
   helper.send({ cmd: "show", grid: s.anchor, items, selected: chosen(s, s.items[s.selected]) ? s.selected - s.scroll : -1 });
   setVisible(s, true);
@@ -110,10 +117,35 @@ async function tmuxSettled(s: Session, seq: number): Promise<Grid | null> {
   return tmuxGrid(s.tmux);
 }
 
+async function fetchOrigin(s: Session): Promise<Origin | null> {
+  if (!s.tmux) return null;
+  s.originAt = Date.now();
+  const origin = await tmuxOrigin(s.tmux);
+  if (origin && JSON.stringify(origin) !== JSON.stringify(s.origin)) {
+    if (s.origin) s.anchorKey = null;
+    s.origin = origin;
+  }
+  return origin;
+}
+
+async function tmuxCursor(s: Session, seq: number): Promise<Grid | null> {
+  const cursor = await shellGrid(s, seq);
+  if (seq !== s.seq || !s.tmux) return null;
+  if (!cursor) return tmuxSettled(s, seq);
+  const cached = s.origin && placeInPane(s.origin, cursor);
+  if (cached) {
+    if (Date.now() - s.originAt > ORIGIN_MS) fetchOrigin(s);
+    return cached;
+  }
+  const origin = await fetchOrigin(s);
+  if (seq !== s.seq) return null;
+  return (origin && placeInPane(origin, cursor)) ?? tmuxSettled(s, seq);
+}
+
 async function anchor(s: Session, seq: number, result: Suggestion, cwd: string, buffer: string): Promise<boolean> {
   const key = `${cwd}\n${s.size}\n${buffer.slice(0, result.tokenStart)}`;
   if (s.anchorKey === key && s.anchor) return true;
-  let grid = s.tmux ? await tmuxSettled(s, seq) : await shellGrid(s, seq);
+  let grid = s.tmux ? await tmuxCursor(s, seq) : await shellGrid(s, seq);
   if (grid && !s.tmux && s.herdr && seq === s.seq) grid = await herdrGrid(s.herdr, grid);
   if (seq !== s.seq) return false;
   if (!grid) {
@@ -186,7 +218,10 @@ function navigate(s: Session, direction: string) {
   const step = direction === "up" ? -1 : chosen(s, s.items[s.selected]) ? 1 : 0;
   s.selected = (s.selected + step + s.items.length) % s.items.length;
   s.navigated = true;
-  render(s);
+  const scroll = s.scroll;
+  follow(s);
+  if (s.fresh && s.anchor && s.scroll === scroll) helper.send({ cmd: "select", selected: s.selected - s.scroll });
+  else render(s);
 }
 
 function accept(s: Session, typedOnly: boolean, runs = false) {
@@ -278,6 +313,8 @@ export async function daemon() {
           herdr: null,
           term: "",
           size: "",
+          origin: null,
+          originAt: 0,
           cursor: null,
           items: [],
           selected: 0,

@@ -16,6 +16,11 @@ let package = Package(
                 .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"]),
                 .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@loader_path"]),
             ]
-        )
+        ),
+        .testTarget(
+            name: "figxit-helperTests",
+            dependencies: ["figxit-helper"],
+            path: "Tests"
+        ),
     ]
 )

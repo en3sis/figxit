@@ -92,7 +92,7 @@ export class Bridge {
     switch (f[0]) {
       case "H":
         this.hello = line;
-        this.plain = !(f[2] && f[3]);
+        this.plain = !(f[2] && f[3]) || f[9] === "1";
         break;
       case "E":
         this.typing = true;
