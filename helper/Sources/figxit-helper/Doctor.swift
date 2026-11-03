@@ -72,8 +72,8 @@ final class DoctorWindow: NSObject {
             let access = AXIsProcessTrusted()
             let seen = Install.splitSeen
             found.append(DoctorRow(level: access ? "ok" : seen ? "bad" : "off", name: "accessibility",
-                                   detail: access ? "Allowed. The popup finds the pane in a split (Cmd+D)."
-                                       : seen ? "Not allowed. The popup stays hidden in split panes. Allow it in Setup."
+                                   detail: access ? "Allowed. The popup works in split panes and editor terminals."
+                                       : seen ? "Not allowed. The popup stays hidden in split panes and editors. Allow it in Setup."
                                        : Access.detail))
         }
         report = found.map { "\($0.level == "ok" ? "ok  " : "--  ") \($0.name.padding(toLength: 18, withPad: " ", startingAt: 0)) \($0.detail)" }

@@ -78,7 +78,7 @@ describe("terminal reports", () => {
   });
 });
 
-describe("bridge for a shell on a pipe", () => {
+describe("bash bridge", () => {
   test("passes shell lines to the engine and engine state to the shell", () => {
     const { bridge, engine, shell } = rig();
     bridge.fromShell(line("H", 1, "/tmp/tmux", "%1", "/bin", ""));
@@ -100,6 +100,23 @@ describe("bridge for a shell on a pipe", () => {
     expect(tty).toEqual([QUERY]);
     bridge.fromShell(line("c", 2, 7, 120, 30, 20, 8, 600, 960));
     expect(engine.at(-1)).toBe(line("C", 7, 2, 7, 120, 30, 20, 8, 600, 960));
+  });
+
+  test("in tmux, asks the terminal only for a shell that reads the report", () => {
+    const tmux = rig();
+    tmux.bridge.fromShell(line("H", 1, "/tmp/tmux", "%1", "/bin", ""));
+    tmux.bridge.fromShell(line("E", 5, "/p", "make "));
+    tmux.bridge.fromEngine(line("Q", 7));
+    tmux.tick(10);
+    expect(tmux.tty).toEqual([]);
+    expect(tmux.engine.at(-1)).toBe(line("C", 7));
+
+    const reads = rig();
+    reads.bridge.fromShell(line("H", 1, "/tmp/tmux", "%1", "/bin", "", "", "", "", 1));
+    reads.bridge.fromShell(line("E", 5, "/p", "make "));
+    reads.bridge.fromEngine(line("Q", 7));
+    reads.tick(10);
+    expect(reads.tty).toEqual([QUERY]);
   });
 
   test("a second question waits for the open report and then asks again", () => {
@@ -179,7 +196,7 @@ describe("bridge for a shell on a pipe", () => {
   });
 });
 
-describe("bridge for a shell on files", () => {
+describe("fish bridge", () => {
   const found = (fields: string[] | null, typed = "", busy = false) => () => ({ fields, typed, busy });
 
   test("keeps the position asked before an edit and gives it to the engine", () => {

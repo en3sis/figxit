@@ -209,7 +209,7 @@ enum Install {
 }
 
 enum Access {
-    static let detail = "Needs Accessibility to show the popup in a split pane (Cmd+D)."
+    static let detail = "Needed in split panes (Cmd+D) and editor terminals, such as VS Code."
 
     static func request() {
         let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
@@ -260,7 +260,7 @@ enum Checks {
             Check(icon: "brand:tmux", tint: "1BB91F", title: "tmux",
                   detail: "Optional. Its panes get the popup without Accessibility.",
                   status: tmux ? "Found" : "Not found", level: tmux ? .ok : .off),
-            Check(icon: "sf:rectangle.split.2x1.fill", tint: "0A84FF", title: "Split panes",
+            Check(icon: "sf:rectangle.split.2x1.fill", tint: "0A84FF", title: "Panes and editors",
                   detail: access ? "Accessibility is on. The popup finds the pane." : Access.detail,
                   status: access ? "Allowed" : "Not allowed", level: access ? .ok : Install.splitSeen ? .bad : .off,
                   action: access ? nil : ("Allow…", #selector(SetupWindow.allowAccess))),
@@ -642,7 +642,7 @@ final class StatusController: NSObject, NSMenuDelegate {
     private let stateItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let pauseItem = NSMenuItem(title: "", action: #selector(togglePause), keyEquivalent: "")
     private let restartItem = NSMenuItem(title: "Restart Engine", action: #selector(restart), keyEquivalent: "")
-    private let accessItem = NSMenuItem(title: "Allow Accessibility for Split Panes…", action: #selector(allowAccess), keyEquivalent: "")
+    private let accessItem = NSMenuItem(title: "Allow Accessibility for Panes and Editors…", action: #selector(allowAccess), keyEquivalent: "")
     private let dot = CALayer()
     private var timer: Timer?
     private var updater: SPUStandardUpdaterController?
@@ -710,7 +710,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         guard !Install.splitSeen else { return }
         FileManager.default.createFile(atPath: Install.splitFlag, contents: nil)
         refresh()
-        setup.show(note: "The popup is hidden in this split pane. Click Allow… on Split panes.")
+        setup.show(note: "The popup is hidden in this pane. Click Allow… on Panes and editors.")
     }
 
     private func refresh() {
@@ -724,7 +724,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         accessItem.isHidden = !attention
         dot.isHidden = !attention
         if let button = item.button {
-            button.toolTip = attention ? "Figxit: allow Accessibility for split panes" : "Figxit"
+            button.toolTip = attention ? "Figxit: allow Accessibility for panes and editors" : "Figxit"
             dot.frame = CGRect(x: button.bounds.width - 8, y: button.isFlipped ? button.bounds.height - 9 : 2, width: 7, height: 7)
         }
     }

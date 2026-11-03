@@ -54,9 +54,9 @@ async function accessibility(): Promise<boolean | null> {
 }
 
 function accessDetail(allowed: boolean, splitSeen: boolean): string {
-  if (allowed) return "allowed, the popup finds the pane in a split (Cmd+D)";
-  const hidden = "not allowed, the popup stays hidden in a split pane (Cmd+D)";
-  return splitSeen ? `${hidden}. A split was used: open Figxit Setup and click Allow… on Split panes` : `${hidden}, optional`;
+  if (allowed) return "allowed, the popup works in split panes (Cmd+D) and editor terminals";
+  const hidden = "not allowed, the popup stays hidden in split panes (Cmd+D) and editor terminals";
+  return splitSeen ? `${hidden}. One was used: open Figxit Setup and click Allow… on Panes and editors` : `${hidden}, optional`;
 }
 
 const SHELLS: Record<string, { file: string; lines: string[]; setup: string; reload: string }> = {

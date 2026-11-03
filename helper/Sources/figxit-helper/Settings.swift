@@ -61,7 +61,7 @@ final class SettingsWindow: NSObject {
                 tint: "0A84FF",
                 title: "Accessibility",
                 tag: nil,
-                detail: trusted ? "On. The popup finds the pane in a split (Cmd+D)." : Access.detail,
+                detail: trusted ? "On. The popup works in split panes and editor terminals." : Access.detail,
                 trailing: trailing
             ),
         ])

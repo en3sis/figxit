@@ -73,6 +73,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let popup = PopupController()
     private var shown: (pid: pid_t, window: Int?, frame: CGRect?, grid: Grid, items: [Item], selected: Int)?
     private var watcher: Timer?
+    private var observer: AXObserver?
+    private var focused: AXUIElement?
     private var server: SocketServer?
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
@@ -130,6 +132,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         shown = nil
         watcher?.invalidate()
         watcher = nil
+        stopObserving()
+    }
+
+    private func observe(pid: pid_t) {
+        guard AXIsProcessTrusted() else { return }
+        let app = AXUIElementCreateApplication(pid)
+        if observerPid != pid {
+            stopObserving()
+            var created: AXObserver?
+            let callback: AXObserverCallback = { _, element, notification, refcon in
+                guard let refcon = refcon else { return }
+                Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().axChanged(notification as String, element)
+            }
+            guard AXObserverCreate(pid, callback, &created) == .success, let observer = created else { return }
+            let refcon = Unmanaged.passUnretained(self).toOpaque()
+            for name in [kAXFocusedUIElementChangedNotification, kAXFocusedWindowChangedNotification, kAXWindowMovedNotification, kAXWindowResizedNotification] {
+                AXObserverAddNotification(observer, app, name as CFString, refcon)
+            }
+            CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+            self.observer = observer
+            observerPid = pid
+        }
+        if focused == nil { focused = Geometry.axElement(app, kAXFocusedUIElementAttribute) }
+    }
+
+    private var observerPid: pid_t = 0
+
+    private func stopObserving() {
+        if let observer = observer {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode)
+        }
+        observer = nil
+        observerPid = 0
+        focused = nil
+    }
+
+    private func axChanged(_ name: String, _ element: AXUIElement) {
+        guard shown != nil else { return }
+        if name == kAXFocusedUIElementChangedNotification as String, let focused = focused, !CFEqual(focused, element) {
+            forget()
+            popup.hide()
+            server?.broadcast(Data(#"{"event":"hidden"}"#.utf8))
+            return
+        }
+        checkWindow()
     }
 
     private func checkWindow() {
@@ -179,6 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             shown = (terminal.pid, window?.id, window?.frame, grid, items, request.selected ?? 0)
             watch()
+            observe(pid: terminal.pid)
             popup.show(items: items, selected: request.selected ?? 0, placement: placement)
             return try? encoder.encode(StatusReply(ok: true, error: nil, placement: placement))
         case "select":

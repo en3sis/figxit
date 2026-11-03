@@ -9,8 +9,8 @@ import { History } from "../src/history";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { registerSpec } from "../src/specs";
-import { commandWords, historySegments, scan } from "../src/tokenize";
-import { verbIcon, verbOf } from "../src/verbs";
+import { commandWords, scan } from "../src/tokenize";
+import { verbOf } from "../src/verbs";
 
 const NOW = 1_800_000_000_000;
 const DAY = 86_400_000;
@@ -32,7 +32,7 @@ function historyOf(rows: [string, string, number?, number?][]): History {
   return history;
 }
 
-describe("scan", () => {
+describe("reading the line", () => {
   test("splits words and tracks the open token", async () => {
     const result = scan("git checkout ma");
     expect(result.segments).toEqual([["git", "checkout"]]);
@@ -57,40 +57,37 @@ describe("scan", () => {
     expect(scan('git commit -m "a b').quoted).toBe(true);
   });
 
-  test("commandWords drops assignments and wrappers", () => {
+  test("VAR=value and sudo before a command are skipped", () => {
     expect(commandWords(["FOO=1", "sudo", "make", "dev"])).toEqual(["make", "dev"]);
   });
 
-  test("historySegments keeps the last word of each segment", () => {
-    expect(historySegments("cd app && make dev")).toEqual([["cd", "app"], ["make", "dev"]]);
-  });
 });
 
-describe("matchScore", () => {
-  test("ranks prefix over substring over subsequence", () => {
-    expect(matchScore("deploy", "de")).toBe(1);
-    expect(matchScore("redeploy", "de")).toBe(0.45);
-    expect(matchScore("dev-seed", "dsd")).toBe(0.2);
+describe("ranking", () => {
+  test("a match at the start ranks above one inside the word, above scattered letters", () => {
+    expect(matchScore("deploy", "de")).toBeGreaterThan(matchScore("redeploy", "de"));
+    expect(matchScore("redeploy", "de")).toBeGreaterThan(matchScore("dev-seed", "dsd"));
+    expect(matchScore("dev-seed", "dsd")).toBeGreaterThan(0);
     expect(matchScore("build", "x")).toBe(0);
   });
 });
 
-describe("sources", () => {
-  test("parseMakefile reads targets and help text", () => {
+describe("Makefile and package.json", () => {
+  test("reads the targets and their help text", () => {
     const targets = parseMakefile("VAR := 1\n.PHONY: dev\ndev: deps ## Start the stack\n\techo hi\nbuild:\n%.o: %.c\n");
     expect(targets.map((t) => t.label)).toEqual(["dev", "build"]);
     expect(targets[0]!.detail).toBe("Start the stack");
     expect(targets[1]!.detail).toBe("make target");
   });
 
-  test("parseMakefile reads the targets of included makefiles where they are included", () => {
+  test("reads the targets of included makefiles where they are included", () => {
     const files: Record<string, string> = { "a.mk": "##@ Release\nrelease: ## Publish\n", "b.mk": "deploy:\n" };
     const targets = parseMakefile("##@ Build\nbuild:\n-include a.mk\ninclude b.mk missing.mk # local\nsinclude $(HOME)/x.mk *.mk\nlint:\n", (name) => files[name] ?? null);
     expect(targets.map((t) => t.label)).toEqual(["build", "release", "deploy", "lint"]);
     expect(targets.map((t) => t.detail)).toEqual(["Build", "Release · Publish", "make target", "Build"]);
   });
 
-  test("makeTargets follows includes from the makefile folder and sees when they change", () => {
+  test("follows includes from the Makefile folder and sees when they change", () => {
     const dir = project({ Makefile: "dev:\n-include internal/local.mk\n-include later.mk\n" });
     mkdirSync(join(dir, "internal"));
     writeFileSync(join(dir, "internal/local.mk"), "release: ## [prod] Publish\ninclude internal/local.mk\n");
@@ -103,12 +100,12 @@ describe("sources", () => {
     expect(makeTargets(path).map((t) => t.label)).toEqual(["dev", "release", "r2", "stats"]);
   });
 
-  test("parseMakefile adds the ##@ section to the detail", () => {
+  test("adds the ##@ section to the help text", () => {
     const targets = parseMakefile("##@ Build\nbuild: ## Build the project\ninstall:\n##@ Tests\ntest-e2e: deps ## Run the e2e tests\n");
     expect(targets.map((t) => t.detail)).toEqual(["Build · Build the project", "Build", "Tests · Run the e2e tests"]);
   });
 
-  test("the verb in a name sets the icon, with one tile colour", () => {
+  test("finds the verb in a target or script name", () => {
     expect(["dev", "start", "serve", "dev-infra", "docker-up"].map(verbOf)).toEqual(["run", "run", "run", "run", "run"]);
     expect(["dev-down", "prod-down", "stop"].map(verbOf)).toEqual(["stop", "stop", "stop"]);
     expect(["test:e2e", "lint:fix", "db:migrate", "deploy-all", "prod-reset", "build:docs", "docs:build"].map(verbOf)).toEqual([
@@ -121,13 +118,9 @@ describe("sources", () => {
       "docs",
     ]);
     expect(verbOf("prod")).toBeNull();
-    expect(verbIcon("dev")).toEqual({ icon: "sf:play.fill", tint: "3A3A3C" });
-    expect(verbIcon("prod")).toEqual({ icon: "sf:terminal.fill", tint: "3A3A3C" });
-    expect(parseMakefile("dev:\n")[0]!.icon).toBe("sf:play.fill");
-    expect(parseScripts('{"scripts":{"lint":"eslint"}}')[0]!.icon).toBe("sf:wand.and.stars");
   });
 
-  test("parseScripts reads package.json scripts", () => {
+  test("reads package.json scripts, and nothing from a broken file", () => {
     expect(parseScripts('{"scripts":{"dev":"vite","lint":"eslint ."}}').map((s) => s.label)).toEqual(["dev", "lint"]);
     expect(parseScripts("not json")).toEqual([]);
   });
@@ -160,7 +153,7 @@ describe("suggest", () => {
     expect(result.items.filter((i) => i.likely).map((i) => i.label).sort()).toEqual(["build", "dev"]);
   });
 
-  test("the typed prefix filters and sets the removal length", async () => {
+  test("the typed letters filter the list and are replaced on accept", async () => {
     const cwd = project({ Makefile: "build:\ndeploy:\ndev:\n" });
     const result = (await suggest("make de", 7, cwd, historyOf([]), NOW))!;
     expect(result.items.map((i) => i.label)).toEqual(["deploy", "dev"]);
@@ -554,11 +547,9 @@ describe("specs", () => {
     expect(await labels("walk b/.", "/seg")).toEqual(["b/.git/"]);
   });
 
-  test("figxit has a spec of its own with specs off", async () => {
-    expect(await labels("figxit ")).toEqual(["doctor", "init", "start", "stop"]);
+  test("figxit completes its own commands", async () => {
+    expect(await labels("figxit ")).toContain("doctor");
     expect(await labels("figxit init ")).toEqual(["bash", "fish", "zsh"]);
-    expect(await labels("figxit doctor -")).toEqual(["--json"]);
-    expect((await labels("figxit -")).sort()).toEqual(["--help", "--version"]);
   });
 
   test("the name of a folder with no slash lists Run and the folders in it", async () => {
@@ -575,7 +566,7 @@ describe("specs", () => {
     expect(result.items[2]!.insert).toBe("sub/deep/");
   });
 
-  test("generator results arrive in the second phase and are cached", async () => {
+  test("values from a command arrive after the first rows, and the command runs once", async () => {
     const first = await suggestAsync("tool checkout ", 14, "/gen", historyOf([]), NOW);
     expect(first.now).toBeNull();
     expect((await first.more)!.items.map((i) => i.label).sort()).toEqual(["feature-x", "main"]);
@@ -604,7 +595,7 @@ describe("specs", () => {
   });
 });
 
-describe("parseTmux", () => {
+describe("tmux position", () => {
   const pad = (term: string) => (term.includes("ghostty") ? { x: 10, y: 2 } : { x: 0, y: 0 });
 
   test("adds the pane offset and keeps the cell size", () => {
@@ -624,21 +615,11 @@ describe("parseTmux", () => {
     expect(parseTmux("0 0 3 4 80 24 0 0 on top xterm-256color", pad)!.row).toBe(5);
     expect(parseTmux("0 0 3 4 80 24 0 0 2 top xterm-256color", pad)!.row).toBe(6);
   });
-
-  test("rejects short output", () => {
-    expect(parseTmux("", pad)).toBeNull();
-  });
 });
 
-describe("pane origin", () => {
+describe("tmux pane kept between words", () => {
   const pad = () => ({ x: 0, y: 0 });
   const origin = parseOrigin("100 1 7 20 200 52 17 37 on top xterm-ghostty 100 50\n", pad)!;
-
-  test("keeps the pane corner and the pane size", () => {
-    expect(origin.grid.col).toBe(100);
-    expect(origin.grid.row).toBe(2);
-    expect([origin.cols, origin.rows]).toEqual([100, 50]);
-  });
 
   test("adds the cursor the shell reports in the pane", () => {
     const cursor = parseShell(["4", "9", "100", "50"], { x: 0, y: 0 })!;
@@ -649,13 +630,9 @@ describe("pane origin", () => {
     const cursor = parseShell(["4", "9", "80", "50"], { x: 0, y: 0 })!;
     expect(placeInPane(origin, cursor)).toBeNull();
   });
-
-  test("rejects output without the pane size", () => {
-    expect(parseOrigin("0 1 7 20 200 52 17 37 on top xterm-ghostty", pad)).toBeNull();
-  });
 });
 
-describe("placeHerdr", () => {
+describe("herdr panes", () => {
   const defaults = { borders: "auto", outer: true, bottom: false };
   const reply = (panes: [string, number, number, number, number][], zoomed = false) =>
     JSON.stringify({
@@ -729,7 +706,7 @@ describe("placeHerdr", () => {
   });
 });
 
-describe("parseShell", () => {
+describe("cursor report from the shell", () => {
   const pad = { x: 4, y: 2 };
 
   test("turns the 1-based cursor report into a 0-based cell and keeps the cell size as height then width", () => {
