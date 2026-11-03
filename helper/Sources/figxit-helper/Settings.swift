@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import ServiceManagement
 import Sparkle
 
@@ -7,6 +8,9 @@ final class SettingsWindow: NSObject {
     private var window: NSWindow?
     private let keys = NSStackView()
     private let app = NSStackView()
+    private let permissions = NSStackView()
+    private var timer: Timer?
+    private var access: Bool?
     private let enter = NSSwitch()
     private let login = NSSwitch()
     private let updates = NSSwitch()
@@ -17,6 +21,11 @@ final class SettingsWindow: NSObject {
         NSApp.activate(ignoringOtherApps: true)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
+            guard let self = self, self.window?.isVisible == true else { return timer.invalidate() }
+            self.reload()
+        }
     }
 
     func render(to outPath: String) -> Bool {
@@ -37,6 +46,29 @@ final class SettingsWindow: NSObject {
         enter.state = FileManager.default.fileExists(atPath: Install.enterInsertsFlag) ? .off : .on
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         updates.state = updater?.automaticallyChecksForUpdates == true ? .on : .off
+        let trusted = AXIsProcessTrusted()
+        guard trusted != access else { return }
+        access = trusted
+        var trailing: [NSView] = [Panel.state(trusted ? "Allowed" : "Not allowed", trusted ? .ok : Install.splitSeen ? .bad : .off)]
+        if !trusted {
+            let allow = NSButton(title: "Allow…", target: self, action: #selector(allowAccess))
+            allow.bezelStyle = .rounded
+            trailing.append(allow)
+        }
+        Panel.fill(permissions, [
+            Panel.row(
+                icon: "sf:rectangle.split.2x1.fill",
+                tint: "0A84FF",
+                title: "Accessibility",
+                tag: nil,
+                detail: trusted ? "On. The popup finds the pane in a split (Cmd+D)." : Access.detail,
+                trailing: trailing
+            ),
+        ])
+    }
+
+    @objc private func allowAccess() {
+        Access.request()
     }
 
     private func build() {
@@ -86,7 +118,7 @@ final class SettingsWindow: NSObject {
         }
         Panel.fill(app, rows)
 
-        let stack = NSStackView(views: [Panel.card("Keys", keys), Panel.card("App", app)])
+        let stack = NSStackView(views: [Panel.card("Keys", keys), Panel.card("Permissions", permissions), Panel.card("App", app)])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 16

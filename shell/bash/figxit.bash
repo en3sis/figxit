@@ -107,7 +107,7 @@ _figxit_hook() {
   local state="$READLINE_POINT$_figxit_sep$READLINE_LINE"
   [[ $state == "$_figxit_last" ]] && return 0
   _figxit_last=$state
-  _figxit_send "E${_figxit_sep}${READLINE_POINT}${_figxit_sep}${PWD}${_figxit_sep}${READLINE_LINE//$'\n'/$'\x1e'}"
+  _figxit_send "E${_figxit_sep}${READLINE_POINT}${_figxit_sep}${PWD}${_figxit_sep}${READLINE_LINE//$'\n'/$'\x1e'}${_figxit_sep}${COLUMNS} ${LINES}"
 }
 
 _figxit_read() {
