@@ -254,7 +254,7 @@ make build    # build and sign dist/Figxit.app
 make dmg      # build the disk image with the drag-to-Applications window
 ```
 
-Builds get an ad hoc signature, which is enough to run the app on your own Mac. Signed releases are made by the owner.
+Builds get an ad hoc signature, which is enough to run the app on your own Mac, but macOS asks for Accessibility again after each build. With `SIGN_ID` set in `.env` to a Developer ID, `make dev` and `make build` sign with it, and the permission stays across builds. `make dev` starts the helper with `open`, so macOS checks the permission of Figxit and not of the terminal you run it in. Signed releases are made by the owner.
 
 `make build` needs [Bun](https://bun.sh) and the Xcode command line tools. Run `bun install` in `engine/` one time first. `make dmg` also needs `create-dmg` and `rsvg-convert` from Homebrew.
 
