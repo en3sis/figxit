@@ -8,6 +8,7 @@ import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } 
 import { History } from "../src/history";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
+import { expandAlias } from "../src/generators";
 import { registerSpec } from "../src/specs";
 import { commandWords, scan } from "../src/tokenize";
 import { verbOf } from "../src/verbs";
@@ -355,7 +356,7 @@ describe("aliases", () => {
     const repo = mkdtempSync(join(tmpdir(), "figxit-git-"));
     const git = (...args: string[]) => Bun.spawnSync(["git", ...args], { cwd: repo, stdout: "ignore", stderr: "ignore" });
     git("init", "-q");
-    git("config", "alias.sw", "checkout");
+    git("config", "alias.figxit-test-sw", "checkout");
     registerSpec("gitish", {
       name: "gitish",
       subcommands: [{ name: "checkout", args: { name: "branch", suggestions: ["main"] } }],
@@ -371,9 +372,9 @@ describe("aliases", () => {
         },
       },
     });
-    expect(labels(await suggest("gitish sw ", 10, repo, historyOf([]), NOW))).toEqual(["main"]);
+    expect(labels(await suggest("gitish figxit-test-sw ", 22, repo, historyOf([]), NOW))).toEqual(["main"]);
     // the alias is local to the repository
-    expect(await suggest("gitish sw ", 10, tmpdir(), historyOf([]), NOW)).toBeNull();
+    expect(await suggest("gitish figxit-test-sw ", 22, tmpdir(), historyOf([]), NOW)).toBeNull();
   });
 
   test("an alias given as text needs no command", async () => {
@@ -383,6 +384,30 @@ describe("aliases", () => {
       args: { name: "alias", isOptional: true, parserDirectives: { alias: "push" } },
     });
     expect(labels(await suggest("fixed p -", 9, "/", historyOf([]), NOW))).toEqual(["--force"]);
+  });
+
+  test("a slow alias lookup gives up after its timeout", async () => {
+    const slow = () => new Promise<string>((resolve) => setTimeout(() => resolve("checkout"), 5000));
+    const started = Date.now();
+    expect(await expandAlias(slow, "co", "/")).toBeNull();
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  test("alias lookups are cached for a short time, in a bounded cache", async () => {
+    let calls = 0;
+    const counted = async (token: string) => {
+      calls++;
+      return `expanded-${token}`;
+    };
+    expect(await expandAlias(counted, "a", "/", NOW)).toEqual(["expanded-a"]);
+    expect(await expandAlias(counted, "a", "/", NOW + 1000)).toEqual(["expanded-a"]);
+    expect(calls).toBe(1);
+    expect(await expandAlias(counted, "a", "/", NOW + 4000)).toEqual(["expanded-a"]);
+    expect(calls).toBe(2);
+    for (let i = 0; i < 300; i++) await expandAlias(counted, `w${i}`, "/", NOW + 4000);
+    calls = 0;
+    await expandAlias(counted, "a", "/", NOW + 4000);
+    expect(calls).toBe(1);
   });
 });
 

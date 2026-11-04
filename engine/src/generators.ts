@@ -5,6 +5,7 @@ import { ICONS } from "./brands";
 import { resolveCommand } from "./paths";
 import type { Candidate } from "./sources";
 import type { Spec } from "./specs";
+import { scan } from "./tokenize";
 
 export interface GenContext {
   tokens: string[];
@@ -27,6 +28,7 @@ export interface Lookup {
 const DEFAULT_TTL = 3000;
 const SCRIPT_TIMEOUT = 1500;
 const CUSTOM_TIMEOUT = 2500;
+const ALIAS_TIMEOUT = 1000;
 const MAX_ENTRIES = 300;
 const MAX_FILES = 300;
 const INTERPRETERS = new Set([
@@ -37,6 +39,7 @@ const ESCAPE = /([ \\'"`$&|;()<>*?!#\[\]{}])/g;
 
 const cache = new Map<string, { at: number; value: unknown[] }>();
 const running = new Map<string, Promise<unknown[]>>();
+const aliasCache = new Map<string, { at: number; value: Promise<string[] | null> }>();
 const ids = new WeakMap<object, number>();
 let nextId = 1;
 
@@ -118,12 +121,17 @@ async function run(generator: Spec, ctx: GenContext): Promise<unknown[]> {
   }
 }
 
-function keyOf(generator: Spec, ctx: GenContext): string {
-  let id = ids.get(generator);
+function idOf(item: object): number {
+  let id = ids.get(item);
   if (!id) {
     id = nextId++;
-    ids.set(generator, id);
+    ids.set(item, id);
   }
+  return id;
+}
+
+function keyOf(generator: Spec, ctx: GenContext): string {
+  const id = idOf(generator);
   const scope = generator.trigger ? ctx.prefix.slice(0, ctx.prefix.lastIndexOf("/") + 1) : "";
   return [id, ctx.cwd, ctx.plain, scope, ...ctx.tokens.slice(0, -1)].join("\0");
 }
@@ -161,6 +169,37 @@ export function lookup(generator: Spec, ctx: GenContext, now = Date.now()): Look
     running.set(key, refresh);
   }
   return { value: hit?.value, refresh };
+}
+
+function aliasWords(text: unknown): string[] | null {
+  if (typeof text !== "string") return null;
+  const body = text.trim();
+  if (!body || body.startsWith("!")) return null;
+  const parsed = scan(body);
+  if (parsed.quoted || parsed.segments.length !== 1) return null;
+  const words = [...parsed.segments[0]!, parsed.prefix].filter((part) => part !== "");
+  return words.length ? words : null;
+}
+
+export function expandAlias(directive: unknown, word: string, cwd: string, now = Date.now()): Promise<string[] | null> {
+  if (typeof directive === "string") return Promise.resolve(aliasWords(directive));
+  if (typeof directive !== "function") return Promise.resolve(null);
+  const key = [idOf(directive), cwd, word].join("\0");
+  const hit = aliasCache.get(key);
+  if (hit && now - hit.at < DEFAULT_TTL) return hit.value;
+
+  const run = (input: unknown) => execute(input, cwd, ALIAS_TIMEOUT, false);
+  const value = limit(
+    Promise.resolve()
+      .then(() => directive(word, run))
+      .then(aliasWords, () => null),
+    ALIAS_TIMEOUT,
+    null,
+  );
+  aliasCache.delete(key);
+  aliasCache.set(key, { at: now, value });
+  if (aliasCache.size > MAX_ENTRIES) aliasCache.delete(aliasCache.keys().next().value!);
+  return value;
 }
 
 export function escapePath(path: string): string {
