@@ -9,7 +9,7 @@ import { History } from "../src/history";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
-import { registerSpec } from "../src/specs";
+import { loadSpec, registerSpec } from "../src/specs";
 import { commandWords, scan } from "../src/tokenize";
 import { verbOf } from "../src/verbs";
 
@@ -408,6 +408,30 @@ describe("aliases", () => {
     calls = 0;
     await expandAlias(counted, "a", "/", NOW + 4000);
     expect(calls).toBe(1);
+  });
+
+  test("gh aliases are read from the YAML that gh alias list prints", async () => {
+    registerSpec("gh", {
+      name: "gh",
+      args: {
+        name: "alias",
+        isOptional: true,
+        parserDirectives: {
+          alias: async (token: string, run: (input: unknown) => Promise<{ stdout: string }>) => {
+            const { stdout } = await run({ command: "gh", args: ["alias", "list"] });
+            const line = stdout.split("\n").find((row) => row.startsWith(`${token}:\t`));
+            if (!line) throw new Error("Failed to parse alias");
+            return line.slice(token.length + 1).trim();
+          },
+        },
+      },
+    });
+    const alias = (await loadSpec("gh"))!.args.parserDirectives.alias;
+    const run = async () => ({ stdout: "co: pr checkout\nold:\tpr view\nprs: '!gh pr list'\n" });
+    expect(await alias("co", run)).toBe("pr checkout");
+    expect(await alias("old", run)).toBe("pr view");
+    expect(await alias("prs", run)).toBe("'!gh pr list'");
+    await expect(alias("nope", run)).rejects.toThrow();
   });
 });
 
