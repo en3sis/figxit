@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { brandIcon, ICONS, type Icon } from "./brands";
+import { expandAlias } from "./generators";
 import { specsDir } from "./paths";
 import type { Candidate } from "./sources";
 
@@ -27,6 +28,8 @@ export interface Emitted {
 const MAX_DETAIL = 64;
 const CONTROL = /[\x00-\x1f]/;
 const NAME = /^[\w@.+-]+(\/[\w@.+-]+)*$/;
+const ALIAS = /^[\w@.+:-]{1,48}$/;
+const MAX_ALIAS_DEPTH = 5;
 
 const OWN: Spec = {
   name: "figxit",
@@ -104,7 +107,7 @@ function findOption(path: Spec[], name: string): Spec | null {
   return null;
 }
 
-export async function locate(spec: Spec, words: string[]): Promise<Position> {
+export async function locate(spec: Spec, words: string[], cwd = "/"): Promise<Position> {
   let node = spec;
   const path = [spec];
   const used = new Set<string>();
@@ -114,8 +117,11 @@ export async function locate(spec: Spec, words: string[]): Promise<Position> {
   let variadicTaken = false;
   let afterDashes = false;
   let repeated = false;
+  let aliasDepth = 0;
+  const queue = words.slice(1);
 
-  for (const word of words.slice(1)) {
+  while (queue.length) {
+    const word = queue.shift()!;
     const optionLike = !afterDashes && word.startsWith("-") && word !== "-";
     if (pending.length) {
       const arg = pending[0]!;
@@ -155,6 +161,15 @@ export async function locate(spec: Spec, words: string[]): Promise<Position> {
         path.push(sub);
         argIndex = 0;
         continue;
+      }
+      const directive = list<Spec>(node.args)[argIndex]?.parserDirectives?.alias;
+      if (directive && aliasDepth < MAX_ALIAS_DEPTH && ALIAS.test(word)) {
+        const expanded = await expandAlias(directive, word, cwd);
+        if (expanded && expanded[0] !== word) {
+          aliasDepth++;
+          queue.unshift(...expanded);
+          continue;
+        }
       }
     }
     positional = true;

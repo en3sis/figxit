@@ -8,6 +8,7 @@ import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } 
 import { History } from "../src/history";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
+import { expandAlias } from "../src/generators";
 import { registerSpec } from "../src/specs";
 import { commandWords, scan } from "../src/tokenize";
 import { verbOf } from "../src/verbs";
@@ -315,6 +316,98 @@ describe("commands", () => {
     const short = await suggest("pkg r", 5, "/", historyOf([]), NOW);
     expect(short?.items.map((i) => [i.label, i.run === true])).toEqual([["restart", false], ["run-script", false]]);
     expect(await suggest("pkg run", 7, "/", historyOf([]), NOW)).toBeNull();
+  });
+});
+
+describe("aliases", () => {
+  const labels = (list: { items: { label: string }[] } | null) => list?.items.map((i) => i.label).sort() ?? [];
+
+  test("a user alias completes like the subcommand it stands for", async () => {
+    const aliases: Record<string, string> = { co: "checkout", amend: "commit --amend", run: "!sh -c true", self: "self", ping: "pong", pong: "ping" };
+    registerSpec("vcs", {
+      name: "vcs",
+      subcommands: [
+        { name: "checkout", args: { name: "branch", suggestions: ["main", "dev"] } },
+        { name: "commit", options: [{ name: "--amend" }, { name: "--all" }] },
+      ],
+      args: {
+        name: "alias",
+        isOptional: true,
+        parserDirectives: {
+          alias: async (token: string) => {
+            if (!(token in aliases)) throw new Error("not an alias");
+            return `${aliases[token]}\n`;
+          },
+        },
+      },
+    });
+    expect(labels(await suggest("vcs co ", 7, "/", historyOf([]), NOW))).toEqual(["dev", "main"]);
+    expect(labels(await suggest("vcs co m", 8, "/", historyOf([]), NOW))).toEqual(["main"]);
+    // the flags of the alias count as typed
+    expect(labels(await suggest("vcs amend -", 11, "/", historyOf([]), NOW))).toEqual(["--all"]);
+    // shell aliases, unknown words and alias loops stop at the alias
+    expect(await suggest("vcs run ", 8, "/", historyOf([]), NOW)).toBeNull();
+    expect(await suggest("vcs nope ", 9, "/", historyOf([]), NOW)).toBeNull();
+    expect(await suggest("vcs self ", 9, "/", historyOf([]), NOW)).toBeNull();
+    expect(await suggest("vcs ping ", 9, "/", historyOf([]), NOW)).toBeNull();
+  });
+
+  test("the alias directive runs its command in the current directory", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "figxit-git-"));
+    const git = (...args: string[]) => Bun.spawnSync(["git", ...args], { cwd: repo, stdout: "ignore", stderr: "ignore" });
+    git("init", "-q");
+    git("config", "alias.figxit-test-sw", "checkout");
+    registerSpec("gitish", {
+      name: "gitish",
+      subcommands: [{ name: "checkout", args: { name: "branch", suggestions: ["main"] } }],
+      args: {
+        name: "alias",
+        isOptional: true,
+        parserDirectives: {
+          alias: async (token: string, run: (input: unknown) => Promise<{ stdout: string; status: number }>) => {
+            const { stdout, status } = await run({ command: "git", args: ["config", "--get", `alias.${token}`] });
+            if (status !== 0) throw new Error("Failed parsing alias");
+            return stdout;
+          },
+        },
+      },
+    });
+    expect(labels(await suggest("gitish figxit-test-sw ", 22, repo, historyOf([]), NOW))).toEqual(["main"]);
+    // the alias is local to the repository
+    expect(await suggest("gitish figxit-test-sw ", 22, tmpdir(), historyOf([]), NOW)).toBeNull();
+  });
+
+  test("an alias given as text needs no command", async () => {
+    registerSpec("fixed", {
+      name: "fixed",
+      subcommands: [{ name: "push", options: [{ name: "--force" }] }],
+      args: { name: "alias", isOptional: true, parserDirectives: { alias: "push" } },
+    });
+    expect(labels(await suggest("fixed p -", 9, "/", historyOf([]), NOW))).toEqual(["--force"]);
+  });
+
+  test("a slow alias lookup gives up after its timeout", async () => {
+    const slow = () => new Promise<string>((resolve) => setTimeout(() => resolve("checkout"), 5000));
+    const started = Date.now();
+    expect(await expandAlias(slow, "co", "/")).toBeNull();
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  test("alias lookups are cached for a short time, in a bounded cache", async () => {
+    let calls = 0;
+    const counted = async (token: string) => {
+      calls++;
+      return `expanded-${token}`;
+    };
+    expect(await expandAlias(counted, "a", "/", NOW)).toEqual(["expanded-a"]);
+    expect(await expandAlias(counted, "a", "/", NOW + 1000)).toEqual(["expanded-a"]);
+    expect(calls).toBe(1);
+    expect(await expandAlias(counted, "a", "/", NOW + 4000)).toEqual(["expanded-a"]);
+    expect(calls).toBe(2);
+    for (let i = 0; i < 300; i++) await expandAlias(counted, `w${i}`, "/", NOW + 4000);
+    calls = 0;
+    await expandAlias(counted, "a", "/", NOW + 4000);
+    expect(calls).toBe(1);
   });
 });
 

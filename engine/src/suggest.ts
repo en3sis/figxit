@@ -136,7 +136,7 @@ async function complete(
   const command = words[0];
   const spec = command && !command.includes("/") ? await loadSpec(command) : null;
   const project = projectCandidates(words, prefix, cwd, spec !== null);
-  const position = spec ? await locate(spec, words) : null;
+  const position = spec ? await locate(spec, words, cwd) : null;
   if (position?.repeated && prefix === "") return EMPTY;
   const emitted: Emitted | null = position ? emit(position, prefix) : null;
   const stats = history.nextTokens(words, cwd, repoRoot(cwd), now);
