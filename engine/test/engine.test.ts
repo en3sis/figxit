@@ -318,6 +318,74 @@ describe("commands", () => {
   });
 });
 
+describe("aliases", () => {
+  const labels = (list: { items: { label: string }[] } | null) => list?.items.map((i) => i.label).sort() ?? [];
+
+  test("a user alias completes like the subcommand it stands for", async () => {
+    const aliases: Record<string, string> = { co: "checkout", amend: "commit --amend", run: "!sh -c true", self: "self", ping: "pong", pong: "ping" };
+    registerSpec("vcs", {
+      name: "vcs",
+      subcommands: [
+        { name: "checkout", args: { name: "branch", suggestions: ["main", "dev"] } },
+        { name: "commit", options: [{ name: "--amend" }, { name: "--all" }] },
+      ],
+      args: {
+        name: "alias",
+        isOptional: true,
+        parserDirectives: {
+          alias: async (token: string) => {
+            if (!(token in aliases)) throw new Error("not an alias");
+            return `${aliases[token]}\n`;
+          },
+        },
+      },
+    });
+    expect(labels(await suggest("vcs co ", 7, "/", historyOf([]), NOW))).toEqual(["dev", "main"]);
+    expect(labels(await suggest("vcs co m", 8, "/", historyOf([]), NOW))).toEqual(["main"]);
+    // the flags of the alias count as typed
+    expect(labels(await suggest("vcs amend -", 11, "/", historyOf([]), NOW))).toEqual(["--all"]);
+    // shell aliases, unknown words and alias loops stop at the alias
+    expect(await suggest("vcs run ", 8, "/", historyOf([]), NOW)).toBeNull();
+    expect(await suggest("vcs nope ", 9, "/", historyOf([]), NOW)).toBeNull();
+    expect(await suggest("vcs self ", 9, "/", historyOf([]), NOW)).toBeNull();
+    expect(await suggest("vcs ping ", 9, "/", historyOf([]), NOW)).toBeNull();
+  });
+
+  test("the alias directive runs its command in the current directory", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "figxit-git-"));
+    const git = (...args: string[]) => Bun.spawnSync(["git", ...args], { cwd: repo, stdout: "ignore", stderr: "ignore" });
+    git("init", "-q");
+    git("config", "alias.sw", "checkout");
+    registerSpec("gitish", {
+      name: "gitish",
+      subcommands: [{ name: "checkout", args: { name: "branch", suggestions: ["main"] } }],
+      args: {
+        name: "alias",
+        isOptional: true,
+        parserDirectives: {
+          alias: async (token: string, run: (input: unknown) => Promise<{ stdout: string; status: number }>) => {
+            const { stdout, status } = await run({ command: "git", args: ["config", "--get", `alias.${token}`] });
+            if (status !== 0) throw new Error("Failed parsing alias");
+            return stdout;
+          },
+        },
+      },
+    });
+    expect(labels(await suggest("gitish sw ", 10, repo, historyOf([]), NOW))).toEqual(["main"]);
+    // the alias is local to the repository
+    expect(await suggest("gitish sw ", 10, tmpdir(), historyOf([]), NOW)).toBeNull();
+  });
+
+  test("an alias given as text needs no command", async () => {
+    registerSpec("fixed", {
+      name: "fixed",
+      subcommands: [{ name: "push", options: [{ name: "--force" }] }],
+      args: { name: "alias", isOptional: true, parserDirectives: { alias: "push" } },
+    });
+    expect(labels(await suggest("fixed p -", 9, "/", historyOf([]), NOW))).toEqual(["--force"]);
+  });
+});
+
 describe("caution colour", () => {
   const red = (items: { label: string; tint?: string }[]) => items.filter((i) => i.tint === "D70015").map((i) => i.label).sort();
 

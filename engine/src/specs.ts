@@ -1,7 +1,9 @@
 import { join } from "node:path";
 import { brandIcon, ICONS, type Icon } from "./brands";
+import { execute } from "./generators";
 import { specsDir } from "./paths";
 import type { Candidate } from "./sources";
+import { scan } from "./tokenize";
 
 export type Spec = Record<string, any>;
 export type Template = "filepaths" | "folders";
@@ -27,6 +29,10 @@ export interface Emitted {
 const MAX_DETAIL = 64;
 const CONTROL = /[\x00-\x1f]/;
 const NAME = /^[\w@.+-]+(\/[\w@.+-]+)*$/;
+const ALIAS = /^[\w@.+:-]+$/;
+const ALIAS_TTL = 5000;
+const ALIAS_TIMEOUT = 1000;
+const MAX_ALIAS_DEPTH = 5;
 
 const OWN: Spec = {
   name: "figxit",
@@ -104,7 +110,44 @@ function findOption(path: Spec[], name: string): Spec | null {
   return null;
 }
 
-export async function locate(spec: Spec, words: string[]): Promise<Position> {
+const aliasCache = new WeakMap<Function, Map<string, { at: number; value: Promise<string[] | null> }>>();
+
+function aliasWords(text: unknown): string[] | null {
+  if (typeof text !== "string") return null;
+  const body = text.trim();
+  // A git alias that starts with ! runs a shell command: there is no subcommand to follow
+  if (!body || body.startsWith("!")) return null;
+  const parsed = scan(body);
+  if (parsed.quoted || parsed.segments.length !== 1) return null;
+  const words = [...parsed.segments[0]!, parsed.prefix].filter((part) => part !== "");
+  return words.length ? words : null;
+}
+
+// Fig specs resolve user aliases (git config alias.co, gh alias list) with
+// parserDirectives.alias on the arg: the expanded text, or a function
+// (token, executeShellCommand) that returns it and throws for a word that is
+// not an alias. The words of the expansion then take the place of the alias.
+function expandAlias(directive: unknown, word: string, cwd: string): Promise<string[] | null> {
+  if (typeof directive === "string") return Promise.resolve(aliasWords(directive));
+  if (typeof directive !== "function") return Promise.resolve(null);
+  let byWord = aliasCache.get(directive);
+  if (!byWord) aliasCache.set(directive, (byWord = new Map()));
+  const key = `${cwd}\0${word}`;
+  const hit = byWord.get(key);
+  if (hit && Date.now() - hit.at < ALIAS_TTL) return hit.value;
+  const value = (async () => {
+    try {
+      const run = (input: unknown) => execute(input, cwd, ALIAS_TIMEOUT);
+      return aliasWords(await directive(word, run));
+    } catch {
+      return null;
+    }
+  })();
+  byWord.set(key, { at: Date.now(), value });
+  return value;
+}
+
+export async function locate(spec: Spec, words: string[], cwd = "/"): Promise<Position> {
   let node = spec;
   const path = [spec];
   const used = new Set<string>();
@@ -114,8 +157,11 @@ export async function locate(spec: Spec, words: string[]): Promise<Position> {
   let variadicTaken = false;
   let afterDashes = false;
   let repeated = false;
+  let aliasDepth = 0;
+  const queue = words.slice(1);
 
-  for (const word of words.slice(1)) {
+  while (queue.length) {
+    const word = queue.shift()!;
     const optionLike = !afterDashes && word.startsWith("-") && word !== "-";
     if (pending.length) {
       const arg = pending[0]!;
@@ -155,6 +201,15 @@ export async function locate(spec: Spec, words: string[]): Promise<Position> {
         path.push(sub);
         argIndex = 0;
         continue;
+      }
+      const directive = list<Spec>(node.args)[argIndex]?.parserDirectives?.alias;
+      if (directive && aliasDepth < MAX_ALIAS_DEPTH && ALIAS.test(word)) {
+        const expanded = await expandAlias(directive, word, cwd);
+        if (expanded && expanded[0] !== word) {
+          aliasDepth++;
+          queue.unshift(...expanded);
+          continue;
+        }
       }
     }
     positional = true;
