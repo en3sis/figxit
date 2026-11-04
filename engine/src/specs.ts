@@ -30,6 +30,7 @@ const CONTROL = /[\x00-\x1f]/;
 const NAME = /^[\w@.+-]+(\/[\w@.+-]+)*$/;
 const ALIAS = /^[\w@.+:-]{1,48}$/;
 const MAX_ALIAS_DEPTH = 5;
+const GH_ALIAS_LINE = /^([^\s:]+):\s+(.*)$/;
 
 const OWN: Spec = {
   name: "figxit",
@@ -66,8 +67,24 @@ async function specNames(dir: string): Promise<Set<string>> {
   return names;
 }
 
+async function ghAlias(token: string, run: (input: unknown) => Promise<{ stdout: string }>): Promise<string> {
+  const { stdout } = await run({ command: "gh", args: ["alias", "list"] });
+  for (const line of stdout.split("\n")) {
+    const match = GH_ALIAS_LINE.exec(line);
+    if (match?.[1] === token) return match[2]!.trim();
+  }
+  throw new Error("not an alias");
+}
+
+function fixSpec(name: string, spec: Spec | null): Spec | null {
+  if (name !== "gh" || !spec) return spec;
+  const directives = list<Spec>(spec.args)[0]?.parserDirectives;
+  if (directives?.alias) directives.alias = ghAlias;
+  return spec;
+}
+
 export function registerSpec(name: string, spec: Spec | null) {
-  modules.set(name, Promise.resolve(spec));
+  modules.set(name, Promise.resolve(fixSpec(name, spec)));
 }
 
 export function loadSpec(name: string): Promise<Spec | null> {
@@ -79,7 +96,7 @@ export function loadSpec(name: string): Promise<Spec | null> {
     if (!directory || !(await specNames(directory)).has(name)) return null;
     try {
       const spec = (await import(join(directory, `${name}.js`))).default;
-      return spec && typeof spec === "object" ? (spec as Spec) : null;
+      return spec && typeof spec === "object" ? fixSpec(name, spec as Spec) : null;
     } catch {
       return null;
     }
