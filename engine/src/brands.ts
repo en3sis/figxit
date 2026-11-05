@@ -13,6 +13,7 @@ export const ICONS = {
   flag: { icon: "sf:flag.fill", tint: "64748B" },
   file: { icon: "sf:doc.fill", tint: "64748B" },
   folder: { icon: "sf:folder.fill", tint: "3B82F6" },
+  visited: { icon: "sf:folder", tint: "3B82F6" },
   target: { icon: "sf:hammer.fill", tint: "D97706" },
   script: { icon: "sf:play.fill", tint: "16A34A" },
   branch: { icon: "sf:arrow.triangle.branch", tint: "F05032" },

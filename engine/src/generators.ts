@@ -132,7 +132,12 @@ function idOf(item: object): number {
 
 function keyOf(generator: Spec, ctx: GenContext): string {
   const id = idOf(generator);
-  const scope = generator.trigger ? ctx.prefix.slice(0, ctx.prefix.lastIndexOf("/") + 1) : "";
+  const scope =
+    generator.trigger?.on === "change"
+      ? ctx.prefix
+      : generator.trigger
+        ? ctx.prefix.slice(0, ctx.prefix.lastIndexOf("/") + 1)
+        : "";
   return [id, ctx.cwd, ctx.plain, scope, ...ctx.tokens.slice(0, -1)].join("\0");
 }
 
