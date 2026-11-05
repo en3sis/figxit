@@ -1,293 +1,219 @@
-<img src="assets/icon.png" width="128" alt="Figxit app icon">
+<img src="assets/icon.png" width="96" alt="Figxit app icon">
 
 # Figxit
 
-IDE-style autocomplete for the macOS terminal, for zsh, bash, and fish. Figxit completes commands, subcommands, options, `package.json` scripts, and Makefile targets as you type, ordered by what you use most in the current project.
+IDE autocomplete for your terminal on macOS. As you type in zsh, bash, or fish, Figxit lists subcommands, options, files, Makefile targets, and `package.json` scripts, ranked by what you use in the current project.
 
-It is a free, open source replacement for Fig's autocomplete. It runs locally, with no account, no AI chat, and no telemetry.
+Free and open source. No account, no AI chat, no telemetry.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/make-dark.png">
-  <img src="assets/make.png" width="640" alt="Terminal window with make typed and the popup listing Makefile targets with their section and help text">
-</picture>
+<img src="assets/hero.png" width="880" alt="A terminal window on a Mac desktop with make typed, and the list of Makefile targets with their help text and red icons on the production ones">
+
+## Features
+
+- **Commands you run, with their icons**: type `p` for `python3`, `pnpm`, `psql`
+- **Subcommands and options** for 700+ tools: `git ch`, `docker run --`
+- **Live values**: git branches, SSH hosts, files and folders
+- **Makefile targets and `package.json` scripts**, with their help text
+- **Ranked by your history** in the current folder, with [Atuin](https://atuin.sh)
+- **Red icons for production**: Enter inserts those rows without running them
+- **Your aliases**: `git co ` completes like `git checkout `
+- **zoxide**: `z rack` lists the folders `z` would jump to
+- **zsh, bash, and fish**, in Ghostty, iTerm2, Terminal, tmux, and the VS Code terminal
 
 ## Why it exists
 
-Fig added autocomplete to the terminal: you typed `git ` and got the subcommands, each with a short description. Fig joined AWS in 2023 and the app was shut down in September 2024. Its autocomplete now ships inside Kiro CLI, a closed-source AI agent tool.
+Fig put autocomplete in the terminal: type `git ` and see every subcommand with a short description. Fig joined AWS in 2023 and shut down in September 2024. Its autocomplete moved to Amazon Q Developer CLI, then to Kiro CLI, and [Kiro CLI 3.0](https://kiro.dev/changelog/cli/3-0/) removed it in November 2026 with no replacement.
 
-The open alternatives each lack a part of what Fig did:
+Figxit is a direct replacement for that autocomplete on macOS: a native app, open source, and maintained.
 
-- Shell completion menus open only when you press Tab, and they do not know which command you use most.
-- Tools that draw the list inside the terminal wrap the shell session to do it.
-- History search finds a full past command, but it does not list what a command can do.
+The open alternatives each miss a part:
 
-Figxit has all three: a list that opens while you type, completion data for 700+ tools, and ranking from your own history.
+- Shell completion opens only when you press Tab, and does not know what you use most.
+- Tools that draw the list inside the terminal have to wrap your shell.
+- History search finds past commands, but does not show what a command can do.
+
+Figxit does all three: the list opens as you type, it knows 700+ tools, and your history sets the order.
 
 ## What it does
 
-### Project targets and scripts
+### Subcommands and options
 
-`make ` lists the targets of the `Makefile` in the current folder, and of the files it includes with `include` or `-include`. `npm run `, `pnpm `, `yarn `, and `bun run ` list the scripts of `package.json`.
+Figxit uses the open source Fig specs for 700+ tools. Type a command and a space for its subcommands, or a dash for its options.
 
-The icon comes from the verb in the name: `dev`, `start`, and `serve` share one shape, `test` and `test:e2e` share another, and `dev-down` gets the stop shape. One list of 12 verbs covers most script and target names in popular open source projects.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/git-dark.png">
+  <img src="assets/git.png" width="640" alt="Terminal window with git ch typed and the list of matching git subcommands">
+</picture>
+
+Specs also fill in live values: git branches after `git checkout `, hosts after `ssh `, files and folders where a command takes a path. Your git and gh aliases work too: `git co ` completes like `git checkout `.
+
+### Makefile targets and scripts
+
+`make ` lists the targets in the current folder, with their help text. `npm run `, `pnpm `, `yarn `, and `bun run ` list the scripts in `package.json`, with the command each one runs. See [Conventions](#conventions) for the help text and the icons.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/scripts-dark.png">
-  <img src="assets/scripts.png" width="640" alt="Terminal window with npm run typed and the popup listing package.json scripts with the command each one runs">
+  <img src="assets/scripts.png" width="640" alt="Terminal window with npm run typed and the list of package.json scripts with the command each one runs">
 </picture>
 
-For a `Makefile`, the right column shows the comments that many projects already write:
+### Ranking from your history
+
+With [Atuin](https://atuin.sh) installed, Figxit reads your history (read-only). Words you used in this folder, in this repository, or recently come first. Without Atuin, the list still works.
+
+### zoxide
+
+`z rack` lists the folders zoxide matches, in the order `z` would jump.
+
+## Conventions
+
+Figxit follows conventions many projects already use. All of them are optional.
+
+### Makefile help text
 
 ```make
 ##@ Development
 dev: ## Start the stack with hot reload
-dev-down: ## Stop the stack
-
-##@ Tests
 test: ## Run the unit tests
+
+##@ Release
+release: ## [prod] Publish the app
 ```
-
-`##@` starts a section and `##` after a target is its help text. Both are optional.
-
-### Subcommands and options for 700+ tools
-
-Figxit loads the open source Fig completion specs. Type a command and a space for its subcommands, or a dash for its options. Options that are already on the line are hidden.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/git-dark.png">
-  <img src="assets/git.png" width="640" alt="Terminal window with git ch typed and the popup listing the git subcommands that match">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/options-dark.png">
-  <img src="assets/options.png" width="640" alt="Terminal window with docker run and two dashes typed and the popup listing options with descriptions">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/commands-dark.png">
-  <img src="assets/commands.png" width="640" alt="Terminal window with the letter p typed and the popup listing commands with product icons">
-</picture>
-
-Specs can also supply live values, for example git branches after `git checkout `, hosts after `ssh `, and files and folders where a command takes a path.
-
-### Ranking from your history
-
-Figxit reads your [Atuin](https://atuin.sh) history database, read-only. A word scores higher when you used it in the same folder, in the same repository, or recently. Without Atuin the popup still works, in the order the sources give.
-
-For a command that has a spec, history from other folders is not shown. This keeps scripts from one project out of the list in another.
-
-### Keys
-
-| Key | Action |
-|---|---|
-| Up, Down | Move the highlight. The first row is highlighted when you typed part of it, or when your history has it for this command. If no row is highlighted, the first Down highlights the first row |
-| Tab | Insert the highlighted row. When no row is highlighted, insert the first row |
-| Enter | On a highlighted row: insert it and run the line. A row with a red icon is inserted and not run. On the run row (the return icon, shown first when the typed word is complete): run the line. When no row is highlighted, run the line as typed. To make Enter insert the row and not run the line, turn off "Enter runs the highlighted row" in Settings (menu bar icon, then Settings) |
-| Esc | Close the popup. In zsh vi mode, the same press also goes to command mode |
-| Ctrl-U or more typing | Close the popup |
-
-When the popup is closed, the keys do what they did before. Tab still opens your normal completion and Up still searches your history. A line that Up or Down brings back from history does not open the popup, so the next Up goes further back. Type a key to open it.
-
-## Conventions
-
-Figxit uses three conventions that many projects already follow. All are optional.
-
-### Makefile help
 
 | You write | Figxit shows |
 |---|---|
-| `dev: ## Start the stack` | The text after `##` as the description of `dev` |
-| `##@ Development` | A section name in front of the descriptions below it |
-| `release: ## [prod] Publish the app` | A red icon on `release`. The tag is not shown in the popup |
+| `##@ Development` | A section name in front of the targets below it |
+| `dev: ## Start the stack` | "Start the stack" as the description of `dev` |
+| `release: ## [prod] Publish the app` | A red icon on `release`. The tag itself is hidden |
 
-The tags are `[prod]`, `[production]`, `[danger]`, and `[caution]`. A help command made with the usual `awk` line still works, and prints the tag.
-
-### Icons from the name
-
-The verb in a target or script name selects the icon: `dev`, `start`, and `serve` share one, `test` another, `build` another. The list of 12 verbs is in `engine/src/verbs.ts`.
+The tags are `[prod]`, `[production]`, `[danger]`, and `[caution]`, at the start of the help text.
 
 ### Red icon for production
 
-A red icon marks a row that touches production. A row gets it in one of three ways:
+A row gets a red icon when:
 
 | Rule | Examples |
 |---|---|
-| The name is written in capitals | SSH host `PROD`, target `DEPLOY`, script `MIGRATE` |
-| The name has the word `prod` or `production` | `deploy:prod`, `build:production`, `api-prod`, `prod-db-1` |
+| The name is in capitals | SSH host `PROD`, target `DEPLOY` |
+| The name has the word `prod` or `production` | `deploy:prod`, `api-prod`, `prod-db-1` |
 | A Makefile target has a tag in its help text | `release: ## [prod] Publish the app` |
 
-The rule applies to Makefile targets, `package.json` scripts, and live values such as SSH hosts and Docker contexts. It does not apply to files, to subcommands and options, or to words from your history. Only the icon colour changes.
+It applies to Makefile targets, `package.json` scripts, and live values like SSH hosts and Docker contexts. It does not apply to files, subcommands, options, or your history. Enter inserts a red row without running it.
 
-## Requirements
+### Icons from the name
 
-- A Mac with Apple Silicon.
-- macOS 13 or later. The glass background needs macOS 26 or later.
-- zsh, bash 5 or later, or fish 4, in tmux or directly in a terminal that reports its cursor position. The `/bin/bash` of macOS is version 3.2 and does not work.
-- tmux is optional. In tmux, each terminal app works. The terminal inside an editor, such as VS Code, needs Accessibility: see [Panes, editors, and Accessibility](#panes-editors-and-accessibility). Without tmux, the popup is tested in Ghostty, iTerm2, and Terminal. WezTerm, Alacritty, and kitty are not tested yet without tmux.
-- [herdr](https://herdr.dev) works too, with its panes and splits. Figxit asks herdr where the pane is with `herdr pane layout` and reads the border and tab bar settings from `~/.config/herdr/config.toml`.
-- Atuin, optional, for ranking.
-
-No Screen Recording permission is needed. Accessibility is optional and only needed for a split pane of the terminal app or the terminal of an editor: see [Panes, editors, and Accessibility](#panes-editors-and-accessibility).
+A verb in a target or script name picks the icon: `dev`, `start`, and `serve` get play, `test` a check, `build` a hammer, `lint` a wand, `db:migrate` a database, and `dev-down` a stop. The list is in `engine/src/verbs.ts`.
 
 ## Install
 
-1. Download [Figxit.dmg](https://figxit.com/download/Figxit.dmg), open it, and drag Figxit to Applications.
-2. Open Figxit. An icon appears in the menu bar and a setup window opens.
-3. The setup window shows the line for your login shell. Click the **Add** button, or copy the line and add it yourself:
+1. Download [Figxit.dmg](https://figxit.com/download/Figxit.dmg), open it, and move Figxit to Applications.
+2. Open Figxit. The setup window shows one line for your shell. Click **Add**, or add it yourself:
 
-```bash
-# zsh, in ~/.zshrc
-eval "$('/Applications/Figxit.app/Contents/MacOS/figxit-engine' init zsh)"
+   ```bash
+   # zsh, in ~/.zshrc
+   eval "$('/Applications/Figxit.app/Contents/MacOS/figxit-engine' init zsh)"
 
-# bash, in ~/.bashrc, or in ~/.bash_profile if that file does not load ~/.bashrc
-eval "$('/Applications/Figxit.app/Contents/MacOS/figxit-engine' init bash)"
+   # bash, in ~/.bashrc
+   eval "$('/Applications/Figxit.app/Contents/MacOS/figxit-engine' init bash)"
 
-# fish, in ~/.config/fish/conf.d/figxit.fish
-status is-interactive; and '/Applications/Figxit.app/Contents/MacOS/figxit-engine' init fish | source
-```
+   # fish, in ~/.config/fish/conf.d/figxit.fish
+   status is-interactive; and '/Applications/Figxit.app/Contents/MacOS/figxit-engine' init fish | source
+   ```
 
-4. Open a new terminal or a new tmux pane and type a command.
+3. Open a new terminal and type a command.
 
-The line also defines the `figxit` command in your shell, so nothing needs to be on your PATH.
+You need an Apple Silicon Mac with macOS 13 or later, and zsh, bash 5, or fish 4. The bash that comes with macOS is 3.2 and too old.
 
-### The menu bar icon
+New versions install from the menu bar icon. If something looks off, run `figxit doctor`.
 
-The icon shows that Figxit is running. It is dimmed when the engine is stopped. It has a red dot after Figxit finds a split pane without Accessibility, until you allow it. Its menu has:
+## Keys
 
-- **Pause Suggestions** and **Restart Engine**
-- **Set Up Shell**, which opens the setup window again
-- **Run Doctor**, which checks each part of the installation
-- **Allow Accessibility for Panes and Editors**, with a red dot, shown after Figxit finds a split pane or an editor terminal without the permission
-- **Settings**, with three switches: Enter runs the highlighted row, launch at login, and check for updates automatically. The update check is on by default. Settings also shows the Accessibility permission, with an **Allow** button when it is off
-- **Check for Updates**, which downloads and installs a new version
-- **What's New**, which opens the release notes on GitHub
-- **Quit Figxit**
-
-### The `figxit` command
-
-| Command | Action |
+| Key | What it does |
 |---|---|
-| `figxit init zsh` | Print the lines that load Figxit in zsh. `init bash` and `init fish` do the same for those shells |
-| `figxit start` | Start the popup helper and the engine |
-| `figxit stop` | Stop them |
-| `figxit doctor` | Check each part of the installation |
-| `figxit --version` | Print the version |
+| Up, Down | Move through the list |
+| Tab | Insert the row |
+| Enter | Insert the row and run the line. Turn this off in Settings to only insert |
+| Esc | Close the list |
+
+When the list is closed, your keys work as before.
+
+## Works with
+
+Ghostty, iTerm2, and Terminal, and any terminal inside tmux or herdr.
+
+Split panes and the terminal in VS Code or Cursor need Accessibility. See below.
 
 ## Panes, editors, and Accessibility
 
-To place the popup, Figxit needs the cursor cell and the position of the text area on the screen. The shell or tmux gives the cursor cell. Without Accessibility, macOS gives only the position of the window. That is enough when one shell fills the window, but a split of the terminal app (Cmd+D in iTerm2 or Ghostty) has two text areas in one window, and the terminal panel of an editor is one part of a larger window. With Accessibility, Figxit reads the frame of the focused text area, which is the pane or the panel.
+To place the list, Figxit needs to know where the text area of your terminal is on screen. Without Accessibility, macOS only tells it where the window is. That is enough when one shell fills the window, but not when the window has more than one text area.
 
-| Layout | Without Accessibility | With Accessibility |
-|---|---|---|
-| One shell in each window or tab | Works | Works |
-| tmux panes in a window | Works, tmux gives the pane | Works |
-| herdr panes | Works, herdr gives the pane | Works |
-| Split of the terminal app (Cmd+D) | Popup hidden | Works |
-| tmux in a split of the terminal app | Popup hidden | Works |
-| One tmux session attached in two splits | Popup hidden | Works, in the focused split |
-| Terminal of VS Code or Cursor, with tmux and without | Popup hidden | Works |
+These work without Accessibility:
 
-Editor terminals are tested in VS Code and Cursor. Other editors built on VS Code use the same terminal and are not tested yet. An editor built on Electron, such as VS Code, keeps its accessibility tree off until an app asks for it, so Figxit turns it on the first time you type in its terminal. The first popup in that editor after it starts can be missing.
+- one shell in each window or tab
+- tmux panes, because tmux reports where the pane is
+- herdr panes, because herdr reports where the pane is
 
-To allow it, click **Allow…** on the Panes and editors row of Figxit Setup or on the Accessibility row of Settings, then turn on Figxit in the list that System Settings opens: Privacy & Security > Accessibility, named Device Control and Data Access in macOS 27. The first time Figxit finds a split pane or an editor terminal without the permission, it opens Figxit Setup and adds **Allow Accessibility for Panes and Editors** to the menu. The `accessibility` row of `figxit doctor` shows the state, and it is a problem after such a terminal was found without the permission.
+These need Accessibility, and the list stays hidden without it:
 
-Figxit uses Accessibility to read the position and size of the focused text area, and to turn on the accessibility tree of an Electron editor. It does not read the text, and it does not click or type.
+- a split of the terminal app, like Cmd+D in iTerm2 or Ghostty, with or without tmux
+- one tmux session attached in two splits (the list shows in the focused one)
+- the terminal in VS Code or Cursor, with or without tmux
+
+To allow it, click **Allow…** in Figxit Setup or in Settings, then turn on Figxit in System Settings > Privacy & Security > Accessibility (called Device Control and Data Access in macOS 27). Figxit opens Setup the first time it finds one of these terminals without the permission, and `figxit doctor` shows the state.
+
+Figxit uses Accessibility to read the position and size of the focused text area, nothing else. It does not read the text, and it does not click or type. In editors built on Electron, like VS Code, it also turns on the accessibility tree the first time you type in the terminal, so the first list after the editor starts can be missing.
+
+Splits are tested in iTerm2 and Ghostty, and editor terminals in VS Code and Cursor. Other editors built on VS Code use the same terminal but are not tested yet.
 
 ## How it works
 
-Figxit has three parts that talk over unix sockets in `~/.local/state/figxit/`.
+Figxit has three parts that talk over local sockets:
 
 ```
- shell adapter  ── buffer, cursor, folder ──▶  engine  ── rows, grid position ──▶  helper
- (zsh, bash, fish)                              (Bun)                               (Swift, AppKit)
-      ▲                                           │
-      └───────── text to insert on Tab ───────────┘
+shell script  ── line and cursor ──▶  engine  ── rows ──▶  app
+(zsh, bash, fish)                     (Bun)                (Swift)
+      ▲                                  │
+      └──────── text to insert ──────────┘
 ```
 
-**Adapter** (`shell/zsh/figxit.zsh`). A zsh line editor hook sends the buffer to the engine after each key and does not wait for the answer. The shell waits for the engine only when you press Tab or Enter with the list open, for 300 ms at most. It binds Tab, Enter, Up, and Down, and runs your own binding when the list is closed.
+- **Shell script** (`shell/`): sends the line to the engine after each key, without waiting. It waits only when you press Tab or Enter with the list open.
+- **Engine** (`engine/`): keeps the specs and your history in memory, builds the list, and ranks it. Values that need a command, like git branches, arrive a moment later, so the first rows are never slow.
+- **App** (`helper/`): a menu bar app that draws the list under the cursor without taking focus, and restarts the engine if it stops.
 
-**Bridge for bash and fish** (`engine/src/bridge.ts`, `shell/bash/figxit.bash`, `shell/fish/figxit.fish`). These shells cannot open a unix socket or watch one. Each shell starts one bridge process, `figxit-engine bridge`, which holds the engine connection for that shell. The adapters use shell builtins only, so no process starts for a key.
-
-- bash binds each printable key and each editing key to a macro: the original function, then a hook that writes the buffer to the bridge through a pipe. Tab, Enter, Up, and Down first ask if the popup is open, and run their original binding if it is not.
-- fish adds the hook to its existing bindings. It has no pipe that stays open, so it appends each line to a file in `~/.local/state/figxit/shell-<pid>/` that the bridge watches, and reads the popup state and the replies from files in the same folder.
-
-**Engine** (`engine/`). A Bun process that keeps your history and the loaded specs in memory. For each key it parses the line, collects candidates from the project files, the spec, and your history, merges and ranks them, and sends the visible rows to the helper. Values that need a command (git branches, for example) arrive in a second pass, so the first rows are never delayed.
-
-**Helper** (`helper/`). A small macOS app with no Dock icon. It starts the engine and restarts it after a crash. It shows a floating panel that does not take keyboard focus. It finds the terminal window through the public window list, or with Accessibility, through the focused text area, which is the pane in a split or the terminal panel of an editor. In tmux, tmux supplies the pane offset and the cell size in pixels. zsh and bash ask the terminal for the cursor cell, and the engine keeps the pane offset until the pane size changes. fish asks tmux for the cursor cell. Outside tmux, the terminal supplies the cursor cell and the cell size. In zsh and bash the question goes out when a new word starts, and the answer is read as a key sequence, so typed keys keep their order. In fish the bridge asks and reads the answer while the key hook waits, and it does not ask while more typed keys are waiting. The helper hides the popup when you switch app, window, or tab. With Accessibility, it moves the popup with the window and hides it on a tab switch at once.
-
-## Configuration
-
-| Setting | Effect |
-|---|---|
-| `FIGXIT_SPECS=/path` | Folder of completion specs. `off` turns specs off |
-| `FIGXIT_ATUIN_DB=/path` | History database to read |
-| `defaults write dev.figxit.helper glass -bool false` | Use the classic background in place of glass |
-
-The verb list for icons is in `engine/src/verbs.ts`. The command to logo map is in `engine/scripts/icons.ts`, and `cd engine && bun run scripts/icons.ts` rebuilds the icon set.
+Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/src/figxit/`.
 
 ## Limits
 
-- bash and fish: the popup is off in vi mode. In bash, keys with a character outside ASCII, a paste, and a Tab completion do not update the popup until the next key.
-- bash: each key clears and draws the input line again, which is how bash runs a key hook.
-- fish, outside tmux: a key that is not text, Enter, Tab, or Backspace is lost, with the keys typed after it, if it arrives in the short time in which the bridge reads the cursor position.
-- bash and fish: each shell keeps one bridge process, about 28 MB.
-- Without Accessibility, the popup stays hidden in a split of the terminal app, with tmux and without: see [Panes, editors, and Accessibility](#panes-editors-and-accessibility). Splits with Accessibility are tested in iTerm2 and Ghostty.
-- Without Accessibility, the popup stays hidden in the terminal of an editor, such as VS Code, with tmux and without.
-- The popup stays hidden in the terminal of Zed. Zed does not report its terminal panel to Accessibility, only the window.
-- Outside tmux, the popup stays hidden in a terminal that does not answer a cursor position query. In a terminal that does not report its cell size, the position is correct only with no tab bar and no split.
-- herdr: when the terminal app does not report its cell size, herdr reports a default size, and the popup can be in the wrong place. With `tab_bar_position = "bottom"` and `hide_tab_bar_when_single_tab = true`, the popup is one row too low while the workspace has one tab. A config file set with `HERDR_CONFIG_PATH` or `XDG_CONFIG_HOME` is not read.
-- Outside tmux and without Accessibility, a terminal that keeps all its tabs in one window does not tell Figxit about a tab switch. The popup closes at the next key.
 - macOS only.
-- zsh and bash: Escape as a prefix for a Meta key (Escape, then `b`) works only when the second key follows within the key timeout of the shell, 0.4 seconds in zsh and 0.5 seconds in bash.
-- After an option that ends in `=`, values are not suggested yet.
-- Spec generators that search the network on each key are turned off.
-- Generators that need a live service, for example `kubectl get`, show nothing when the service does not answer in 1.5 seconds.
+- Without Accessibility, the list stays hidden in split panes of the terminal app and in editor terminals.
+- The terminal in Zed is not supported. Zed does not report its terminal panel to macOS.
+- bash and fish: the list is off in vi mode.
+- Outside tmux, the terminal must report its cursor position.
+- Values that need a live service, like `kubectl get`, show nothing if the service does not answer in 1.5 seconds.
+
+## Privacy
+
+Figxit runs on your Mac. It reads your shell history and the files in the current folder, and sends neither anywhere.
+
+The only network request is the daily update check, which reads one file from figxit.com. I count those checks and the app downloads by version and date, with no IP address and no identifier. You can turn the check off in Settings.
+
+Words from your history that look like secrets, such as a `--token` value or `API_KEY=...`, are not shown.
 
 ## Development
 
 ```bash
-make dev      # run the helper and the engine from source, with reload
-make test     # unit tests for the engine and the helper
-make e2e      # end-to-end test for zsh, bash, and fish in a private tmux server, with and without tmux geometry
-make smoke    # build the app and test the bundle and the figxit command
-make build    # build and sign dist/Figxit.app
-make dmg      # build the disk image with the drag-to-Applications window
+cd engine && bun install   # once
+make dev                   # run the app from source, with reload
+make test                  # unit tests
+make build                 # build dist/Figxit.app
 ```
 
-Builds get an ad hoc signature, which is enough to run the app on your own Mac, but macOS asks for Accessibility again after each build. With `SIGN_ID` set in `.env` to a Developer ID, `make dev` and `make build` sign with it, and the permission stays across builds. `make dev` starts the helper with `open`, so macOS checks the permission of Figxit and not of the terminal you run it in. Signed releases are made by the owner.
-
-`make build` needs [Bun](https://bun.sh) and the Xcode command line tools. Run `bun install` in `engine/` one time first. `make dmg` also needs `create-dmg` and `rsvg-convert` from Homebrew.
-
-For development, source the adapter from the repository in place of the `eval` line:
-
-```bash
-source /path/to/figxit/shell/zsh/figxit.zsh      # zsh
-source /path/to/figxit/shell/bash/figxit.bash    # bash
-source /path/to/figxit/shell/fish/figxit.fish    # fish
-```
-
-From the repository, the bash and fish adapters run the bridge with `bun run engine/src/main.ts bridge`. The `figxit` command runs `engine/src/main.ts` in the same way.
-
-With that line the adapter starts nothing by itself. `make dev` runs the helper and the engine in the foreground and reloads the engine when its source changes. Ctrl-C stops both.
-
-The end-to-end test starts its own tmux server and a stand-in for the helper, so it does not touch your running session. Set `FIGXIT_E2E_SHELL=bash` or `fish` to run one shell, and `FIGXIT_E2E_PLAIN=1` to run without tmux geometry. Set `FIGXIT_E2E_REAL=1` to run the zsh test with your own `~/.zshrc`.
-
-## Privacy
-
-Figxit has no telemetry: the app does not report what you type, what you run, or how you use it.
-
-Its only network request is the update check, one time each day, which reads one file from figxit.com. We count those checks by app version, and we count downloads of the app. That is how we know how many installs are in use. The count holds the version and the date, with no IP address and no identifier. To stop the check, turn off **Check for updates automatically** in Settings.
-
-Figxit reads your history database and the files in the current folder. With Accessibility allowed, it reads the position and size of the terminal's focused text area, not its text. Completion specs can run local commands to list values, for example `git branch`. They do not run when the line contains quotes, `$`, or other shell syntax.
-
-Words from your history that look like a secret are not shown: a value after `--token` or `--password`, an assignment such as `API_KEY=...`, and long random strings. This filter cannot find all secrets, for example a password written directly after `-p`.
+You need [Bun](https://bun.sh) and the Xcode command line tools.
 
 ## Credits
 
-- Completion specs: [withfig/autocomplete](https://github.com/withfig/autocomplete), MIT licence.
-- Product icons: [Simple Icons](https://simpleicons.org), CC0 licence. The logos are trademarks of their owners.
-- Updates: [Sparkle](https://sparkle-project.org), MIT licence.
-- Figxit is not affiliated with Fig, Amazon, or Kiro.
+Completion specs from [withfig/autocomplete](https://github.com/withfig/autocomplete) (MIT). Tool icons from [Simple Icons](https://simpleicons.org) (CC0), and the logos belong to their owners. Updates by [Sparkle](https://sparkle-project.org) (MIT).
+
+Figxit is not affiliated with Fig, Amazon, or Kiro.
 
 ## Licence
 
