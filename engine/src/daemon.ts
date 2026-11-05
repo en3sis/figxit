@@ -48,6 +48,16 @@ const helper = new Helper();
 let active: Session | null = null;
 let shells = 0;
 
+let historySource: string | null | undefined;
+
+function noteHistory() {
+  if (history.source === historySource) return;
+  historySource = history.source;
+  try {
+    writeFileSync(join(dirname(SOCK), "history"), `${history.source ?? ""}\n`);
+  } catch {}
+}
+
 function count(change: number) {
   shells += change;
   try {
@@ -259,6 +269,7 @@ function onLine(s: Session, line: string) {
       break;
     case "L":
       history.refresh();
+      noteHistory();
       s.anchorKey = null;
       hide(s);
       break;

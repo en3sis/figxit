@@ -6,6 +6,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { History } from "../src/history";
+import { atuinDb } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
@@ -768,6 +769,27 @@ describe("specs", () => {
       ["tool co main", "/here"],
     ]);
     expect((await labels("tool ", "/here", history))[0]).toBe("checkout");
+  });
+});
+
+describe("atuin history", () => {
+  test("the database is found where atuin keeps it", () => {
+    const home = mkdtempSync(join(tmpdir(), "figxit-home-"));
+    const make = (path: string, body = "") => {
+      mkdirSync(join(home, path, ".."), { recursive: true });
+      writeFileSync(join(home, path), body);
+    };
+    expect(atuinDb({}, home)).toBeNull();
+    make(".local/share/atuin/history.db");
+    expect(atuinDb({}, home)).toBe(join(home, ".local/share/atuin/history.db"));
+    make(".atuin/data/history.db");
+    expect(atuinDb({}, home)).toBe(join(home, ".atuin/data/history.db"));
+    make("custom/history.db");
+    make(".atuin/config.toml", '# db_path = "~/nope.db"\ndb_path = "~/custom/history.db"\n');
+    expect(atuinDb({}, home)).toBe(join(home, "custom/history.db"));
+    expect(atuinDb({ FIGXIT_ATUIN_DB: join(home, ".local/share/atuin/history.db") }, home)).toBe(
+      join(home, ".local/share/atuin/history.db"),
+    );
   });
 });
 
