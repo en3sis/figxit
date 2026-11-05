@@ -1,8 +1,8 @@
-import { brandIcon, ICONS, type Icon } from "./brands";
+import { ICONS, type Icon } from "./brands";
 import { escapePath, fileCandidates, lookup, queryHead, type GenContext, type Lookup } from "./generators";
 import type { History } from "./history";
 import { projectCandidates, repoRoot, type Candidate } from "./sources";
-import { emit, list, loadSpec, locate, toCandidate, type Emitted, type Spec } from "./specs";
+import { commandIcon, emit, list, loadSpec, locate, toCandidate, type Emitted, type Spec } from "./specs";
 import { commandWords, keyword, RESERVED, scan } from "./tokenize";
 import { CAUTION, cautious } from "./verbs";
 
@@ -51,10 +51,10 @@ function pathLike(token: string): boolean {
 }
 
 function iconFor(label: string, depth: number, command: string | undefined): Icon {
-  if (depth === 0) return brandIcon(label) ?? (label === "make" ? ICONS.target : ICONS.command);
+  if (depth === 0) return commandIcon(label) ?? (label === "make" ? ICONS.target : ICONS.command);
   if (label.startsWith("-")) return ICONS.flag;
   if (pathLike(label)) return label.endsWith("/") ? ICONS.folder : ICONS.file;
-  return brandIcon(command) ?? ICONS.history;
+  return commandIcon(command) ?? ICONS.history;
 }
 
 const COMMAND = /^[\w.+-]+$/;
@@ -143,7 +143,7 @@ async function complete(
   const stats = history.nextTokens(words, cwd, repoRoot(cwd), now);
   const known = depth === 0 && prefix !== "" && !prefix.includes("/") && !keyword(prefix) && (await loadSpec(prefix)) !== null;
   const covered = project.authoritative || spec !== null;
-  const brand = brandIcon(command) ?? ICONS.command;
+  const brand = commandIcon(command) ?? ICONS.command;
 
   const files: Candidate[] = [];
   const slots: { found: Lookup; head: string; filtered: boolean }[] = [];
