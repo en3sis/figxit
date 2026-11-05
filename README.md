@@ -6,7 +6,7 @@ IDE autocomplete for your terminal on macOS. As you type in zsh, bash, or fish, 
 
 Free and open source. No account, no AI chat, no telemetry.
 
-<img src="assets/hero.png" width="880" alt="Three terminal windows on a Mac desktop: make lists the Makefile targets with their help text and red icons on the production ones, git checkout lists the branches, and p lists commands with their tool icons">
+<img src="assets/hero.png" width="880" alt="A terminal window on a Mac desktop with make typed, and the list of Makefile targets with their help text and red icons on the production ones">
 
 ## Features
 
