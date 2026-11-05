@@ -436,27 +436,6 @@ describe("aliases", () => {
   });
 });
 
-describe("atuin history", () => {
-  test("the database is found where atuin keeps it", () => {
-    const home = mkdtempSync(join(tmpdir(), "figxit-home-"));
-    const make = (path: string, body = "") => {
-      mkdirSync(dirname(join(home, path)), { recursive: true });
-      writeFileSync(join(home, path), body);
-    };
-    expect(atuinDb({}, home)).toBeNull();
-    make(".local/share/atuin/history.db");
-    expect(atuinDb({}, home)).toBe(join(home, ".local/share/atuin/history.db"));
-    make(".atuin/data/history.db");
-    expect(atuinDb({}, home)).toBe(join(home, ".atuin/data/history.db"));
-    make("custom/history.db");
-    make(".atuin/config.toml", '# db_path = "~/nope.db"\ndb_path = "~/custom/history.db"\n');
-    expect(atuinDb({}, home)).toBe(join(home, "custom/history.db"));
-    expect(atuinDb({ FIGXIT_ATUIN_DB: join(home, ".local/share/atuin/history.db") }, home)).toBe(
-      join(home, ".local/share/atuin/history.db"),
-    );
-  });
-});
-
 describe("caution colour", () => {
   const red = (items: { label: string; tint?: string }[]) => items.filter((i) => i.tint === "D70015").map((i) => i.label).sort();
 
@@ -731,6 +710,27 @@ describe("specs", () => {
       ["tool co main", "/here"],
     ]);
     expect((await labels("tool ", "/here", history))[0]).toBe("checkout");
+  });
+});
+
+describe("atuin history", () => {
+  test("the database is found where atuin keeps it", () => {
+    const home = mkdtempSync(join(tmpdir(), "figxit-home-"));
+    const make = (path: string, body = "") => {
+      mkdirSync(dirname(join(home, path)), { recursive: true });
+      writeFileSync(join(home, path), body);
+    };
+    expect(atuinDb({}, home)).toBeNull();
+    make(".local/share/atuin/history.db");
+    expect(atuinDb({}, home)).toBe(join(home, ".local/share/atuin/history.db"));
+    make(".atuin/data/history.db");
+    expect(atuinDb({}, home)).toBe(join(home, ".atuin/data/history.db"));
+    make("custom/history.db");
+    make(".atuin/config.toml", '# db_path = "~/nope.db"\ndb_path = "~/custom/history.db"\n');
+    expect(atuinDb({}, home)).toBe(join(home, "custom/history.db"));
+    expect(atuinDb({ FIGXIT_ATUIN_DB: join(home, ".local/share/atuin/history.db") }, home)).toBe(
+      join(home, ".local/share/atuin/history.db"),
+    );
   });
 });
 
