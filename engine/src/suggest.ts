@@ -2,7 +2,7 @@ import { brandIcon, ICONS, type Icon } from "./brands";
 import { escapePath, fileCandidates, lookup, queryHead, type GenContext, type Lookup } from "./generators";
 import type { History } from "./history";
 import { projectCandidates, repoRoot, type Candidate } from "./sources";
-import { emit, loadSpec, locate, toCandidate, type Emitted } from "./specs";
+import { emit, list, loadSpec, locate, toCandidate, type Emitted, type Spec } from "./specs";
 import { commandWords, keyword, RESERVED, scan } from "./tokenize";
 import { CAUTION, cautious } from "./verbs";
 
@@ -137,7 +137,8 @@ async function complete(
   const spec = command && !command.includes("/") ? await loadSpec(command) : null;
   const project = projectCandidates(words, prefix, cwd, spec !== null);
   const position = spec ? await locate(spec, words, cwd) : null;
-  if (position?.repeated && prefix === "") return EMPTY;
+  const generated = list<Spec>(position?.arg?.generators).some((generator) => !generator.template);
+  if (position?.repeated && prefix === "" && !generated) return EMPTY;
   const emitted: Emitted | null = position ? emit(position, prefix) : null;
   const stats = history.nextTokens(words, cwd, repoRoot(cwd), now);
   const known = depth === 0 && prefix !== "" && !prefix.includes("/") && !keyword(prefix) && (await loadSpec(prefix)) !== null;
