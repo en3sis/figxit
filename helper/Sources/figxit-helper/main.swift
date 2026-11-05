@@ -118,6 +118,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        status?.settings()
+        return false
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         engine?.stop()
         unlink(Self.socketPath)
