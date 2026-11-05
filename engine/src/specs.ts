@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { brandIcon, ICONS, type Icon } from "./brands";
 import { expandAlias } from "./generators";
+import { FIGXIT_SPECS, PATCHES } from "./figxit";
 import { specsDir } from "./paths";
 import type { Candidate } from "./sources";
 
@@ -30,32 +31,10 @@ const CONTROL = /[\x00-\x1f]/;
 const NAME = /^[\w@.+-]+(\/[\w@.+-]+)*$/;
 const ALIAS = /^[\w@.+:-]{1,48}$/;
 const MAX_ALIAS_DEPTH = 5;
-const GH_ALIAS_LINE = /^([^\s:]+):\s+(.*)$/;
 
-const OWN: Spec = {
-  name: "figxit",
-  description: "Completion popup for the terminal",
-  subcommands: [
-    {
-      name: "init",
-      description: "Print the lines that load Figxit in a shell",
-      args: { name: "shell", suggestions: ["zsh", "bash", "fish"] },
-    },
-    { name: "start", description: "Start the popup helper and the engine" },
-    { name: "stop", description: "Stop the popup helper and the engine" },
-    {
-      name: "doctor",
-      description: "Check the installation",
-      options: [{ name: "--json", description: "Print the result as JSON" }],
-    },
-  ],
-  options: [
-    { name: ["--version", "-v"], description: "Print the version" },
-    { name: "--help", description: "Print the commands" },
-  ],
-};
-
-const modules = new Map<string, Promise<Spec | null>>([["figxit", Promise.resolve(OWN)]]);
+const modules = new Map<string, Promise<Spec | null>>(
+  Object.entries(FIGXIT_SPECS).map(([name, spec]) => [name, Promise.resolve(spec)]),
+);
 let directory: string | null | undefined;
 let names: Promise<Set<string>> | null = null;
 
@@ -67,20 +46,8 @@ async function specNames(dir: string): Promise<Set<string>> {
   return names;
 }
 
-async function ghAlias(token: string, run: (input: unknown) => Promise<{ stdout: string }>): Promise<string> {
-  const { stdout } = await run({ command: "gh", args: ["alias", "list"] });
-  for (const line of stdout.split("\n")) {
-    const match = GH_ALIAS_LINE.exec(line);
-    if (match?.[1] === token) return match[2]!.trim();
-  }
-  throw new Error("not an alias");
-}
-
 function fixSpec(name: string, spec: Spec | null): Spec | null {
-  if (name !== "gh" || !spec) return spec;
-  const directives = list<Spec>(spec.args)[0]?.parserDirectives;
-  if (directives?.alias) directives.alias = ghAlias;
-  return spec;
+  return spec && Object.hasOwn(PATCHES, name) ? PATCHES[name]!(spec) : spec;
 }
 
 export function registerSpec(name: string, spec: Spec | null) {
@@ -217,6 +184,7 @@ function detailOf(item: Spec, fallback: string): string {
 function hintIcon(item: Spec, fallback: Icon): Icon {
   if (item.type === "folder") return ICONS.folder;
   if (item.type === "file") return ICONS.file;
+  if (item.icon === ICONS.visited.icon) return ICONS.visited;
   const hint = typeof item.icon === "string" ? item.icon : "";
   if (hint.includes("type=git")) return ICONS.branch;
   if (hint.includes("\u{1F3F7}")) return ICONS.tag;

@@ -1,8 +1,8 @@
 process.env.FIGXIT_SPECS = "off";
 
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { History } from "../src/history";
@@ -432,6 +432,47 @@ describe("aliases", () => {
     expect(await alias("old", run)).toBe("pr view");
     expect(await alias("prs", run)).toBe("'!gh pr list'");
     await expect(alias("nope", run)).rejects.toThrow();
+  });
+});
+
+describe("figxit specs", () => {
+  const withPath = async (path: string, work: () => Promise<void>) => {
+    const saved = process.env.PATH;
+    process.env.PATH = path;
+    try {
+      await work();
+    } finally {
+      process.env.PATH = saved;
+    }
+  };
+
+  test("z lists zoxide folders in zoxide's order for the words typed", async () => {
+    const bin = mkdtempSync(join(tmpdir(), "figxit-bin-"));
+    const cwd = mkdtempSync(join(tmpdir(), "figxit-z-"));
+    const home = homedir();
+    writeFileSync(
+      join(bin, "zoxide"),
+      `#!/bin/sh\necho "$@" > "${bin}/args"\nprintf '%s\\n' "${home}/b/zeta" "${home}/a/My Notes" /opt/alpha\n`,
+      { mode: 0o755 },
+    );
+    await withPath(`${bin}:${process.env.PATH}`, async () => {
+      const list = await suggest("z ze", 4, cwd, historyOf([["z zebra", cwd]]), NOW);
+      const folders = list?.items.filter((item) => item.icon === "sf:folder") ?? [];
+      expect(folders.map((item) => item.label)).toEqual(["~/b/zeta", "~/a/My Notes", "/opt/alpha"]);
+      expect(folders.map((item) => item.insert)).toEqual(["~/b/zeta ", "~/a/My\\ Notes ", "/opt/alpha "]);
+      expect(readFileSync(join(bin, "args"), "utf8").trim()).toBe(`query --list --exclude ${cwd} -- ze`);
+      await suggest("z zeb", 5, cwd, historyOf([]), NOW);
+      expect(readFileSync(join(bin, "args"), "utf8").trim()).toBe(`query --list --exclude ${cwd} -- zeb`);
+      await suggest("z proj ze", 9, cwd, historyOf([]), NOW);
+      expect(readFileSync(join(bin, "args"), "utf8").trim()).toBe(`query --list --exclude ${cwd} -- proj ze`);
+    });
+  });
+
+  test("z shows nothing when zoxide is not installed", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "figxit-z-"));
+    await withPath(mkdtempSync(join(tmpdir(), "figxit-bin-")), async () => {
+      expect(await suggest("z ze", 4, cwd, historyOf([]), NOW)).toBeNull();
+    });
   });
 });
 
