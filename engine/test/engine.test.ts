@@ -3,7 +3,7 @@ process.env.FIGXIT_SPECS = "off";
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { History } from "../src/history";
 import { atuinDb } from "../src/paths";
@@ -717,7 +717,7 @@ describe("atuin history", () => {
   test("the database is found where atuin keeps it", () => {
     const home = mkdtempSync(join(tmpdir(), "figxit-home-"));
     const make = (path: string, body = "") => {
-      mkdirSync(dirname(join(home, path)), { recursive: true });
+      mkdirSync(join(home, path, ".."), { recursive: true });
       writeFileSync(join(home, path), body);
     };
     expect(atuinDb({}, home)).toBeNull();
