@@ -1,7 +1,6 @@
 import { Database } from "bun:sqlite";
 import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { atuinDb } from "./paths";
 import { historySegments } from "./tokenize";
 
 export interface Entry {
@@ -32,8 +31,9 @@ export class History {
   private lastMs = 0;
   private lastRefresh = 0;
   private db: Database | null = null;
+  source: string | null = null;
 
-  constructor(private path = process.env.FIGXIT_ATUIN_DB ?? join(homedir(), ".local/share/atuin/history.db")) {}
+  constructor(private path?: string) {}
 
   add(command: string, cwd: string, ts: number, exit: number) {
     const weight = exitWeight(exit);
@@ -53,8 +53,10 @@ export class History {
     this.lastRefresh = now;
     try {
       if (!this.db) {
-        if (!existsSync(this.path)) return;
-        this.db = new Database(this.path, { readonly: true });
+        const path = this.path ?? atuinDb();
+        if (!path || !existsSync(path)) return;
+        this.db = new Database(path, { readonly: true });
+        this.source = path;
       }
       const rows = this.db
         .query(
@@ -67,6 +69,7 @@ export class History {
       }
     } catch {
       this.db = null;
+      this.source = null;
     }
   }
 

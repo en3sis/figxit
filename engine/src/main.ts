@@ -2,7 +2,7 @@ import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync
 import { homedir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { version } from "../package.json";
-import { appPath, bundlePath, ENGINE_SOCK, HELPER_SOCK, specsDir } from "./paths";
+import { appPath, atuinDb, atuinPaths, bundlePath, ENGINE_SOCK, HELPER_SOCK, specsDir } from "./paths";
 
 const HELP = `figxit ${version}
 
@@ -230,13 +230,14 @@ async function doctor(fromApp: boolean, json: boolean): Promise<number> {
     if (await reachable(ENGINE_SOCK)) shells = Number(readFileSync(join(dirname(ENGINE_SOCK), "shells"), "utf8")) || 0;
   } catch {}
   const login = SHELLS[loginShell()]!;
-  const atuin = process.env.FIGXIT_ATUIN_DB ?? join(homedir(), ".local/share/atuin/history.db");
+  const atuin = atuinDb();
+  const looked = atuinPaths().map((path) => path.replace(homedir(), "~")).join(", ");
   const checks: [boolean | null, string, string][] = [
     [app !== null, "app bundle", app ?? "not found"],
     [await reachable(HELPER_SOCK), "popup helper", HELPER_SOCK],
     [await reachable(ENGINE_SOCK), "engine", ENGINE_SOCK],
     [specCount > 0, "completion specs", specs ? `${specCount} in ${specs}` : "not found"],
-    [existsSync(atuin), "atuin history", existsSync(atuin) ? atuin : "not found, ranking is off"],
+    [atuin !== null, "atuin history", atuin ?? `not found in ${looked}, ranking is off`],
     [shells > 0, "shells connected", shells > 0 ? String(shells) : `none, run ${login.reload} in each open terminal`],
   ];
   const shell: [boolean, string, string][] = [

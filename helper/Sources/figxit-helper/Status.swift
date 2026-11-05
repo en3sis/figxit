@@ -173,6 +173,13 @@ enum Install {
         return engineRunning ? Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0 : 0
     }
 
+    static var historyFound: Bool {
+        let path = (stoppedFlag as NSString).deletingLastPathComponent + "/history"
+        let noted = ((try? String(contentsOfFile: path, encoding: .utf8)) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let defaults = [NSHomeDirectory() + "/.atuin/data/history.db", NSHomeDirectory() + "/.local/share/atuin/history.db"]
+        return ((noted.isEmpty ? [] : [noted]) + defaults).contains { FileManager.default.fileExists(atPath: $0) }
+    }
+
     static func markStopped(_ stopped: Bool) {
         if stopped {
             FileManager.default.createFile(atPath: stoppedFlag, contents: nil)
@@ -248,7 +255,7 @@ enum Checks {
         let running = Install.engineRunning
         let shells = Install.shellCount
         let tmux = find("tmux") != nil
-        let history = FileManager.default.fileExists(atPath: NSHomeDirectory() + "/.local/share/atuin/history.db")
+        let history = Install.historyFound
         let access = AXIsProcessTrusted()
         return [
             Check(icon: "sf:bolt.fill", tint: "3A3A3C", title: "Engine",
