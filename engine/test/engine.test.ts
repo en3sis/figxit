@@ -546,6 +546,24 @@ describe("safety", () => {
     const typed = await suggest("show README.md n", 16, cwd, historyOf([]), NOW);
     expect(typed?.items.map((i) => i.label)).toEqual(["notes.txt"]);
   });
+
+  test("the list opens for the next value of a repeating argument that a generator fills", async () => {
+    registerSpec("stage", {
+      name: "stage",
+      args: {
+        name: "file",
+        isVariadic: true,
+        generators: {
+          custom: async (tokens: string[]) => ["a.txt", "b.txt"].filter((name) => !tokens.includes(name)).map((name) => ({ name })),
+        },
+      },
+    });
+    const next = await suggest("stage a.txt ", 12, "/", historyOf([]), NOW);
+    expect(next?.items.map((i) => i.label)).toEqual(["b.txt"]);
+    registerSpec("pick", { name: "pick", args: { name: "file", isVariadic: true, generators: { template: "filepaths" } } });
+    const cwd = project({ "README.md": "", "notes.txt": "" });
+    expect(await suggest("pick README.md ", 15, cwd, historyOf([]), NOW)).toBeNull();
+  });
 });
 
 describe("specs", () => {
