@@ -6,10 +6,19 @@ IDE autocomplete for your terminal on macOS. As you type in zsh, bash, or fish, 
 
 Free and open source. No account, no AI chat, no telemetry.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/make-dark.png">
-  <img src="assets/make.png" width="640" alt="Terminal window with make typed and the list of Makefile targets with their section and help text">
-</picture>
+<img src="assets/hero.png" width="880" alt="Three terminal windows on a Mac desktop: make lists the Makefile targets with their help text and red icons on the production ones, git checkout lists the branches, and p lists commands with their tool icons">
+
+## Features
+
+- **Commands you run, with their icons**: type `p` for `python3`, `pnpm`, `psql`
+- **Subcommands and options** for 700+ tools: `git ch`, `docker run --`
+- **Live values**: git branches, SSH hosts, files and folders
+- **Makefile targets and `package.json` scripts**, with their help text
+- **Ranked by your history** in the current folder, with [Atuin](https://atuin.sh)
+- **Red icons for production**: Enter inserts those rows without running them
+- **Your aliases**: `git co ` completes like `git checkout `
+- **zoxide**: `z rack` lists the folders `z` would jump to
+- **zsh, bash, and fish**, in Ghostty, iTerm2, Terminal, tmux, and the VS Code terminal
 
 ## Why it exists
 
@@ -131,7 +140,29 @@ When the list is closed, your keys work as before.
 
 Ghostty, iTerm2, and Terminal, and any terminal inside tmux or herdr.
 
-Split panes and the terminal in VS Code or Cursor need Accessibility, which you can allow in Settings. Figxit uses it to find the pane on screen. It does not read the text.
+Split panes and the terminal in VS Code or Cursor need Accessibility. See below.
+
+## Panes, editors, and Accessibility
+
+To place the list, Figxit needs to know where the text area of your terminal is on screen. Without Accessibility, macOS only tells it where the window is. That is enough when one shell fills the window, but not when the window has more than one text area.
+
+These work without Accessibility:
+
+- one shell in each window or tab
+- tmux panes, because tmux reports where the pane is
+- herdr panes, because herdr reports where the pane is
+
+These need Accessibility, and the list stays hidden without it:
+
+- a split of the terminal app, like Cmd+D in iTerm2 or Ghostty, with or without tmux
+- one tmux session attached in two splits (the list shows in the focused one)
+- the terminal in VS Code or Cursor, with or without tmux
+
+To allow it, click **Allow…** in Figxit Setup or in Settings, then turn on Figxit in System Settings > Privacy & Security > Accessibility (called Device Control and Data Access in macOS 27). Figxit opens Setup the first time it finds one of these terminals without the permission, and `figxit doctor` shows the state.
+
+Figxit uses Accessibility to read the position and size of the focused text area, nothing else. It does not read the text, and it does not click or type. In editors built on Electron, like VS Code, it also turns on the accessibility tree the first time you type in the terminal, so the first list after the editor starts can be missing.
+
+Splits are tested in iTerm2 and Ghostty, and editor terminals in VS Code and Cursor. Other editors built on VS Code use the same terminal but are not tested yet.
 
 ## How it works
 
