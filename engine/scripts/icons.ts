@@ -113,11 +113,49 @@ const COMMANDS: Record<string, string[]> = {
   apple: ["open", "defaults", "codesign", "osascript", "pbcopy", "pbpaste"],
 };
 
+const LINKS = ["github", "discord"];
+
 const root = join(import.meta.dir, "../..");
 const out = join(root, "helper/Resources/icons");
 const bySlug = new Map(Object.values(icons).map((icon) => [icon.slug, icon]));
 const brands: Record<string, { slug: string; hex: string }> = {};
 const missing: string[] = [];
+
+const NUMBER = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/;
+
+function spacedArcs(path: string): string {
+  if (!/[aA]/.test(path)) return path;
+  const parts: string[] = [];
+  let command = "";
+  let index = 0;
+  let at = 0;
+  while (at < path.length) {
+    const char = path[at]!;
+    if (/[a-zA-Z]/.test(char)) {
+      parts.push(char);
+      command = char;
+      index = 0;
+      at++;
+    } else if (/[\s,]/.test(char)) {
+      at++;
+    } else if ((command === "a" || command === "A") && (index % 7 === 3 || index % 7 === 4)) {
+      parts.push(char);
+      index++;
+      at++;
+    } else {
+      const match = NUMBER.exec(path.slice(at));
+      if (!match) return path;
+      parts.push(match[0]);
+      index++;
+      at += match[0].length;
+    }
+  }
+  return parts.join(" ");
+}
+
+function svgOf(icon: { svg: string }): string {
+  return icon.svg.replace(/ d="([^"]*)"/g, (_, path: string) => ` d="${spacedArcs(path)}"`);
+}
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
@@ -128,8 +166,14 @@ for (const [slug, commands] of Object.entries(COMMANDS)) {
     missing.push(slug);
     continue;
   }
-  writeFileSync(join(out, `${slug}.svg`), icon.svg);
+  writeFileSync(join(out, `${slug}.svg`), svgOf(icon));
   for (const command of commands) brands[command] = { slug, hex: icon.hex };
+}
+
+for (const slug of LINKS) {
+  const icon = bySlug.get(slug);
+  if (icon) writeFileSync(join(out, `${slug}.svg`), svgOf(icon));
+  else missing.push(slug);
 }
 
 const sorted = Object.fromEntries(Object.entries(brands).sort(([a], [b]) => a.localeCompare(b)));

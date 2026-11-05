@@ -30,7 +30,7 @@ export async function zoxideFolders(tokens: string[], run: Run, context: { curre
         description: index === 0 ? "Best match" : "folder",
         priority: 100 - index,
         insertValue: `${escapePath(label)} `,
-        icon: ICONS.visited.icon,
+        icon: ICONS.jump.icon,
       };
     });
 }

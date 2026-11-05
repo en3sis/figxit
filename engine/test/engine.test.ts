@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
+import { ICONS } from "../src/brands";
 import { History } from "../src/history";
 import { atuinDb } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
@@ -458,7 +459,8 @@ describe("figxit specs", () => {
     );
     await withPath(`${bin}:${process.env.PATH}`, async () => {
       const list = await suggest("z ze", 4, cwd, historyOf([["z zebra", cwd]]), NOW);
-      const folders = list?.items.filter((item) => item.icon === "sf:folder") ?? [];
+      const folders = list?.items.filter((item) => item.detail !== "history") ?? [];
+      expect(list?.items.map((item) => item.icon)).toEqual(Array(4).fill(ICONS.jump.icon));
       expect(folders.map((item) => item.label)).toEqual(["~/b/zeta", "~/a/My Notes", "/opt/alpha"]);
       expect(folders.map((item) => item.insert)).toEqual(["~/b/zeta ", "~/a/My\\ Notes ", "/opt/alpha "]);
       expect(readFileSync(join(bin, "args"), "utf8").trim()).toBe(`query --list --exclude ${cwd} -- ze`);

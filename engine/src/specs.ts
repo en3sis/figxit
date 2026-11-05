@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { brandIcon, ICONS, type Icon } from "./brands";
 import { expandAlias } from "./generators";
-import { FIGXIT_SPECS, PATCHES } from "./figxit";
+import { FIGXIT_ICONS, FIGXIT_SPECS, PATCHES } from "./figxit";
 import { specsDir } from "./paths";
 import type { Candidate } from "./sources";
 
@@ -48,6 +48,11 @@ async function specNames(dir: string): Promise<Set<string>> {
 
 function fixSpec(name: string, spec: Spec | null): Spec | null {
   return spec && Object.hasOwn(PATCHES, name) ? PATCHES[name]!(spec) : spec;
+}
+
+export function commandIcon(command: string | undefined): Icon | null {
+  if (command && Object.hasOwn(FIGXIT_ICONS, command)) return FIGXIT_ICONS[command]!;
+  return brandIcon(command);
 }
 
 export function registerSpec(name: string, spec: Spec | null) {
@@ -184,7 +189,7 @@ function detailOf(item: Spec, fallback: string): string {
 function hintIcon(item: Spec, fallback: Icon): Icon {
   if (item.type === "folder") return ICONS.folder;
   if (item.type === "file") return ICONS.file;
-  if (item.icon === ICONS.visited.icon) return ICONS.visited;
+  if (item.icon === ICONS.jump.icon) return ICONS.jump;
   const hint = typeof item.icon === "string" ? item.icon : "";
   if (hint.includes("type=git")) return ICONS.branch;
   if (hint.includes("\u{1F3F7}")) return ICONS.tag;
@@ -254,7 +259,7 @@ function optionCandidate(option: Spec, prefix: string): Candidate | null {
 
 export function emit(position: Position, prefix: string): Emitted {
   const out: Emitted = { statics: [], generators: [], templates: new Set() };
-  const brand = brandIcon(position.command) ?? ICONS.command;
+  const brand = commandIcon(position.command) ?? ICONS.command;
   const push = (candidate: Candidate | null) => {
     if (candidate) out.statics.push(candidate);
   };
