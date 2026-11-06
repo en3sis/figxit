@@ -717,6 +717,11 @@ final class StatusController: NSObject, NSMenuDelegate {
         timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.refresh() }
     }
 
+    func showMenuBarIcon() {
+        Install.showMenuBarIcon = true
+        item.isVisible = true
+    }
+
     func showSetup(onlyIfNeeded: Bool) {
         if onlyIfNeeded && Checks.ready { return }
         setup.show()
@@ -780,7 +785,7 @@ final class StatusController: NSObject, NSMenuDelegate {
         doctorWindow.show()
     }
 
-    @objc func settings() {
+    @objc private func settings() {
         settingsWindow.updater = updater?.updater
         settingsWindow.show()
     }

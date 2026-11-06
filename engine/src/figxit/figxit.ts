@@ -10,6 +10,7 @@ export const figxit: Spec = {
       args: { name: "shell", suggestions: ["zsh", "bash", "fish"] },
     },
     { name: "start", description: "Start the popup helper and the engine" },
+    { name: "open", description: "Open the app and show its menu bar icon" },
     { name: "stop", description: "Stop the popup helper and the engine" },
     {
       name: "doctor",

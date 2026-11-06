@@ -103,9 +103,9 @@ final class SettingsWindow: NSObject {
             Panel.row(
                 icon: "sf:menubar.rectangle",
                 tint: "5E5CE6",
-                title: "Show menu bar icon",
+                title: "Show in menu bar",
                 tag: nil,
-                detail: "Open Figxit from Applications to return to Settings when hidden.",
+                detail: "Run figxit open to show the menu bar icon again.",
                 trailing: [menuBar]
             ),
             Panel.row(

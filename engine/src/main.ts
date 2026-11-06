@@ -9,6 +9,7 @@ const HELP = `figxit ${version}
 Usage:
   figxit init zsh    Print the lines that load figxit in zsh. Also: init bash, init fish
   figxit start       Start the popup helper and the engine
+  figxit open        Open the app and show its menu bar icon
   figxit stop        Stop them
   figxit doctor      Check the installation
   figxit --version   Print the version
@@ -275,6 +276,14 @@ switch (command) {
     process.exit(init(argument));
   case "start":
     process.exit(await start());
+  case "open": {
+    const app = appPath();
+    if (!app) {
+      console.error("figxit open: Figxit.app was not found");
+      process.exit(1);
+    }
+    process.exit(Bun.spawnSync(["open", app, "--args", "--show-menu-bar"]).exitCode);
+  }
   case "stop":
     process.exit(await stop());
   case "doctor":
