@@ -5,6 +5,7 @@ import Sparkle
 
 final class SettingsWindow: NSObject {
     var updater: SPUUpdater?
+    var onMenuBarVisibilityChanged: ((Bool) -> Void)?
     private var window: NSWindow?
     private let keys = NSStackView()
     private let app = NSStackView()
@@ -14,6 +15,7 @@ final class SettingsWindow: NSObject {
     private let enter = NSSwitch()
     private let login = NSSwitch()
     private let updates = NSSwitch()
+    private let menuBar = NSSwitch()
 
     func show() {
         if window == nil { build() }
@@ -43,6 +45,7 @@ final class SettingsWindow: NSObject {
     }
 
     private func reload() {
+        menuBar.state = Install.showMenuBarIcon ? .on : .off
         enter.state = FileManager.default.fileExists(atPath: Install.enterInsertsFlag) ? .off : .on
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         updates.state = updater?.automaticallyChecksForUpdates == true ? .on : .off
@@ -81,7 +84,7 @@ final class SettingsWindow: NSObject {
         window.title = "Figxit Settings"
         window.isReleasedWhenClosed = false
 
-        for (toggle, action) in [(enter, #selector(toggleEnter)), (login, #selector(toggleLogin)), (updates, #selector(toggleUpdates))] {
+        for (toggle, action) in [(enter, #selector(toggleEnter)), (login, #selector(toggleLogin)), (updates, #selector(toggleUpdates)), (menuBar, #selector(toggleMenuBar))] {
             toggle.target = self
             toggle.action = action
         }
@@ -97,6 +100,14 @@ final class SettingsWindow: NSObject {
             ),
         ])
         var rows = [
+            Panel.row(
+                icon: "sf:menubar.rectangle",
+                tint: "5E5CE6",
+                title: "Show in menu bar",
+                tag: nil,
+                detail: "Run figxit open to show the menu bar icon again.",
+                trailing: [menuBar]
+            ),
             Panel.row(
                 icon: "sf:power",
                 tint: "5E5CE6",
@@ -145,6 +156,11 @@ final class SettingsWindow: NSObject {
             FileManager.default.createFile(atPath: path, contents: nil)
         }
         reload()
+    }
+
+    @objc private func toggleMenuBar() {
+        Install.showMenuBarIcon = menuBar.state == .on
+        onMenuBarVisibilityChanged?(Install.showMenuBarIcon)
     }
 
     @objc private func toggleUpdates() {

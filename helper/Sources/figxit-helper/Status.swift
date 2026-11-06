@@ -139,6 +139,11 @@ enum Shell: String, CaseIterable {
 }
 
 enum Install {
+    static var showMenuBarIcon: Bool {
+        get { UserDefaults.standard.object(forKey: "showMenuBarIcon") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "showMenuBarIcon") }
+    }
+
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
     }
@@ -660,6 +665,10 @@ final class StatusController: NSObject, NSMenuDelegate {
         if engine != nil {
             updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
         }
+        item.isVisible = Install.showMenuBarIcon
+        settingsWindow.onMenuBarVisibilityChanged = { [weak self] visible in
+            self?.item.isVisible = visible
+        }
         item.button?.image = Install.statusIcon()
         item.button?.toolTip = "Figxit"
         item.button?.wantsLayer = true
@@ -706,6 +715,11 @@ final class StatusController: NSObject, NSMenuDelegate {
 
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.refresh() }
+    }
+
+    func showMenuBarIcon() {
+        Install.showMenuBarIcon = true
+        item.isVisible = true
     }
 
     func showSetup(onlyIfNeeded: Bool) {

@@ -97,6 +97,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         engine?.start()
         if ProcessInfo.processInfo.environment["FIGXIT_HELPER_SOCK"] == nil {
             status = StatusController(engine: engine)
+            if CommandLine.arguments.contains("--show-menu-bar") {
+                status?.showMenuBarIcon()
+            }
             if engine != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                     self?.status?.showSetup(onlyIfNeeded: true)
@@ -116,6 +119,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSWorkspace.didActivateApplicationNotification,
             object: nil
         )
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        status?.showMenuBarIcon()
+        return false
     }
 
     func applicationWillTerminate(_ notification: Notification) {
