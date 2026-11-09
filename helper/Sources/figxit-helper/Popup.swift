@@ -120,6 +120,14 @@ enum PopupTheme: String, CaseIterable {
 
     var title: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
 
+    var tint: NSColor? {
+        switch self {
+        case .system: return nil
+        case .light: return NSColor(white: 1, alpha: 0.6)
+        case .dark: return NSColor(white: 0.08, alpha: 0.6)
+        }
+    }
+
     var appearance: NSAppearance? {
         switch self {
         case .system: return nil
@@ -131,6 +139,11 @@ enum PopupTheme: String, CaseIterable {
 
 final class ListView: NSView {
     static let maxWidth: CGFloat = 580
+    static let detailColor = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor(white: 1, alpha: 0.5)
+            : .secondaryLabelColor
+    }
     var background: NSColor?
     var metrics = ListMetrics.current
 
@@ -196,7 +209,7 @@ final class ListView: NSView {
             }
             drawIcon(item, in: row)
             let labelColor: NSColor = active ? .white : .labelColor
-            let detailColor: NSColor = active ? NSColor.white.withAlphaComponent(0.8) : .secondaryLabelColor
+            let detailColor: NSColor = active ? NSColor.white.withAlphaComponent(0.8) : Self.detailColor
             let label = NSAttributedString(string: item.label, attributes: [.font: metrics.labelFont, .foregroundColor: labelColor])
             let labelSize = label.size()
             label.draw(at: NSPoint(x: row.minX + metrics.labelOffset, y: row.midY - labelSize.height / 2))
@@ -308,6 +321,9 @@ final class PopupController {
 
     private func applyTheme(_ theme: PopupTheme) {
         panel.appearance = theme.appearance
+        if #available(macOS 26.0, *), let glass = glass as? NSGlassEffectView {
+            glass.tintColor = theme.tint
+        }
         guard let fallback = fallback else { return }
         fallback.effectiveAppearance.performAsCurrentDrawingAppearance {
             fallback.layer?.borderColor = NSColor.separatorColor.cgColor
