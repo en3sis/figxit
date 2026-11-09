@@ -276,6 +276,15 @@ describe("commands", () => {
     expect(files?.items.map((i) => [i.label, i.run === true])).toEqual([["peek", true]]);
   });
 
+  test("hidden files appear after a dot and one more letter, and a bare dot shows nothing", async () => {
+    const cwd = project({ ".DS_Store": "", ".env": "", "notes.txt": "" });
+    registerSpec("open-in", { name: "open-in", args: { name: "path", template: "filepaths" } });
+    const labelsOf = async (line: string) => (await suggest(line, line.length, cwd, historyOf([]), NOW))?.items.map((i) => i.label) ?? [];
+    expect(await labelsOf("open-in ")).toEqual(["notes.txt"]);
+    expect(await labelsOf("open-in .")).toEqual([]);
+    expect(await labelsOf("open-in .e")).toEqual([".env"]);
+  });
+
   test("a first word that differs from a command only by case is not listed", async () => {
     const cwd = project({});
     registerSpec("lsx", { name: "lsx" });
@@ -723,7 +732,8 @@ describe("specs", () => {
     expect(result.remove).toBe(2);
     expect(await labels("walk ../", "/seg")).toEqual(["../", "../../", "../c/", "../my dir/"]);
     expect(await labels("walk b/c", "/seg")).toEqual(["b/c/", "b/c/c/", "b/c/my dir/"]);
-    expect(await labels("walk b/.", "/seg")).toEqual(["b/.git/"]);
+    expect(await labels("walk b/.", "/seg")).toEqual([]);
+    expect(await labels("walk b/.g", "/seg")).toEqual(["b/.git/"]);
   });
 
   test("figxit completes its own commands", async () => {

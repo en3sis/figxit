@@ -225,7 +225,7 @@ export function fileCandidates(prefix: string, cwd: string, foldersOnly: boolean
   try {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (out.length >= MAX_FILES) break;
-      if (entry.name.startsWith(".") && !base.startsWith(".")) continue;
+      if (entry.name.startsWith(".") && (!base.startsWith(".") || base.length < 2)) continue;
       let folder = entry.isDirectory();
       if (entry.isSymbolicLink()) {
         try {
