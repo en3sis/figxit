@@ -66,11 +66,17 @@ function installedHash(name: string): string | null {
   }
 }
 
-export function extraFile(name: string): string | null {
+export function extraInstalled(name: string): boolean {
+  return Object.hasOwn(EXTRAS, name) && installedHash(name) !== null;
+}
+
+export function extraSource(name: string): { file?: string; versioned?: string } | null {
   const root = extraRoot(name);
-  if (!root || installedHash(root) === null) return null;
-  const file = join(extrasDir(), root, `${name}.js`);
-  return existsSync(file) ? file : null;
+  if (!root || !extraInstalled(root)) return null;
+  const base = join(extrasDir(), root);
+  const file = join(base, `${name}.js`);
+  if (existsSync(file)) return { file };
+  return name === root && existsSync(join(base, name, "index.js")) ? { versioned: base } : null;
 }
 
 export function extras(): ExtraState[] {

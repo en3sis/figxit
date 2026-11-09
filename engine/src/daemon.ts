@@ -4,7 +4,7 @@ import type { Socket } from "bun";
 import { herdrGrid, parseShell, placeInPane, termPad, tmuxGrid, tmuxOrigin, tmuxQuery, type Grid, type HerdrTarget, type Origin, type TmuxTarget } from "./geometry";
 import { Helper } from "./helper";
 import { History } from "./history";
-import { EXTRAS, extraFile, manifest, updateExtras } from "./extras";
+import { EXTRAS, extraInstalled, manifest, updateExtras } from "./extras";
 import { ENGINE_SOCK } from "./paths";
 import type { Candidate } from "./sources";
 import { suggest, type Suggestion } from "./suggest";
@@ -58,7 +58,7 @@ function offer(line: string) {
   if (!name || !Object.hasOwn(EXTRAS, name) || offered.has(name)) return;
   offered.add(name);
   const flag = join(dirname(SOCK), `offered-${name}`);
-  if (existsSync(flag) || !manifest()[name] || extraFile(name) || !Bun.which(name)) return;
+  if (existsSync(flag) || !manifest()[name] || extraInstalled(name) || !Bun.which(name)) return;
   try {
     writeFileSync(flag, "");
   } catch {}

@@ -2,8 +2,9 @@ import { join } from "node:path";
 import { brandIcon, ICONS, type Icon } from "./brands";
 import { expandAlias } from "./generators";
 import { FIGXIT_ICONS, FIGXIT_SPECS, PATCHES } from "./figxit";
-import { extraFile, extraRoot } from "./extras";
+import { extraRoot, extraSource } from "./extras";
 import { specsDir } from "./paths";
+import { loadVersioned } from "./versioned";
 import type { Candidate } from "./sources";
 
 export type Spec = Record<string, any>;
@@ -37,14 +38,14 @@ const modules = new Map<string, Promise<Spec | null>>(
   Object.entries(FIGXIT_SPECS).map(([name, spec]) => [name, Promise.resolve(spec)]),
 );
 let directory: string | null | undefined;
-let names: Promise<Set<string>> | null = null;
+let catalog: Promise<{ names: Set<string>; versioned: Set<string> }> | null = null;
 
-async function specNames(dir: string): Promise<Set<string>> {
-  names ??= import(join(dir, "index.js")).then(
-    (mod) => new Set<string>(mod.default),
-    () => new Set<string>(),
+async function specCatalog(dir: string): Promise<{ names: Set<string>; versioned: Set<string> }> {
+  catalog ??= import(join(dir, "index.js")).then(
+    (mod) => ({ names: new Set<string>(mod.default), versioned: new Set<string>(mod.diffVersionedCompletions ?? []) }),
+    () => ({ names: new Set<string>(), versioned: new Set<string>() }),
   );
-  return names;
+  return catalog;
 }
 
 function fixSpec(name: string, spec: Spec | null): Spec | null {
@@ -69,15 +70,27 @@ async function importSpec(name: string, file: string): Promise<Spec | null> {
   }
 }
 
+async function versionedSpec(name: string, dir: string): Promise<Spec | null> {
+  try {
+    return fixSpec(name, await loadVersioned(name, dir, () => modules.delete(name)));
+  } catch {
+    return null;
+  }
+}
+
 export function loadSpec(name: string): Promise<Spec | null> {
   const hit = modules.get(name);
   if (hit) return hit;
   const loading = (async () => {
     if (!NAME.test(name)) return null;
-    const extra = extraFile(name);
-    if (extra) return importSpec(name, extra);
+    const extra = extraSource(name);
+    if (extra?.file) return importSpec(name, extra.file);
+    if (extra?.versioned) return versionedSpec(name, extra.versioned);
     if (directory === undefined) directory = specsDir();
-    if (!directory || !(await specNames(directory)).has(name)) return null;
+    if (!directory) return null;
+    const { names, versioned } = await specCatalog(directory);
+    if (!names.has(name)) return null;
+    if (versioned.has(name)) return versionedSpec(name, directory);
     return importSpec(name, join(directory, `${name}.js`));
   })();
   modules.set(name, loading);
