@@ -37,11 +37,12 @@ export function matchScore(label: string, prefix: string): number {
   const a = label.toLowerCase();
   const b = prefix.toLowerCase();
   if (a.startsWith(b)) return label.startsWith(prefix) ? 1 : 0.9;
-  if (a.includes(b)) return 0.45;
+  const coverage = b.length / a.length;
+  if (a.includes(b)) return 0.4 + 0.1 * coverage;
   let index = 0;
   for (const c of a) {
     if (c === b[index]) index++;
-    if (index === b.length) return 0.2;
+    if (index === b.length) return 0.15 + 0.1 * coverage;
   }
   return 0;
 }

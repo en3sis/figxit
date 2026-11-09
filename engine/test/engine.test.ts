@@ -72,6 +72,12 @@ describe("ranking", () => {
     expect(matchScore("redeploy", "de")).toBeGreaterThan(matchScore("dev-seed", "dsd"));
     expect(matchScore("dev-seed", "dsd")).toBeGreaterThan(0);
     expect(matchScore("build", "x")).toBe(0);
+    expect(matchScore("describe-instances", "instances")).toBeGreaterThan(
+      matchScore("accept-reserved-instances-exchange-quote", "instances"),
+    );
+    // coverage only reorders within a level: a long substring match still beats a tight fuzzy one
+    expect(matchScore("redeploy-everything-now", "de")).toBeGreaterThan(matchScore("d-s-d", "dsd"));
+    expect(matchScore("d-s-d", "dsd")).toBeGreaterThan(matchScore("dev-seed", "dsd"));
   });
 });
 
