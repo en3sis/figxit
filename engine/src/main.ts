@@ -9,6 +9,7 @@ const HELP = `figxit ${version}
 Usage:
   figxit init zsh    Print the lines that load figxit in zsh. Also: init bash, init fish
   figxit start       Start the popup helper and the engine
+  figxit open        Show the menu bar icon and open Settings
   figxit stop        Stop them
   figxit doctor      Check the installation
   figxit extras      List the extra completions you can download, like aws
@@ -200,6 +201,23 @@ async function start(): Promise<number> {
   return 1;
 }
 
+async function open(): Promise<number> {
+  try {
+    const socket = await Bun.connect({ unix: HELPER_SOCK, socket: { data() {} } });
+    socket.write('{"cmd":"open"}\n');
+    await Bun.sleep(100);
+    socket.end();
+    console.log("figxit is running, Settings is open");
+    return 0;
+  } catch {}
+  const app = appPath();
+  if (!app) {
+    console.error("figxit open: Figxit.app was not found");
+    return 1;
+  }
+  return Bun.spawnSync(["open", app, "--args", "--show-menu-bar"]).exitCode;
+}
+
 async function stop(): Promise<number> {
   try {
     const socket = await Bun.connect({ unix: HELPER_SOCK, socket: { data() {} } });
@@ -310,6 +328,8 @@ switch (command) {
     process.exit(init(argument));
   case "start":
     process.exit(await start());
+  case "open":
+    process.exit(await open());
   case "stop":
     process.exit(await stop());
   case "extras":

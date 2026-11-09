@@ -97,6 +97,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         engine?.start()
         if ProcessInfo.processInfo.environment["FIGXIT_HELPER_SOCK"] == nil {
             status = StatusController(engine: engine)
+            if CommandLine.arguments.contains("--show-menu-bar") {
+                status?.showIconAndSettings()
+            }
             if engine != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                     self?.status?.showSetup(onlyIfNeeded: true)
@@ -242,6 +245,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return try? encoder.encode(StatusReply(ok: true, error: nil, placement: nil))
         case "probe":
             return try? encoder.encode(Geometry.probe(grid: request.grid))
+        case "open":
+            status?.showIconAndSettings()
+            return try? encoder.encode(StatusReply(ok: true, error: nil, placement: nil))
         case "quit":
             Install.markStopped(true)
             popup.hide()

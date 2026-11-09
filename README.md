@@ -125,6 +125,8 @@ You need an Apple Silicon Mac with macOS 13 or later, and zsh, bash 5, or fish 4
 
 New versions install from the menu bar icon. If something looks off, run `figxit doctor`.
 
+To hide the menu bar icon, turn off **Show in menu bar** in Settings. Run `figxit open` to show it again and open Settings.
+
 ## Keys
 
 | Key | What it does |
