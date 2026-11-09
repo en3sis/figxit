@@ -207,10 +207,22 @@ final class SettingsWindow: NSObject {
                 spinner.startAnimation(nil)
                 trailing.append(spinner)
             } else {
-                let title = extra.state == "installed" ? "Remove" : extra.state == "outdated" ? "Update" : "Download"
+                let installed = extra.state == "installed"
+                let title = installed ? "Remove" : extra.state == "outdated" ? "Update" : "Download"
                 let button = NSButton(title: title, target: self, action: #selector(changeExtra(_:)))
                 button.bezelStyle = .rounded
                 button.identifier = NSUserInterfaceItemIdentifier(extra.name)
+                if installed {
+                    button.hasDestructiveAction = true
+                    button.attributedTitle = NSAttributedString(string: title, attributes: [
+                        .foregroundColor: NSColor.systemRed,
+                        .font: button.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
+                    ])
+                } else {
+                    let symbol = extra.state == "outdated" ? "arrow.triangle.2.circlepath" : "icloud.and.arrow.down"
+                    button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+                    button.imagePosition = .imageLeading
+                }
                 trailing.append(button)
             }
             return Panel.row(icon: extra.icon, tint: extra.tint, title: extra.title, tag: extra.name, detail: detail, trailing: trailing)
