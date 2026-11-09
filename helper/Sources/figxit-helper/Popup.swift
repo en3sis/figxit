@@ -74,53 +74,105 @@ enum IconStore {
     }
 }
 
+struct ListMetrics {
+    let rowHeight: CGFloat
+    let inset: CGFloat
+    let tile: CGFloat
+    let tileRadius: CGFloat
+    let tileX: CGFloat
+    let labelOffset: CGFloat
+    let rowRadius: CGFloat
+    let minWidth: CGFloat
+    let detailGap: CGFloat
+    let corner: CGFloat
+    let labelFont: NSFont
+    let detailFont: NSFont
+
+    static let regular = ListMetrics(
+        rowHeight: 28, inset: 5, tile: 20, tileRadius: 5.5, tileX: 7, labelOffset: 36, rowRadius: 6,
+        minWidth: 260, detailGap: 16, corner: 12,
+        labelFont: .monospacedSystemFont(ofSize: 13, weight: .medium),
+        detailFont: .systemFont(ofSize: 12)
+    )
+
+    static let compact = ListMetrics(
+        rowHeight: 20, inset: 3, tile: 15, tileRadius: 4, tileX: 4, labelOffset: 25, rowRadius: 4,
+        minWidth: 180, detailGap: 10, corner: 8,
+        labelFont: .monospacedSystemFont(ofSize: 11.5, weight: .medium),
+        detailFont: .systemFont(ofSize: 10.5)
+    )
+
+    static var compactEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: "compact") }
+        set { UserDefaults.standard.set(newValue, forKey: "compact") }
+    }
+
+    static var current: ListMetrics { compactEnabled ? compact : regular }
+}
+
+enum PopupTheme: String, CaseIterable {
+    case system, light, dark
+
+    static var current: PopupTheme {
+        get { UserDefaults.standard.string(forKey: "theme").flatMap(PopupTheme.init(rawValue:)) ?? .system }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "theme") }
+    }
+
+    var title: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
+
+    var appearance: NSAppearance? {
+        switch self {
+        case .system: return nil
+        case .light: return NSAppearance(named: .aqua)
+        case .dark: return NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
 final class ListView: NSView {
-    static let rowHeight: CGFloat = 28
     static let maxWidth: CGFloat = 580
-    static let inset: CGFloat = 5
-    static let tile: CGFloat = 20
-    static let labelOffset: CGFloat = 36
     var background: NSColor?
-    static let labelFont = NSFont.monospacedSystemFont(ofSize: 13, weight: .medium)
-    static let detailFont = NSFont.systemFont(ofSize: 12)
+    var metrics = ListMetrics.current
 
     var items: [Item] = []
     var selected = 0
 
     override var isFlipped: Bool { true }
 
-    static func size(for items: [Item]) -> NSSize {
+    static func size(for items: [Item], metrics m: ListMetrics = .current) -> NSSize {
         let widest = items.map { item -> CGFloat in
-            let label = (item.label as NSString).size(withAttributes: [.font: labelFont]).width
-            let detail = item.detail.map { ($0 as NSString).size(withAttributes: [.font: detailFont]).width + 24 } ?? 0
+            let label = (item.label as NSString).size(withAttributes: [.font: m.labelFont]).width
+            let detail = item.detail.map { ($0 as NSString).size(withAttributes: [.font: m.detailFont]).width + m.detailGap + 8 } ?? 0
             return label + detail
         }.max() ?? 0
-        let width = min(max(widest + 2 * inset + labelOffset + 14, 260), maxWidth)
-        return NSSize(width: width, height: CGFloat(items.count) * rowHeight + 2 * inset)
+        let width = min(max(widest + 2 * m.inset + m.labelOffset + 14, m.minWidth), maxWidth)
+        return NSSize(width: width, height: CGFloat(items.count) * m.rowHeight + 2 * m.inset)
     }
 
     private func drawIcon(_ item: Item, in row: NSRect) {
         guard let name = item.icon else { return }
         let tint = IconStore.color(hex: item.tint)
         guard let image = IconStore.inked(name, dark: IconStore.luminance(tint) > 0.72) else { return }
-        let tile = NSRect(x: row.minX + 7, y: row.midY - Self.tile / 2, width: Self.tile, height: Self.tile)
-        let path = NSBezierPath(roundedRect: tile, xRadius: 5.5, yRadius: 5.5)
+        let tile = NSRect(x: row.minX + metrics.tileX, y: row.midY - metrics.tile / 2, width: metrics.tile, height: metrics.tile)
+        let path = NSBezierPath(roundedRect: tile, xRadius: metrics.tileRadius, yRadius: metrics.tileRadius)
         tint.setFill()
         path.fill()
         NSColor.white.withAlphaComponent(0.18).setStroke()
         path.lineWidth = 0.5
         path.stroke()
+        let scale = min(1, metrics.tile / ListMetrics.regular.tile)
+        let glyph = NSSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
         let target = backingAlignedRect(NSRect(
-            x: tile.midX - image.size.width / 2,
-            y: tile.midY - image.size.height / 2,
-            width: image.size.width,
-            height: image.size.height
+            x: tile.midX - glyph.width / 2,
+            y: tile.midY - glyph.height / 2,
+            width: glyph.width,
+            height: glyph.height
         ), options: .alignAllEdgesNearest)
         image.draw(in: target, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
     }
 
     func rowRect(_ index: Int) -> NSRect {
-        NSRect(x: Self.inset, y: Self.inset + CGFloat(index) * Self.rowHeight, width: bounds.width - 2 * Self.inset, height: Self.rowHeight)
+        NSRect(x: metrics.inset, y: metrics.inset + CGFloat(index) * metrics.rowHeight, width: bounds.width - 2 * metrics.inset, height: metrics.rowHeight)
     }
 
     func select(_ index: Int) {
@@ -140,18 +192,18 @@ final class ListView: NSView {
             let active = index == selected
             if active {
                 NSColor.controlAccentColor.setFill()
-                NSBezierPath(roundedRect: row, xRadius: 6, yRadius: 6).fill()
+                NSBezierPath(roundedRect: row, xRadius: metrics.rowRadius, yRadius: metrics.rowRadius).fill()
             }
             drawIcon(item, in: row)
             let labelColor: NSColor = active ? .white : .labelColor
             let detailColor: NSColor = active ? NSColor.white.withAlphaComponent(0.8) : .secondaryLabelColor
-            let label = NSAttributedString(string: item.label, attributes: [.font: Self.labelFont, .foregroundColor: labelColor])
+            let label = NSAttributedString(string: item.label, attributes: [.font: metrics.labelFont, .foregroundColor: labelColor])
             let labelSize = label.size()
-            label.draw(at: NSPoint(x: row.minX + Self.labelOffset, y: row.midY - labelSize.height / 2))
+            label.draw(at: NSPoint(x: row.minX + metrics.labelOffset, y: row.midY - labelSize.height / 2))
             if let text = item.detail {
-                let detail = NSAttributedString(string: text, attributes: [.font: Self.detailFont, .foregroundColor: detailColor])
+                let detail = NSAttributedString(string: text, attributes: [.font: metrics.detailFont, .foregroundColor: detailColor])
                 let size = detail.size()
-                let x = max(row.minX + Self.labelOffset + labelSize.width + 16, row.maxX - 10 - size.width)
+                let x = max(row.minX + metrics.labelOffset + labelSize.width + metrics.detailGap, row.maxX - 10 - size.width)
                 detail.draw(at: NSPoint(x: x, y: row.midY - size.height / 2))
             }
         }
@@ -161,6 +213,8 @@ final class ListView: NSView {
 final class PopupController {
     private let panel: PopupPanel
     private let list = ListView()
+    private var glass: NSView?
+    private var fallback: NSVisualEffectView?
     private var width: CGFloat = 0
     static let widthStep: CGFloat = 20
     static let fade: TimeInterval = 0.08
@@ -189,6 +243,7 @@ final class PopupController {
             glass.cornerRadius = 12
             glass.contentView = list
             panel.contentView = glass
+            self.glass = glass
         } else {
             let background = NSVisualEffectView()
             background.material = .menu
@@ -201,13 +256,18 @@ final class PopupController {
             background.layer?.borderColor = NSColor.separatorColor.cgColor
             background.addSubview(list)
             panel.contentView = background
+            fallback = background
         }
     }
 
     func show(items: [Item], selected: Int, placement: Placement) {
         guard !items.isEmpty else { return hide() }
         let opening = !panel.isVisible
-        let needed = ListView.size(for: items)
+        if opening {
+            applyMetrics(.current)
+            applyTheme(.current)
+        }
+        let needed = ListView.size(for: items, metrics: list.metrics)
         width = min(max(opening ? 0 : width, (needed.width / Self.widthStep).rounded(.up) * Self.widthStep), ListView.maxWidth)
         let size = NSSize(width: width, height: needed.height)
         let primary = Geometry.primaryHeight()
@@ -235,6 +295,22 @@ final class PopupController {
             context.duration = Self.fade
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().alphaValue = 1
+        }
+    }
+
+    private func applyMetrics(_ metrics: ListMetrics) {
+        list.metrics = metrics
+        if #available(macOS 26.0, *), let glass = glass as? NSGlassEffectView {
+            glass.cornerRadius = metrics.corner
+        }
+        fallback?.layer?.cornerRadius = metrics.corner - 3
+    }
+
+    private func applyTheme(_ theme: PopupTheme) {
+        panel.appearance = theme.appearance
+        guard let fallback = fallback else { return }
+        fallback.effectiveAppearance.performAsCurrentDrawingAppearance {
+            fallback.layer?.borderColor = NSColor.separatorColor.cgColor
         }
     }
 
