@@ -136,6 +136,8 @@ New versions install from the menu bar icon. If something looks off, run `figxit
 
 When the list is closed, your keys work as before.
 
+After Esc, the shell waits to tell it apart from arrow keys: 400 ms in zsh, 500 ms in bash. Figxit sets this wait to 50 ms, unless you set your own `KEYTIMEOUT` (zsh) or `keyseq-timeout` (bash), or you have a key binding of two or more keys that starts with a letter, like `jk`.
+
 ## Works with
 
 Ghostty, iTerm2, and Terminal, and any terminal inside tmux or herdr.
@@ -186,7 +188,7 @@ Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/s
 - macOS only.
 - Without Accessibility, the list stays hidden in split panes of the terminal app and in editor terminals.
 - The terminal in Zed is not supported. Zed does not report its terminal panel to macOS.
-- bash and fish: the list is off in vi mode.
+- fish: the list is off in vi mode.
 - Outside tmux, the terminal must report its cursor position.
 - Values that need a live service, like `kubectl get`, show nothing if the service does not answer in 1.5 seconds.
 
