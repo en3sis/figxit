@@ -95,8 +95,13 @@ export async function addExtra(name: string): Promise<string | null> {
   if (hash !== entry.sha256) return "download failed: the file does not match the expected checksum";
 
   const dir = extrasDir();
-  mkdirSync(dir, { recursive: true });
-  const work = mkdtempSync(join(dir, `.${name}-`));
+  let work: string;
+  try {
+    mkdirSync(dir, { recursive: true });
+    work = mkdtempSync(join(dir, `.${name}-`));
+  } catch (error) {
+    return `could not write to ${dir}: ${error instanceof Error ? error.message : String(error)}`;
+  }
   try {
     const unpacked = join(work, name);
     mkdirSync(unpacked);
@@ -108,6 +113,8 @@ export async function addExtra(name: string): Promise<string | null> {
     if (existsSync(target)) renameSync(target, join(work, "previous"));
     renameSync(unpacked, target);
     return null;
+  } catch (error) {
+    return `could not install ${name}: ${error instanceof Error ? error.message : String(error)}`;
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
@@ -121,6 +128,6 @@ export function removeExtra(name: string): string | null {
 
 export async function updateExtras(): Promise<void> {
   for (const extra of extras()) {
-    if (extra.state === "outdated") await addExtra(extra.name);
+    if (extra.state === "outdated") await addExtra(extra.name).catch(() => null);
   }
 }

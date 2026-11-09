@@ -32,17 +32,23 @@ beforeAll(async () => {
     `
 import { existsSync } from "node:fs";
 import { addExtra, extras } from "${root}/src/extras";
-import { loadSpec } from "${root}/src/specs";
-const before = await loadSpec("aws/s3");
+import { History } from "${root}/src/history";
+import { suggest } from "${root}/src/suggest";
+const labels = async (line: string) => {
+  const result = await suggest(line, line.length, "/", new History("/nonexistent"), 0);
+  const found = result.now ?? (await result.more);
+  return found?.items.map((item) => item.label) ?? [];
+};
+const before = await labels("aws s3 ");
 const mismatch = await addExtra("gcloud");
 const added = await addExtra("aws");
-const after = await loadSpec("aws/s3");
+const after = await labels("aws s3 ");
 console.log(JSON.stringify({
   before,
   mismatch,
   gcloudOnDisk: existsSync("${installed}/gcloud"),
   added,
-  after: after?.subcommands?.[0]?.name ?? null,
+  after,
   states: extras().map((extra) => extra.name + ":" + extra.state),
 }));
 `,
@@ -72,9 +78,9 @@ describe("extra completions", () => {
   });
 
   test("a downloaded extra loads in the running engine after an earlier miss", () => {
-    expect(result.before).toBeNull();
+    expect(result.before).toEqual([]);
     expect(result.added).toBeNull();
-    expect(result.after).toBe("from-download");
+    expect(result.after).toEqual(["from-download"]);
   });
 
   test("lists each extra as installed or missing", () => {
