@@ -27,6 +27,9 @@ final class SettingsWindow: NSObject {
     private var timer: Timer?
     private var access: Bool?
     private let enter = NSSwitch()
+    private let compact = NSSwitch()
+    private let look = NSStackView()
+    private let theme = NSSegmentedControl(labels: PopupTheme.allCases.map(\.title), trackingMode: .selectOne, target: nil, action: nil)
     private let login = NSSwitch()
     private let updates = NSSwitch()
 
@@ -61,6 +64,8 @@ final class SettingsWindow: NSObject {
 
     private func reload() {
         enter.state = FileManager.default.fileExists(atPath: Install.enterInsertsFlag) ? .off : .on
+        compact.state = ListMetrics.compactEnabled ? .on : .off
+        theme.selectedSegment = PopupTheme.allCases.firstIndex(of: PopupTheme.current) ?? 0
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         updates.state = updater?.automaticallyChecksForUpdates == true ? .on : .off
         let trusted = AXIsProcessTrusted()
@@ -98,7 +103,7 @@ final class SettingsWindow: NSObject {
         window.title = "Figxit Settings"
         window.isReleasedWhenClosed = false
 
-        for (toggle, action) in [(enter, #selector(toggleEnter)), (login, #selector(toggleLogin)), (updates, #selector(toggleUpdates))] {
+        for (toggle, action) in [(enter, #selector(toggleEnter)), (compact, #selector(toggleCompact)), (login, #selector(toggleLogin)), (updates, #selector(toggleUpdates))] {
             toggle.target = self
             toggle.action = action
         }
@@ -111,6 +116,26 @@ final class SettingsWindow: NSObject {
                 tag: nil,
                 detail: "When off, Enter inserts the row and a second Enter runs the line.",
                 trailing: [enter]
+            ),
+        ])
+        theme.target = self
+        theme.action = #selector(changeTheme)
+        Panel.fill(look, [
+            Panel.row(
+                icon: "sf:circle.lefthalf.filled",
+                tint: "636366",
+                title: "Popup theme",
+                tag: nil,
+                detail: "System follows your Mac's light or dark mode.",
+                trailing: [theme]
+            ),
+            Panel.row(
+                icon: "sf:rectangle.compress.vertical",
+                tint: "FF9F0A",
+                title: "Compact popup",
+                tag: nil,
+                detail: "Shorter rows and smaller text, so the popup covers less of the terminal.",
+                trailing: [compact]
             ),
         ])
         var rows = [
@@ -137,7 +162,7 @@ final class SettingsWindow: NSObject {
 
         let extrasCard = Panel.card("Extra completions", extras)
         self.extrasCard = extrasCard
-        let stack = NSStackView(views: [Panel.card("Keys", keys), extrasCard, Panel.card("Permissions", permissions), Panel.card("App", app)])
+        let stack = NSStackView(views: [Panel.card("Keys", keys), Panel.card("Appearance", look), extrasCard, Panel.card("Permissions", permissions), Panel.card("App", app)])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 16
@@ -258,6 +283,17 @@ final class SettingsWindow: NSObject {
         } else {
             FileManager.default.createFile(atPath: path, contents: nil)
         }
+        reload()
+    }
+
+    @objc private func changeTheme() {
+        let cases = PopupTheme.allCases
+        if cases.indices.contains(theme.selectedSegment) { PopupTheme.current = cases[theme.selectedSegment] }
+        reload()
+    }
+
+    @objc private func toggleCompact() {
+        ListMetrics.compactEnabled = compact.state == .on
         reload()
     }
 
