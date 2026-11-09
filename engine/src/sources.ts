@@ -16,6 +16,7 @@ export interface Candidate {
   run?: boolean;
   likely?: boolean;
   matched?: boolean;
+  download?: string;
 }
 
 export interface SourceResult {

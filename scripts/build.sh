@@ -22,7 +22,12 @@ engine() {
   (cd engine && bun build --compile src/main.ts --outfile "../$contents/MacOS/figxit-engine")
 }
 
+extras() {
+  (cd engine && bun run scripts/extras.ts "../$contents/Resources/extras.json" ../dist/specs)
+}
+
 resources() {
+  extras
   mkdir -p "$contents/Resources/specs"
   rsync -a --delete --exclude=aws --exclude=aws.js --exclude=az --exclude=az.js --exclude=gcloud --exclude=gcloud.js \
     "$specs/" "$contents/Resources/specs/"
