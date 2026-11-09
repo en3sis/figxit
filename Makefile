@@ -36,7 +36,7 @@ stop: ## Stop the helper and the engine
 	@pkill -x figxit-helper; pkill -x figxit-engine; true
 
 clean: stop ## Remove the build output. Released versions in dist/Figxit-<version>/ stay
-	rm -rf dist/Figxit.app dist/Figxit.dmg dist/dmg dist/feed helper/.build
+	rm -rf dist/Figxit.app dist/Figxit.dmg dist/dmg dist/feed dist/specs helper/.build
 
 ##@ Build
 

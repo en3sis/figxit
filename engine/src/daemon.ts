@@ -4,6 +4,7 @@ import type { Socket } from "bun";
 import { herdrGrid, parseShell, placeInPane, termPad, tmuxGrid, tmuxOrigin, tmuxQuery, type Grid, type HerdrTarget, type Origin, type TmuxTarget } from "./geometry";
 import { Helper } from "./helper";
 import { History } from "./history";
+import { EXTRAS, extraFile, manifest, updateExtras } from "./extras";
 import { ENGINE_SOCK } from "./paths";
 import type { Candidate } from "./sources";
 import { suggest, type Suggestion } from "./suggest";
@@ -41,6 +42,7 @@ interface Session {
   counted: boolean;
   fresh: boolean;
   navigated: boolean;
+  line: string;
 }
 
 const history = new History();
@@ -49,6 +51,19 @@ let active: Session | null = null;
 let shells = 0;
 
 let historySource: string | null | undefined;
+const offered = new Set<string>();
+
+function offer(line: string) {
+  const name = /^\s*(\S+)/.exec(line)?.[1];
+  if (!name || !Object.hasOwn(EXTRAS, name) || offered.has(name)) return;
+  offered.add(name);
+  const flag = join(dirname(SOCK), `offered-${name}`);
+  if (existsSync(flag) || !manifest()[name] || extraFile(name) || !Bun.which(name)) return;
+  try {
+    writeFileSync(flag, "");
+  } catch {}
+  helper.send({ cmd: "offer", name });
+}
 
 function noteHistory() {
   if (history.source === historySource) return;
@@ -275,7 +290,8 @@ function onLine(s: Session, line: string) {
       break;
     case "E":
       s.size = f[4] ?? "";
-      edit(s, Number(f[1]) || 0, f[2] ?? "", (f[3] ?? "").replaceAll("\x1e", "\n"));
+      s.line = (f[3] ?? "").replaceAll("\x1e", "\n");
+      edit(s, Number(f[1]) || 0, f[2] ?? "", s.line);
       break;
     case "K":
       navigate(s, f[1] ?? "down");
@@ -289,6 +305,7 @@ function onLine(s: Session, line: string) {
     case "X":
       s.anchorKey = null;
       hide(s);
+      offer(s.line);
       break;
     case "N":
       hide(s);
@@ -338,6 +355,7 @@ export async function daemon() {
           counted: false,
           fresh: false,
           navigated: false,
+          line: "",
         };
       },
       data(socket, chunk) {
@@ -365,4 +383,5 @@ export async function daemon() {
   });
   chmodSync(SOCK, 0o600);
   setInterval(checkFocus, FOCUS_MS);
+  updateExtras();
 }

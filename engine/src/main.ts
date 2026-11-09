@@ -11,6 +11,8 @@ Usage:
   figxit start       Start the popup helper and the engine
   figxit stop        Stop them
   figxit doctor      Check the installation
+  figxit extras      List the extra completions you can download, like aws
+  figxit extras add aws     Download one. Also: extras remove aws
   figxit --version   Print the version
 `;
 
@@ -263,6 +265,39 @@ async function doctor(fromApp: boolean, json: boolean): Promise<number> {
   return checks.slice(0, 1).every(([ok]) => ok) ? 0 : 1;
 }
 
+function megabytes(bytes: number): string {
+  return `${(bytes / 1e6).toFixed(1)} MB`;
+}
+
+async function extrasCommand(args: string[]): Promise<number> {
+  const { addExtra, extras, removeExtra } = await import("./extras");
+  const [action, name] = args;
+  if (action === "add" || action === "remove") {
+    if (!name) {
+      console.error(`Usage: figxit extras ${action} <name>`);
+      return 1;
+    }
+    const error = action === "add" ? await addExtra(name) : removeExtra(name);
+    if (error) console.error(`figxit: ${error}`);
+    return error ? 1 : 0;
+  }
+  const list = extras();
+  if (action === "--json") {
+    const { brandIcon } = await import("./brands");
+    const rows = list.map(({ name, title, state, bytes, size }) => ({ name, title, state, bytes, size, ...(brandIcon(name) ?? { icon: "sf:cloud.fill", tint: "FF9900" }) }));
+    console.log(JSON.stringify(rows));
+    return 0;
+  }
+  if (list.length === 0) {
+    console.log("This version has no extras. All completions are included.");
+    return 0;
+  }
+  for (const extra of list) {
+    console.log(`${extra.name.padEnd(8)} ${extra.state.padEnd(10)} ${megabytes(extra.bytes)} download, ${megabytes(extra.size)} on disk  ${extra.title}`);
+  }
+  return 0;
+}
+
 const [command, argument] = process.argv.slice(2);
 switch (command) {
   case "daemon":
@@ -277,6 +312,8 @@ switch (command) {
     process.exit(await start());
   case "stop":
     process.exit(await stop());
+  case "extras":
+    process.exit(await extrasCommand(process.argv.slice(3)));
   case "doctor":
     process.exit(await doctor(process.argv.includes("--app"), process.argv.includes("--json")));
   case "--version":

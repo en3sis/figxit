@@ -3,10 +3,26 @@ import ApplicationServices
 import ServiceManagement
 import Sparkle
 
+private struct Extra: Decodable {
+    let name: String
+    let title: String
+    let state: String
+    let bytes: Int
+    let size: Int
+    let icon: String
+    let tint: String
+}
+
 final class SettingsWindow: NSObject {
     var updater: SPUUpdater?
     private var window: NSWindow?
     private let keys = NSStackView()
+    private let extras = NSStackView()
+    private var extrasCard: NSView?
+    private var extraList: [Extra] = []
+    private var downloading: Set<String> = []
+    private var failures: [String: String] = [:]
+    private var offered: String?
     private let app = NSStackView()
     private let permissions = NSStackView()
     private var timer: Timer?
@@ -15,8 +31,10 @@ final class SettingsWindow: NSObject {
     private let login = NSSwitch()
     private let updates = NSSwitch()
 
-    func show() {
+    func show(offering name: String? = nil) {
         if window == nil { build() }
+        offered = name
+        refreshExtras()
         reload()
         NSApp.activate(ignoringOtherApps: true)
         window?.center()
@@ -30,6 +48,7 @@ final class SettingsWindow: NSObject {
 
     func render(to outPath: String) -> Bool {
         if window == nil { build() }
+        refreshExtras()
         reload()
         guard let window = window, let view = window.contentView else { return false }
         view.layoutSubtreeIfNeeded()
@@ -118,7 +137,9 @@ final class SettingsWindow: NSObject {
         }
         Panel.fill(app, rows)
 
-        let stack = NSStackView(views: [Panel.card("Keys", keys), Panel.card("Permissions", permissions), Panel.card("App", app)])
+        let extrasCard = Panel.card("Extra completions", extras)
+        self.extrasCard = extrasCard
+        let stack = NSStackView(views: [Panel.card("Keys", keys), extrasCard, Panel.card("Permissions", permissions), Panel.card("App", app)])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 16
@@ -135,6 +156,91 @@ final class SettingsWindow: NSObject {
         ])
         window.contentView = content
         self.window = window
+    }
+
+    private static func megabytes(_ bytes: Int) -> String {
+        String(format: "%.1f MB", Double(bytes) / 1e6)
+    }
+
+    private static func runEngine(_ arguments: [String]) -> (ok: Bool, output: Data, error: String) {
+        guard let cli = Install.cliURL, FileManager.default.isExecutableFile(atPath: cli.path) else {
+            return (false, Data(), "Figxit's engine was not found")
+        }
+        let process = Process()
+        let output = Pipe()
+        let error = Pipe()
+        process.executableURL = cli
+        process.arguments = arguments
+        process.standardOutput = output
+        process.standardError = error
+        guard (try? process.run()) != nil else { return (false, Data(), "Figxit's engine could not start") }
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let message = String(data: error.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        process.waitUntilExit()
+        return (process.terminationStatus == 0, data, message.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private func refreshExtras() {
+        let result = Self.runEngine(["extras", "--json"])
+        extraList = (try? JSONDecoder().decode([Extra].self, from: result.output)) ?? []
+        fillExtras()
+    }
+
+    private func fillExtras() {
+        let rows = extraList.map { extra -> NSView in
+            let busy = downloading.contains(extra.name)
+            let detail: String
+            if let failure = failures[extra.name] {
+                detail = failure
+            } else if busy {
+                detail = "Downloading \(Self.megabytes(extra.bytes))…"
+            } else if extra.state == "installed" {
+                detail = "Installed. \(Self.megabytes(extra.size)) on disk."
+            } else if extra.state == "outdated" {
+                detail = "A new version is available. \(Self.megabytes(extra.bytes)) download."
+            } else if extra.name == offered {
+                detail = "You ran \(extra.name). Download its completions: \(Self.megabytes(extra.bytes)), \(Self.megabytes(extra.size)) on disk."
+            } else {
+                detail = "\(Self.megabytes(extra.bytes)) download, \(Self.megabytes(extra.size)) on disk."
+            }
+            var trailing: [NSView] = []
+            if busy {
+                let spinner = NSProgressIndicator()
+                spinner.style = .spinning
+                spinner.controlSize = .small
+                spinner.startAnimation(nil)
+                trailing.append(spinner)
+            } else {
+                let title = extra.state == "installed" ? "Remove" : extra.state == "outdated" ? "Update" : "Download"
+                let button = NSButton(title: title, target: self, action: #selector(changeExtra(_:)))
+                button.bezelStyle = .rounded
+                button.identifier = NSUserInterfaceItemIdentifier(extra.name)
+                trailing.append(button)
+            }
+            return Panel.row(icon: extra.icon, tint: extra.tint, title: extra.title, tag: extra.name, detail: detail, trailing: trailing)
+        }
+        Panel.fill(extras, rows)
+        extrasCard?.isHidden = rows.isEmpty
+    }
+
+    @objc private func changeExtra(_ sender: NSButton) {
+        guard let name = sender.identifier?.rawValue, let extra = extraList.first(where: { $0.name == name }) else { return }
+        let action = extra.state == "installed" ? "remove" : "add"
+        failures[name] = nil
+        if action == "add" { downloading.insert(name) }
+        fillExtras()
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = Self.runEngine(["extras", action, name])
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.downloading.remove(name)
+                if !result.ok {
+                    let message = result.error.hasPrefix("figxit: ") ? String(result.error.dropFirst(8)) : result.error
+                    self.failures[name] = message.prefix(1).uppercased() + message.dropFirst()
+                }
+                self.refreshExtras()
+            }
+        }
     }
 
     @objc private func toggleEnter() {

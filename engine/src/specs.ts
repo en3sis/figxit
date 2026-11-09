@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { brandIcon, ICONS, type Icon } from "./brands";
 import { expandAlias } from "./generators";
 import { FIGXIT_ICONS, FIGXIT_SPECS, PATCHES } from "./figxit";
+import { extraFile, extraRoot } from "./extras";
 import { specsDir } from "./paths";
 import type { Candidate } from "./sources";
 
@@ -59,21 +60,32 @@ export function registerSpec(name: string, spec: Spec | null) {
   modules.set(name, Promise.resolve(fixSpec(name, spec)));
 }
 
+async function importSpec(name: string, file: string): Promise<Spec | null> {
+  try {
+    const spec = (await import(file)).default;
+    return spec && typeof spec === "object" ? fixSpec(name, spec as Spec) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function loadSpec(name: string): Promise<Spec | null> {
   const hit = modules.get(name);
   if (hit) return hit;
   const loading = (async () => {
     if (!NAME.test(name)) return null;
+    const extra = extraFile(name);
+    if (extra) return importSpec(name, extra);
     if (directory === undefined) directory = specsDir();
     if (!directory || !(await specNames(directory)).has(name)) return null;
-    try {
-      const spec = (await import(join(directory, `${name}.js`))).default;
-      return spec && typeof spec === "object" ? fixSpec(name, spec as Spec) : null;
-    } catch {
-      return null;
-    }
+    return importSpec(name, join(directory, `${name}.js`));
   })();
   modules.set(name, loading);
+  if (extraRoot(name)) {
+    loading.then((spec) => {
+      if (!spec && modules.get(name) === loading) modules.delete(name);
+    });
+  }
   return loading;
 }
 

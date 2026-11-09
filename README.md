@@ -144,6 +144,18 @@ Ghostty, iTerm2, and Terminal, and any terminal inside tmux or herdr.
 
 Split panes and the terminal in VS Code or Cursor need Accessibility. See below.
 
+## Extra completions
+
+The completions for the AWS CLI (37 MB) and the Google Cloud CLI (14 MB) are not in the app, to keep it small. Download them in Settings > Extra completions, or in the terminal:
+
+```bash
+figxit extras             # list them
+figxit extras add aws     # download one
+figxit extras remove aws  # remove it
+```
+
+The first time you run `aws` or `gcloud` without them, Figxit opens Settings to offer the download.
+
 ## Panes, editors, and Accessibility
 
 To place the list, Figxit needs to know where the text area of your terminal is on screen. Without Accessibility, macOS only tells it where the window is. That is enough when one shell fills the window, but not when the window has more than one text area.
@@ -189,6 +201,7 @@ Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/s
 - Without Accessibility, the list stays hidden in split panes of the terminal app and in editor terminals.
 - The terminal in Zed is not supported. Zed does not report its terminal panel to macOS.
 - fish: the list is off in vi mode.
+- `az`, `heroku`, and `shopify` have no completions. Their specs depend on the installed version, which Figxit does not support yet.
 - Outside tmux, the terminal must report its cursor position.
 - Values that need a live service, like `kubectl get`, show nothing if the service does not answer in 1.5 seconds.
 
@@ -196,7 +209,10 @@ Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/s
 
 Figxit runs on your Mac. It reads your shell history and the files in the current folder, and sends neither anywhere.
 
-The only network request is the daily update check, which reads one file from figxit.com. I count those checks and the app downloads by version and date, with no IP address and no identifier. You can turn the check off in Settings.
+Figxit makes two kinds of network requests, both to figxit.com:
+
+- The daily update check, which reads one file. I count those checks and the app downloads by version and date, with no IP address and no identifier. You can turn the check off in Settings.
+- Extra completions, only the ones you download. When an app update changes one you have, the engine downloads the new version.
 
 Words from your history that look like secrets, such as a `--token` value or `API_KEY=...`, are not shown.
 
