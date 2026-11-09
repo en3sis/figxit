@@ -37,11 +37,12 @@ export function matchScore(label: string, prefix: string): number {
   const a = label.toLowerCase();
   const b = prefix.toLowerCase();
   if (a.startsWith(b)) return label.startsWith(prefix) ? 1 : 0.9;
-  if (a.includes(b)) return 0.45;
+  const coverage = b.length / a.length;
+  if (a.includes(b)) return 0.4 + 0.1 * coverage;
   let index = 0;
   for (const c of a) {
     if (c === b[index]) index++;
-    if (index === b.length) return 0.2;
+    if (index === b.length) return 0.15 + 0.1 * coverage;
   }
   return 0;
 }
@@ -174,7 +175,8 @@ async function complete(
       if (filtered) candidate.matched = true;
       if (candidate.icon === ICONS.folder.icon || candidate.icon === ICONS.file.icon) {
         const dotted = candidate.label.startsWith(".") && !candidate.label.startsWith("../");
-        if (dotted && !prefix.startsWith(".", head.length)) continue;
+        const typed = prefix.slice(head.length);
+        if (dotted && (!typed.startsWith(".") || typed.length < 2)) continue;
         candidate.score = Math.min(candidate.score, 0.65);
         const text = candidate.insert ?? `${candidate.label} `;
         if (!/[\\'"]/.test(text)) {
@@ -232,7 +234,8 @@ async function complete(
         }
       }
     }
-    if (!exact && known) exact = { label: prefix, detail: "", score: 0 };
+    const here = /(^|\/)\.\.?$/.test(prefix);
+    if (!exact && (known || here)) exact = { label: prefix, detail: "", score: 0 };
     if (!exact && prefix.endsWith("/")) {
       for (const candidate of merged.values()) {
         const path = candidate.icon === ICONS.folder.icon || candidate.icon === ICONS.file.icon;
@@ -260,7 +263,7 @@ async function complete(
       items.push(item);
     }
     if (prefix !== "" && (prefixed || exact)) items = items.filter((item) => matches.get(item)! >= 0.9);
-    if (items.length === 0 && (!exact || held)) return null;
+    if (items.length === 0 && (!exact || held || here)) return null;
 
     items.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
     if (exact && !held) items.unshift({ label: prefix, detail: "Run", score: 0, icon: "sf:return", tint: "3A3A3C", run: true });

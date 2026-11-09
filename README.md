@@ -125,6 +125,8 @@ You need an Apple Silicon Mac with macOS 13 or later, and zsh, bash 5, or fish 4
 
 New versions install from the menu bar icon. If something looks off, run `figxit doctor`.
 
+To hide the menu bar icon, turn off **Show in menu bar** in Settings. Run `figxit open` to show it again and open Settings.
+
 ## Keys
 
 | Key | What it does |
@@ -136,11 +138,25 @@ New versions install from the menu bar icon. If something looks off, run `figxit
 
 When the list is closed, your keys work as before.
 
+After Esc, the shell waits to tell it apart from arrow keys: 400 ms in zsh, 500 ms in bash. Figxit sets this wait to 50 ms, unless you set your own `KEYTIMEOUT` (zsh) or `keyseq-timeout` (bash), or you have a key binding of two or more keys that starts with a letter, like `jk`.
+
 ## Works with
 
 Ghostty, iTerm2, and Terminal, and any terminal inside tmux or herdr.
 
 Split panes and the terminal in VS Code or Cursor need Accessibility. See below.
+
+## Extra completions
+
+The completions for the AWS CLI (37 MB), the Azure CLI (13 MB), and the Google Cloud CLI (14 MB) are not in the app, to keep it small. Download them in Settings > Extra completions, or in the terminal:
+
+```bash
+figxit extras             # list them
+figxit extras add aws     # download one
+figxit extras remove aws  # remove it
+```
+
+Until you download one, typing `aws ` (or `az `, `gcloud `) shows a row to download it at the top of the list. Pick it with Tab, or with the arrow keys and Enter. It stops showing after five times if you don't pick it.
 
 ## Panes, editors, and Accessibility
 
@@ -186,7 +202,7 @@ Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/s
 - macOS only.
 - Without Accessibility, the list stays hidden in split panes of the terminal app and in editor terminals.
 - The terminal in Zed is not supported. Zed does not report its terminal panel to macOS.
-- bash and fish: the list is off in vi mode.
+- fish: the list is off in vi mode.
 - Outside tmux, the terminal must report its cursor position.
 - Values that need a live service, like `kubectl get`, show nothing if the service does not answer in 1.5 seconds.
 
@@ -194,7 +210,10 @@ Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/s
 
 Figxit runs on your Mac. It reads your shell history and the files in the current folder, and sends neither anywhere.
 
-The only network request is the daily update check, which reads one file from figxit.com. I count those checks and the app downloads by version and date, with no IP address and no identifier. You can turn the check off in Settings.
+Figxit makes two kinds of network requests, both to figxit.com:
+
+- The daily update check, which reads one file. I count those checks and the app downloads by version and date, with no IP address and no identifier. You can turn the check off in Settings.
+- Extra completions, only the ones you download. When an app update changes one you have, the engine downloads the new version.
 
 Words from your history that look like secrets, such as a `--token` value or `API_KEY=...`, are not shown.
 

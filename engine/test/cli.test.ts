@@ -15,7 +15,7 @@ test("open launches the app with the menu bar recovery flag and preserves launch
     writeFileSync(join(work, "open"), '#!/bin/sh\nprintf "%s\\n" "$@" > "$OPEN_ARGS"\nexit "$OPEN_EXIT"\n', { mode: 0o755 });
     for (const code of [0, 1]) {
       const result = Bun.spawnSync([process.execPath, cli, "open"], {
-        env: { ...process.env, FIGXIT_APP: app, PATH: work, OPEN_ARGS: args, OPEN_EXIT: String(code) },
+        env: { ...process.env, FIGXIT_APP: app, FIGXIT_HELPER_SOCK: join(work, "none.sock"), PATH: work, OPEN_ARGS: args, OPEN_EXIT: String(code) },
         stdout: "pipe", stderr: "pipe",
       });
       expect(result.stderr.toString()).toBe("");
@@ -23,6 +23,27 @@ test("open launches the app with the menu bar recovery flag and preserves launch
       expect(readFileSync(args, "utf8")).toBe(`${app}\n--args\n--show-menu-bar\n`);
     }
   } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
+test("open asks a running app to show its icon and Settings instead of relaunching it", async () => {
+  const work = mkdtempSync("/tmp/fx");
+  const received: string[] = [];
+  const server = Bun.listen({
+    unix: join(work, "h.sock"),
+    socket: { data(_, chunk) { received.push(chunk.toString()); } },
+  });
+  try {
+    writeFileSync(join(work, "open"), "#!/bin/sh\nexit 9\n", { mode: 0o755 });
+    const run = Bun.spawn([process.execPath, cli, "open"], {
+      env: { ...process.env, FIGXIT_HELPER_SOCK: join(work, "h.sock"), PATH: work },
+      stdout: "pipe", stderr: "pipe",
+    });
+    expect(await run.exited).toBe(0);
+    expect(received.join("")).toBe('{"cmd":"open"}\n');
+  } finally {
+    server.stop(true);
     rmSync(work, { recursive: true, force: true });
   }
 });

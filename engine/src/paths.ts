@@ -7,7 +7,7 @@ const STATE = join(homedir(), ".local/state/figxit");
 export const ENGINE_SOCK = process.env.FIGXIT_SOCK ?? join(STATE, "engine.sock");
 export const HELPER_SOCK = process.env.FIGXIT_HELPER_SOCK ?? join(STATE, "helper.sock");
 
-function executable(): string {
+export function executable(): string {
   try {
     return realpathSync(process.execPath);
   } catch {
