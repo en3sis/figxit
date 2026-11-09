@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { EXTRAS, type Extra } from "../src/extras";
 
@@ -14,7 +14,8 @@ mkdirSync(outDir, { recursive: true });
 
 const manifest: Record<string, Extra> = {};
 for (const name of Object.keys(EXTRAS)) {
-  const files = [`${name}.js`, ...[...new Bun.Glob("**/*.js").scanSync({ cwd: join(specs, name) })].map((file) => join(name, file))].sort();
+  const top = existsSync(join(specs, `${name}.js`)) ? [`${name}.js`] : [];
+  const files = [...top, ...[...new Bun.Glob("**/*.js").scanSync({ cwd: join(specs, name) })].map((file) => join(name, file))].sort();
   const tar = Bun.spawnSync(
     ["/usr/bin/tar", "--no-xattrs", "--no-mac-metadata", "--uid", "0", "--gid", "0", "--uname", "", "--gname", "", "-cf", "-", "-C", specs, ...files],
     { env: { ...process.env, COPYFILE_DISABLE: "1" }, stdout: "pipe", stderr: "pipe" },

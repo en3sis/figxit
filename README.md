@@ -146,7 +146,7 @@ Split panes and the terminal in VS Code or Cursor need Accessibility. See below.
 
 ## Extra completions
 
-The completions for the AWS CLI (37 MB) and the Google Cloud CLI (14 MB) are not in the app, to keep it small. Download them in Settings > Extra completions, or in the terminal:
+The completions for the AWS CLI (37 MB), the Azure CLI (13 MB), and the Google Cloud CLI (14 MB) are not in the app, to keep it small. Download them in Settings > Extra completions, or in the terminal:
 
 ```bash
 figxit extras             # list them
@@ -154,7 +154,7 @@ figxit extras add aws     # download one
 figxit extras remove aws  # remove it
 ```
 
-The first time you run `aws` or `gcloud` without them, Figxit opens Settings to offer the download.
+The first time you run `aws`, `az`, or `gcloud` without them, Figxit opens Settings to offer the download.
 
 ## Panes, editors, and Accessibility
 
@@ -201,7 +201,6 @@ Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/s
 - Without Accessibility, the list stays hidden in split panes of the terminal app and in editor terminals.
 - The terminal in Zed is not supported. Zed does not report its terminal panel to macOS.
 - fish: the list is off in vi mode.
-- `az`, `heroku`, and `shopify` have no completions. Their specs depend on the installed version, which Figxit does not support yet.
 - Outside tmux, the terminal must report its cursor position.
 - Values that need a live service, like `kubectl get`, show nothing if the service does not answer in 1.5 seconds.
 

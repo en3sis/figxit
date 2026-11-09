@@ -5,6 +5,7 @@ import { executable } from "./paths";
 
 export const EXTRAS: Record<string, string> = {
   aws: "AWS CLI",
+  az: "Azure CLI",
   gcloud: "Google Cloud CLI",
 };
 
@@ -113,7 +114,8 @@ export async function addExtra(name: string): Promise<string | null> {
     mkdirSync(unpacked);
     writeFileSync(join(work, "archive.tar.gz"), data);
     const tar = Bun.spawnSync(["/usr/bin/tar", "-xzf", join(work, "archive.tar.gz"), "-C", unpacked], { stderr: "pipe" });
-    if (tar.exitCode !== 0 || !existsSync(join(unpacked, `${name}.js`))) return "the archive could not be unpacked";
+    const entry = existsSync(join(unpacked, `${name}.js`)) || existsSync(join(unpacked, name, "index.js"));
+    if (tar.exitCode !== 0 || !entry) return "the archive could not be unpacked";
     writeFileSync(join(unpacked, "sha256"), `${hash}\n`);
     const target = join(dir, name);
     if (existsSync(target)) renameSync(target, join(work, "previous"));

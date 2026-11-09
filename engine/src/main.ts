@@ -284,7 +284,7 @@ async function extrasCommand(args: string[]): Promise<number> {
   const list = extras();
   if (action === "--json") {
     const { brandIcon } = await import("./brands");
-    const rows = list.map(({ name, title, state, bytes, size }) => ({ name, title, state, bytes, size, ...(brandIcon(name) ?? { icon: "sf:cloud.fill", tint: "FF9900" }) }));
+    const rows = list.map(({ name, title, state, bytes, size }) => ({ name, title, state, bytes, size, ...(brandIcon(name) ?? { icon: "sf:cloud.fill", tint: name === "az" ? "0078D4" : "FF9900" }) }));
     console.log(JSON.stringify(rows));
     return 0;
   }

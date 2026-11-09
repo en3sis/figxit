@@ -20,10 +20,19 @@ beforeAll(async () => {
   const archive = join(work, "aws-test.tar.gz");
   Bun.spawnSync(["/usr/bin/tar", "-czf", archive, "-C", source, "aws.js", "aws"]);
   writeFileSync(join(work, "gcloud-test.tar.gz"), readFileSync(archive));
+  mkdirSync(join(source, "az"), { recursive: true });
+  writeFileSync(join(source, "az/index.js"), 'export default async (version) => ({ versionedSpecPath: "az/1.0.0", version });\n');
+  writeFileSync(join(source, "az/1.0.0.js"), 'export default { name: "az", subcommands: [{ name: "from-versioned" }] };\nexport const versions = {};\n');
+  const versioned = join(work, "az-test.tar.gz");
+  Bun.spawnSync(["/usr/bin/tar", "-czf", versioned, "-C", source, "az"]);
   const entry = (file: string, sha256: string) => ({ file, sha256, bytes: 1, size: 1 });
   writeFileSync(
     join(work, "extras.json"),
-    JSON.stringify({ aws: entry("aws-test.tar.gz", hashOf(archive)), gcloud: entry("gcloud-test.tar.gz", "0".repeat(64)) }),
+    JSON.stringify({
+      aws: entry("aws-test.tar.gz", hashOf(archive)),
+      az: entry("az-test.tar.gz", hashOf(versioned)),
+      gcloud: entry("gcloud-test.tar.gz", "0".repeat(64)),
+    }),
   );
 
   const server = Bun.serve({ port: 0, fetch: (request) => new Response(Bun.file(join(work, basename(new URL(request.url).pathname)))) });
@@ -43,12 +52,16 @@ const before = await labels("aws s3 ");
 const mismatch = await addExtra("gcloud");
 const added = await addExtra("aws");
 const after = await labels("aws s3 ");
+const azAdded = await addExtra("az");
+const az = await labels("az ");
 console.log(JSON.stringify({
   before,
   mismatch,
   gcloudOnDisk: existsSync("${installed}/gcloud"),
   added,
   after,
+  azAdded,
+  az,
   states: extras().map((extra) => extra.name + ":" + extra.state),
 }));
 `,
@@ -83,7 +96,12 @@ describe("extra completions", () => {
     expect(result.after).toEqual(["from-download"]);
   });
 
+  test("a downloaded versioned extra loads, like az", () => {
+    expect(result.azAdded).toBeNull();
+    expect(result.az).toEqual(["from-versioned"]);
+  });
+
   test("lists each extra as installed or missing", () => {
-    expect(result.states).toEqual(["aws:installed", "gcloud:missing"]);
+    expect(result.states).toEqual(["aws:installed", "az:installed", "gcloud:missing"]);
   });
 });
