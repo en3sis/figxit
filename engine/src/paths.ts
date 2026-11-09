@@ -29,6 +29,10 @@ export function appPath(): string | null {
   return candidates.find((path) => path && existsSync(path)) ?? null;
 }
 
+export function userSpecsDir(): string {
+  return process.env.FIGXIT_USER_SPECS ?? join(homedir(), ".figxit/specs");
+}
+
 export function specsDir(): string | null {
   if (process.env.FIGXIT_SPECS === "off") return null;
   const candidates = [
