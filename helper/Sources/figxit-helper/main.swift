@@ -242,9 +242,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return try? encoder.encode(StatusReply(ok: true, error: nil, placement: nil))
         case "probe":
             return try? encoder.encode(Geometry.probe(grid: request.grid))
-        case "offer":
-            if let name = request.name { status?.offerExtra(name) }
-            return try? encoder.encode(StatusReply(ok: true, error: nil, placement: nil))
         case "quit":
             Install.markStopped(true)
             popup.hide()

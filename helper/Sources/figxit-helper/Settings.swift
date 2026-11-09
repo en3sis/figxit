@@ -22,7 +22,6 @@ final class SettingsWindow: NSObject {
     private var extraList: [Extra] = []
     private var downloading: Set<String> = []
     private var failures: [String: String] = [:]
-    private var offered: String?
     private let app = NSStackView()
     private let permissions = NSStackView()
     private var timer: Timer?
@@ -31,9 +30,8 @@ final class SettingsWindow: NSObject {
     private let login = NSSwitch()
     private let updates = NSSwitch()
 
-    func show(offering name: String? = nil) {
+    func show() {
         if window == nil { build() }
-        offered = name
         refreshExtras()
         reload()
         NSApp.activate(ignoringOtherApps: true)
@@ -198,8 +196,6 @@ final class SettingsWindow: NSObject {
                 detail = "Installed. \(Self.megabytes(extra.size)) on disk."
             } else if extra.state == "outdated" {
                 detail = "A new version is available. \(Self.megabytes(extra.bytes)) download."
-            } else if extra.name == offered {
-                detail = "You ran \(extra.name). Download its completions: \(Self.megabytes(extra.bytes)), \(Self.megabytes(extra.size)) on disk."
             } else {
                 detail = "\(Self.megabytes(extra.bytes)) download, \(Self.megabytes(extra.size)) on disk."
             }

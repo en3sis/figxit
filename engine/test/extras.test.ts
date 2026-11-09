@@ -40,7 +40,7 @@ beforeAll(async () => {
     join(work, "run.ts"),
     `
 import { existsSync } from "node:fs";
-import { addExtra, extras } from "${root}/src/extras";
+import { addExtra, downloadable, extras } from "${root}/src/extras";
 import { History } from "${root}/src/history";
 import { suggest } from "${root}/src/suggest";
 const labels = async (line: string) => {
@@ -48,10 +48,12 @@ const labels = async (line: string) => {
   const found = result.now ?? (await result.more);
   return found?.items.map((item) => item.label) ?? [];
 };
+const offered = [downloadable("aws ", 4)?.name ?? null, downloadable("aws s", 5)?.name ?? null, downloadable("git ", 4)?.name ?? null];
 const before = await labels("aws s3 ");
 const mismatch = await addExtra("gcloud");
 const added = await addExtra("aws");
 const after = await labels("aws s3 ");
+const offeredAfter = downloadable("aws ", 4)?.name ?? null;
 const azAdded = await addExtra("az");
 const az = await labels("az ");
 console.log(JSON.stringify({
@@ -60,6 +62,8 @@ console.log(JSON.stringify({
   gcloudOnDisk: existsSync("${installed}/gcloud"),
   added,
   after,
+  offered,
+  offeredAfter,
   azAdded,
   az,
   states: extras().map((extra) => extra.name + ":" + extra.state),
@@ -99,6 +103,11 @@ describe("extra completions", () => {
   test("a downloaded versioned extra loads, like az", () => {
     expect(result.azAdded).toBeNull();
     expect(result.az).toEqual(["from-versioned"]);
+  });
+
+  test("offers a download only on the bare command, and only until it is installed", () => {
+    expect(result.offered).toEqual(["aws", null, null]);
+    expect(result.offeredAfter).toBeNull();
   });
 
   test("lists each extra as installed or missing", () => {

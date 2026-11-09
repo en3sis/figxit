@@ -87,6 +87,13 @@ export function extras(): ExtraState[] {
   });
 }
 
+export function downloadable(buffer: string, cursor: number): ExtraState | null {
+  const name = /^\s*(\S+) $/.exec(buffer)?.[1];
+  if (!name || cursor !== buffer.length || !Object.hasOwn(EXTRAS, name)) return null;
+  const extra = extras().find((entry) => entry.name === name);
+  return extra && extra.state === "missing" ? extra : null;
+}
+
 export async function addExtra(name: string): Promise<string | null> {
   const entry = manifest()[name];
   if (!entry) return `${name} is not an extra in this version of Figxit`;

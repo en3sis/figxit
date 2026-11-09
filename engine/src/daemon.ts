@@ -1,10 +1,10 @@
-import { chmodSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Socket } from "bun";
 import { herdrGrid, parseShell, placeInPane, termPad, tmuxGrid, tmuxOrigin, tmuxQuery, type Grid, type HerdrTarget, type Origin, type TmuxTarget } from "./geometry";
 import { Helper } from "./helper";
 import { History } from "./history";
-import { EXTRAS, extraInstalled, manifest, updateExtras } from "./extras";
+import { addExtra, downloadable, updateExtras } from "./extras";
 import { ENGINE_SOCK } from "./paths";
 import type { Candidate } from "./sources";
 import { suggest, type Suggestion } from "./suggest";
@@ -19,6 +19,9 @@ const CURSOR_MS = 500;
 const ORIGIN_MS = 1000;
 const ENTER_INSERTS = join(dirname(SOCK), "enter-inserts");
 const FOCUS_FORMAT = "#{window_active} #{pane_active} #{pane_in_mode}";
+const PROMPTS = join(dirname(SOCK), "extra-prompts");
+const PROMPT_LIMIT = 5;
+const DOWNLOAD = { icon: "sf:arrow.down.circle.fill", tint: "0A84FF" };
 
 interface Session {
   socket: Socket<Session>;
@@ -43,6 +46,9 @@ interface Session {
   fresh: boolean;
   navigated: boolean;
   line: string;
+  cwd: string;
+  point: number;
+  prompted: string | null;
 }
 
 const history = new History();
@@ -51,18 +57,62 @@ let active: Session | null = null;
 let shells = 0;
 
 let historySource: string | null | undefined;
-const offered = new Set<string>();
+const downloads = new Map<string, Promise<string | null>>();
+const failures = new Map<string, string>();
 
-function offer(line: string) {
-  const name = /^\s*(\S+)/.exec(line)?.[1];
-  if (!name || !Object.hasOwn(EXTRAS, name) || offered.has(name)) return;
-  offered.add(name);
-  const flag = join(dirname(SOCK), `offered-${name}`);
-  if (existsSync(flag) || !manifest()[name] || extraInstalled(name) || !Bun.which(name)) return;
+function prompts(): Record<string, number> {
   try {
-    writeFileSync(flag, "");
-  } catch {}
-  helper.send({ cmd: "offer", name });
+    return JSON.parse(readFileSync(PROMPTS, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function downloadRow(s: Session, buffer: string, cursor: number): Candidate | null {
+  const extra = downloadable(buffer, cursor);
+  if (!extra) return null;
+  const row = { score: 0, ...DOWNLOAD, download: extra.name };
+  if (downloads.has(extra.name)) return { ...row, label: `Downloading ${extra.name} completions…`, detail: "" };
+  const failure = failures.get(extra.name);
+  if (!failure) {
+    const counts = prompts();
+    if ((counts[extra.name] ?? 0) >= PROMPT_LIMIT) return null;
+    if (s.prompted !== extra.name) {
+      s.prompted = extra.name;
+      counts[extra.name] = (counts[extra.name] ?? 0) + 1;
+      try {
+        writeFileSync(PROMPTS, JSON.stringify(counts) + "\n");
+      } catch {}
+    }
+  }
+  const detail = failure ? failure.charAt(0).toUpperCase() + failure.slice(1) : `${(extra.bytes / 1e6).toFixed(1)} MB`;
+  return { ...row, label: `Download ${extra.name} completions`, detail };
+}
+
+function withRow(result: Suggestion | null, row: Candidate | null, cursor: number): Suggestion | null {
+  if (!row) return result;
+  return { remove: 0, tokenStart: cursor, ...result, items: [row, ...(result?.items ?? [])] };
+}
+
+function refresh(s: Session) {
+  if (s.line) edit(s, s.point, s.cwd, s.line);
+}
+
+function startDownload(s: Session, name: string) {
+  let running = downloads.get(name);
+  if (!running) {
+    failures.delete(name);
+    running = addExtra(name)
+      .catch((error) => String(error))
+      .then((error) => {
+        downloads.delete(name);
+        if (error) failures.set(name, error);
+        return error;
+      });
+    downloads.set(name, running);
+  }
+  refresh(s);
+  running.then(() => refresh(s));
 }
 
 function noteHistory() {
@@ -189,6 +239,8 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
   s.navigated = false;
   const result = await suggest(buffer, cursor, cwd, history);
   if (seq !== s.seq) return;
+  const row = downloadRow(s, buffer, cursor);
+  if (row) result.now = withRow(result.now, row, cursor);
   if (!result.now && !result.more) return hide(s);
 
   if (result.now) {
@@ -202,7 +254,7 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
   }
 
   if (!result.more) return;
-  const full = await result.more;
+  const full = withRow(await result.more, row, cursor);
   if (seq !== s.seq) return;
   if (!full) {
     if (!result.now) hide(s);
@@ -255,6 +307,11 @@ function accept(s: Session, typedOnly: boolean, runs = false) {
     s.socket.write(`A${SEP}-1${SEP}\n`);
     return;
   }
+  if (item.download) {
+    s.socket.write(`A${SEP}0${SEP}\n`);
+    startDownload(s, item.download);
+    return;
+  }
   if (item.run) {
     s.socket.write(`A${SEP}0${SEP} \n`);
     hide(s);
@@ -286,12 +343,16 @@ function onLine(s: Session, line: string) {
       history.refresh();
       noteHistory();
       s.anchorKey = null;
+      s.line = "";
+      s.prompted = null;
       hide(s);
       break;
     case "E":
       s.size = f[4] ?? "";
       s.line = (f[3] ?? "").replaceAll("\x1e", "\n");
-      edit(s, Number(f[1]) || 0, f[2] ?? "", s.line);
+      s.cwd = f[2] ?? "";
+      s.point = Number(f[1]) || 0;
+      edit(s, s.point, s.cwd, s.line);
       break;
     case "K":
       navigate(s, f[1] ?? "down");
@@ -304,8 +365,9 @@ function onLine(s: Session, line: string) {
       break;
     case "X":
       s.anchorKey = null;
+      s.line = "";
+      s.prompted = null;
       hide(s);
-      offer(s.line);
       break;
     case "N":
       hide(s);
@@ -356,6 +418,9 @@ export async function daemon() {
           fresh: false,
           navigated: false,
           line: "",
+          cwd: "",
+          point: 0,
+          prompted: null,
         };
       },
       data(socket, chunk) {

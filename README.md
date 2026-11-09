@@ -154,7 +154,7 @@ figxit extras add aws     # download one
 figxit extras remove aws  # remove it
 ```
 
-The first time you run `aws`, `az`, or `gcloud` without them, Figxit opens Settings to offer the download.
+Until you download one, typing `aws ` (or `az `, `gcloud `) shows a row to download it at the top of the list. Pick it with Tab, or with the arrow keys and Enter. It stops showing after five times if you don't pick it.
 
 ## Panes, editors, and Accessibility
 

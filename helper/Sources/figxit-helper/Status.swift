@@ -713,11 +713,6 @@ final class StatusController: NSObject, NSMenuDelegate {
         setup.show()
     }
 
-    func offerExtra(_ name: String) {
-        settingsWindow.updater = updater?.updater
-        settingsWindow.show(offering: name)
-    }
-
     func splitWithoutAccess() {
         guard !Install.splitSeen else { return }
         FileManager.default.createFile(atPath: Install.splitFlag, contents: nil)
