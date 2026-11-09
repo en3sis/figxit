@@ -300,15 +300,21 @@ try {
   await keys("Enter");
   check("the shell works after an Escape with the popup closed", screen().includes("esc-ok") && !/error|not found/i.test(screen()), screen());
 
-  if (name === "zsh") {
-    await keys("bindkey -v");
+  if (name !== "fish") {
+    await keys(name === "zsh" ? "bindkey -v" : "set -o vi");
     await keys("Enter");
+    await keys("make ");
+    const viRow = lastShow()?.items[0]?.label;
+    await keys("Tab");
+    check("vi mode: Tab inserts the first row", new RegExp(`> +make ${viRow}( |$)`).test(screen().split("\n").at(-1) ?? ""), screen());
+    await keys("C-u");
     await keys("make ");
     check("vi mode: the popup is open before Escape", messages.at(-1)?.cmd === "show", messages.slice(-2));
     await keys("Escape");
     await Bun.sleep(800);
     check("vi mode: Escape closes the popup, and it stays closed in command mode", messages.at(-1)?.cmd === "hide", messages.slice(-2));
     await keys("ddiecho vi-ok");
+    await keys("Escape");
     await keys("Enter");
     check("vi mode: the same Escape goes to command mode", /^vi-ok$/m.test(screen()), screen());
   }
