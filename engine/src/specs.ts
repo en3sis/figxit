@@ -3,6 +3,7 @@ import { brandIcon, ICONS, type Icon } from "./brands";
 import { expandAlias } from "./generators";
 import { FIGXIT_ICONS, FIGXIT_SPECS, PATCHES } from "./figxit";
 import { specsDir } from "./paths";
+import { loadVersioned } from "./versioned";
 import type { Candidate } from "./sources";
 
 export type Spec = Record<string, any>;
@@ -36,14 +37,14 @@ const modules = new Map<string, Promise<Spec | null>>(
   Object.entries(FIGXIT_SPECS).map(([name, spec]) => [name, Promise.resolve(spec)]),
 );
 let directory: string | null | undefined;
-let names: Promise<Set<string>> | null = null;
+let catalog: Promise<{ names: Set<string>; versioned: Set<string> }> | null = null;
 
-async function specNames(dir: string): Promise<Set<string>> {
-  names ??= import(join(dir, "index.js")).then(
-    (mod) => new Set<string>(mod.default),
-    () => new Set<string>(),
+async function specCatalog(dir: string): Promise<{ names: Set<string>; versioned: Set<string> }> {
+  catalog ??= import(join(dir, "index.js")).then(
+    (mod) => ({ names: new Set<string>(mod.default), versioned: new Set<string>(mod.diffVersionedCompletions ?? []) }),
+    () => ({ names: new Set<string>(), versioned: new Set<string>() }),
   );
-  return names;
+  return catalog;
 }
 
 function fixSpec(name: string, spec: Spec | null): Spec | null {
@@ -65,7 +66,16 @@ export function loadSpec(name: string): Promise<Spec | null> {
   const loading = (async () => {
     if (!NAME.test(name)) return null;
     if (directory === undefined) directory = specsDir();
-    if (!directory || !(await specNames(directory)).has(name)) return null;
+    if (!directory) return null;
+    const { names, versioned } = await specCatalog(directory);
+    if (!names.has(name)) return null;
+    if (versioned.has(name)) {
+      try {
+        return fixSpec(name, await loadVersioned(name, directory, () => modules.delete(name)));
+      } catch {
+        return null;
+      }
+    }
     try {
       const spec = (await import(join(directory, `${name}.js`))).default;
       return spec && typeof spec === "object" ? fixSpec(name, spec as Spec) : null;
