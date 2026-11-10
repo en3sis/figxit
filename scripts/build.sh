@@ -15,6 +15,12 @@ helper() {
   cp -R helper/.build/release/Sparkle.framework "$contents/Frameworks/Sparkle.framework"
   cp -R helper/Resources/icons "$contents/Resources/icons"
   cp "$ICON.icns" "$contents/Resources/AppIcon.icns"
+  input="$contents/Library/Input Methods/FigxitInput.app/Contents"
+  rm -rf "$contents/Library"
+  mkdir -p "$input/MacOS"
+  cp helper/.build/release/figxit-input "$input/MacOS/figxit-input"
+  cp helper/InputMethod.plist "$input/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(version)" -c "Set :CFBundleVersion $(version)" "$input/Info.plist"
 }
 
 engine() {

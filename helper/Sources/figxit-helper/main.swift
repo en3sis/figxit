@@ -71,7 +71,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var signals: [DispatchSourceSignal] = []
     private var status: StatusController?
     private let popup = PopupController()
-    private var shown: (pid: pid_t, window: Int?, frame: CGRect?, grid: Grid, items: [Item], selected: Int)?
+    private var shown: (pid: pid_t, window: Int?, frame: CGRect?, grid: Grid, items: [Item], selected: Int, caret: Int)?
+    private let caret = CaretClient()
     private var watcher: Timer?
     private var observer: AXObserver?
     private var focused: AXUIElement?
@@ -94,6 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.server = server
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), Geometry.axTimeout)
         if engine != nil { Install.markStopped(false) }
+        Caret.refresh()
         engine?.start()
         if ProcessInfo.processInfo.environment["FIGXIT_HELPER_SOCK"] == nil {
             status = StatusController(engine: engine)
@@ -192,19 +194,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             server?.broadcast(Data(#"{"event":"hidden"}"#.utf8))
             return
         }
-        if current?.frame != shown.frame,
-           let placement = Geometry.locate(grid: shown.grid, terminal: terminal, window: current?.frame).placement {
-            self.shown?.frame = current?.frame
+        guard current?.frame != shown.frame else { return }
+        self.shown?.frame = current?.frame
+        if Caret.handles(terminal) { return placeAtCaret() }
+        if let placement = Geometry.locate(grid: shown.grid, terminal: terminal, window: current?.frame).placement {
             popup.show(items: shown.items, selected: shown.selected, placement: placement)
+        }
+    }
+
+    private func placeAtCaret() {
+        caret.ask { [weak self] rect in
+            guard let self = self, let shown = self.shown, let rect = rect,
+                  Geometry.frontTerminal()?.pid == shown.pid
+            else {
+                self?.forget()
+                self?.popup.hide()
+                self?.server?.broadcast(Data(#"{"event":"hidden"}"#.utf8))
+                return
+            }
+            self.popup.show(items: shown.items, selected: shown.selected, placement: Caret.placement(grid: shown.grid, caret: shown.caret, rect: rect))
         }
     }
 
     @objc private func appActivated(_ note: Notification) {
         let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
         guard let shown = shown, let app = app, app.processIdentifier == shown.pid,
-              let terminal = Geometry.frontTerminal(),
-              let placement = Geometry.placement(grid: shown.grid, terminal: terminal)
+              let terminal = Geometry.frontTerminal()
         else { return popup.hide() }
+        if Caret.handles(terminal) { return placeAtCaret() }
+        guard let placement = Geometry.placement(grid: shown.grid, terminal: terminal) else { return popup.hide() }
         popup.show(items: shown.items, selected: shown.selected, placement: placement)
     }
 
@@ -219,6 +237,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             let terminal = Geometry.frontTerminal()
             let window = terminal.flatMap { Geometry.cgWindow(pid: $0.pid) }
+            if let terminal = terminal, Caret.handles(terminal) {
+                shown = (terminal.pid, window?.id, window?.frame, grid, items, request.selected ?? 0, request.caret ?? 0)
+                watch()
+                placeAtCaret()
+                return try? encoder.encode(StatusReply(ok: true, error: nil, placement: nil))
+            }
             let located = terminal.map { Geometry.locate(grid: grid, terminal: $0, window: window?.frame) }
             guard let terminal = terminal, let placement = located?.placement else {
                 if located?.split == true, !AXIsProcessTrusted() { status?.splitWithoutAccess() }
@@ -227,7 +251,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 server?.broadcast(Data(#"{"event":"hidden"}"#.utf8))
                 return try? encoder.encode(StatusReply(ok: false, error: "no terminal window", placement: nil))
             }
-            shown = (terminal.pid, window?.id, window?.frame, grid, items, request.selected ?? 0)
+            shown = (terminal.pid, window?.id, window?.frame, grid, items, request.selected ?? 0, request.caret ?? 0)
             watch()
             observe(pid: terminal.pid)
             popup.show(items: items, selected: request.selected ?? 0, placement: placement)
@@ -312,6 +336,9 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "snapshot-about
 }
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "snapshot-doctor" {
     exit(DoctorWindow().render(to: CommandLine.arguments[2]) ? 0 : 1)
+}
+if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "select-input" {
+    exit(Caret.select() ? 0 : 1)
 }
 let delegate = AppDelegate()
 app.delegate = delegate

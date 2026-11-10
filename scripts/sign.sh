@@ -20,4 +20,8 @@ fi
 if [ -f "$engine" ]; then
   sign --entitlements helper/engine.entitlements "$engine"
 fi
+input="$APP/Contents/Library/Input Methods/FigxitInput.app"
+if [ -d "$input" ]; then
+  sign "$input"
+fi
 sign "$APP"

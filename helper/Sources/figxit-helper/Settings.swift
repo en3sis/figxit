@@ -34,6 +34,8 @@ final class SettingsWindow: NSObject {
     private let login = NSSwitch()
     private let updates = NSSwitch()
     private let menuBar = NSSwitch()
+    private let zed = NSSwitch()
+    private let experimental = NSStackView()
 
     func show() {
         if window == nil { build() }
@@ -66,6 +68,7 @@ final class SettingsWindow: NSObject {
 
     private func reload() {
         menuBar.state = Install.showMenuBarIcon ? .on : .off
+        zed.state = Caret.wanted ? .on : .off
         enter.state = FileManager.default.fileExists(atPath: Install.enterInsertsFlag) ? .off : .on
         compact.state = ListMetrics.compactEnabled ? .on : .off
         theme.selectedSegment = PopupTheme.allCases.firstIndex(of: PopupTheme.current) ?? 0
@@ -106,7 +109,7 @@ final class SettingsWindow: NSObject {
         window.title = "Figxit Settings"
         window.isReleasedWhenClosed = false
 
-        for (toggle, action) in [(enter, #selector(toggleEnter)), (compact, #selector(toggleCompact)), (login, #selector(toggleLogin)), (updates, #selector(toggleUpdates)), (menuBar, #selector(toggleMenuBar))] {
+        for (toggle, action) in [(enter, #selector(toggleEnter)), (compact, #selector(toggleCompact)), (login, #selector(toggleLogin)), (updates, #selector(toggleUpdates)), (menuBar, #selector(toggleMenuBar)), (zed, #selector(toggleZed))] {
             toggle.target = self
             toggle.action = action
         }
@@ -171,9 +174,20 @@ final class SettingsWindow: NSObject {
         }
         Panel.fill(app, rows)
 
+        Panel.fill(experimental, [
+            Panel.row(
+                icon: "sf:text.cursor",
+                tint: "FF9F0A",
+                title: "Zed terminal",
+                tag: nil,
+                detail: "Finds Zed's cursor with a hidden input method. Reopen Zed after.",
+                trailing: [zed]
+            ),
+        ])
+
         let extrasCard = Panel.card("Extra completions", extras)
         self.extrasCard = extrasCard
-        let stack = NSStackView(views: [Panel.card("Keys", keys), Panel.card("Appearance", look), extrasCard, Panel.card("Permissions", permissions), Panel.card("App", app)])
+        let stack = NSStackView(views: [Panel.card("Keys", keys), Panel.card("Appearance", look), extrasCard, Panel.card("Permissions", permissions), Panel.card("Experimental", experimental), Panel.card("App", app)])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 16
@@ -295,6 +309,26 @@ final class SettingsWindow: NSObject {
             FileManager.default.createFile(atPath: path, contents: nil)
         }
         reload()
+    }
+
+    @objc private func toggleZed() {
+        guard zed.state == .on else {
+            Caret.turnOff()
+            return reload()
+        }
+        zed.isEnabled = false
+        Caret.turnOn { [weak self] error in
+            self?.zed.isEnabled = true
+            if let error = error {
+                Caret.turnOff()
+                let alert = NSAlert()
+                alert.messageText = "The Zed terminal option could not be turned on"
+                alert.informativeText = error
+                NSApp.activate(ignoringOtherApps: true)
+                alert.runModal()
+            }
+            self?.reload()
+        }
     }
 
     @objc private func toggleMenuBar() {
