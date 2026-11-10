@@ -194,8 +194,6 @@ final class ListView: NSView {
         selected = index
     }
 
-    static let selectionColor = NSColor(srgbRed: 0x23 / 255, green: 0x35 / 255, blue: 0xC4 / 255, alpha: 1)
-
     override func draw(_ dirtyRect: NSRect) {
         if let background = background {
             background.setFill()
@@ -206,7 +204,7 @@ final class ListView: NSView {
             guard row.intersects(dirtyRect) else { continue }
             let active = index == selected
             if active {
-                Self.selectionColor.setFill()
+                NSColor.controlAccentColor.setFill()
                 NSBezierPath(roundedRect: row, xRadius: metrics.rowRadius, yRadius: metrics.rowRadius).fill()
             }
             drawIcon(item, in: row)
