@@ -808,6 +808,7 @@ describe("atuin history", () => {
     expect(atuinDb({ FIGXIT_ATUIN_DB: join(home, ".local/share/atuin/history.db") }, home)).toBe(
       join(home, ".local/share/atuin/history.db"),
     );
+    expect(atuinDb({ FIGXIT_ATUIN_DB: join(home, "missing.db") }, home)).toBeNull();
   });
 });
 

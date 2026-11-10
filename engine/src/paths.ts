@@ -46,6 +46,7 @@ function absolute(value: string | undefined): string | undefined {
 }
 
 export function atuinPaths(env: Record<string, string | undefined> = process.env, home = homedir()): string[] {
+  if (env.FIGXIT_ATUIN_DB) return [env.FIGXIT_ATUIN_DB];
   const atuinHome = absolute(env.ATUIN_HOME);
   const configs = [
     env.ATUIN_CONFIG_DIR && join(env.ATUIN_CONFIG_DIR, "config.toml"),
@@ -60,7 +61,6 @@ export function atuinPaths(env: Record<string, string | undefined> = process.env
   } catch {}
   if (configured?.startsWith("~/")) configured = join(home, configured.slice(2));
   const paths = [
-    env.FIGXIT_ATUIN_DB,
     configured,
     atuinHome && join(atuinHome, "data/history.db"),
     join(home, ".atuin/data/history.db"),
