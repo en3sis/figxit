@@ -26,11 +26,12 @@ _figxit_preexec() {
   local REPLY
   _figxit_visible=0
   _figxit_send X
-  [[ -n $_figxit_asked ]] && _figxit_report
+  [[ -n $_figxit_asked ]] && _figxit_report drain
   return 0
 }
 
 _figxit_precmd() {
+  (( _figxit_reports == 0 )) && _figxit_reports=1
   (( _figxit_timed )) || _figxit_keytimeout
   _figxit_connect && _figxit_bind
   return 0

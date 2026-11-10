@@ -5,9 +5,9 @@ _figxit_ask() {
       return
     fi
     _figxit_asked=
-    _figxit_reports=0
+    (( _figxit_seen )) || _figxit_reports=-1
   fi
-  if (( ! _figxit_reports || PENDING )) || [[ $KEYMAP != main ]]; then
+  if (( _figxit_reports < 1 || PENDING )) || [[ $KEYMAP != main ]]; then
     _figxit_send "C${_figxit_sep}$1"
     return
   fi
@@ -38,11 +38,9 @@ _figxit_report() {
       done=1
       break
     fi
+    [[ $1 != drain && $got == *$'\e['<->';'<->R ]] && break
   done
-  if [[ -z $got ]]; then
-    _figxit_reports=0
-    return 0
-  fi
+  local -i heard=${#got}
   got=${${got#($'\e[?'|)[0-9\;]#c}%$'\e[0n'}
   [[ -n $done ]] || got=${got%%$'\e'(\[[0-9\;\?]#|)}
   if [[ $got == (#b)(*)$'\e['(<->)';'(<->)R(*) ]]; then
@@ -59,11 +57,15 @@ _figxit_report() {
   (( $#size )) && _figxit_cell="${size[6]:-$_figxit_sep}${_figxit_sep}${size[4]}"
   REPLY=$got
   if [[ -z $row ]]; then
-    [[ -n $done ]] && _figxit_reports=0
+    if [[ -n $done ]] || (( ! heard && ! _figxit_seen )); then
+      _figxit_reports=-1
+    elif (( ! _figxit_seen )); then
+      _figxit_reports=0
+    fi
     [[ -n $seq ]] && _figxit_send "C${_figxit_sep}${seq}"
     return 0
   fi
-  _figxit_reports=1
+  _figxit_reports=1 _figxit_seen=1
   [[ -n $seq ]] || return 0
   _figxit_send "C${_figxit_sep}${seq}${_figxit_sep}${row}${_figxit_sep}${col}${_figxit_sep}${COLUMNS}${_figxit_sep}${LINES}${_figxit_sep}${_figxit_cell}"
 }
