@@ -18,7 +18,7 @@ Free and open source. No account, no AI chat, no telemetry.
 - **Red icons for production**: Enter inserts those rows without running them
 - **Your aliases**: `git co ` completes like `git checkout `
 - **zoxide**: `z rack` lists the folders `z` would jump to
-- **zsh, bash, and fish**, in Ghostty, iTerm2, Terminal, tmux, and the VS Code terminal
+- **zsh, bash, and fish**, in Ghostty, iTerm2, Terminal, tmux, and the terminals of VS Code, Cursor, and Zed (experimental)
 
 ## Why it exists
 
@@ -142,9 +142,15 @@ After Esc, the shell waits to tell it apart from arrow keys: 400 ms in zsh, 500 
 
 ## Works with
 
-Ghostty, iTerm2, and Terminal, and any terminal inside tmux or herdr.
+| | Supported |
+|---|---|
+| Shells | zsh, bash 5 or later, fish 4 or later |
+| Terminals | Ghostty, iTerm2, Terminal |
+| Editors | VS Code and Cursor, with Accessibility. Zed, experimental, with a setting |
+| Multiplexers | tmux and herdr, in any terminal app |
+| Not tested yet | WezTerm, Alacritty, and kitty without tmux, other editors built on VS Code, JetBrains IDEs |
 
-Split panes and the terminal in VS Code or Cursor need Accessibility. See below.
+Split panes and the terminal in VS Code or Cursor need Accessibility. Zed needs a setting. See below.
 
 ## Extra completions
 
@@ -180,15 +186,23 @@ Figxit uses Accessibility to read the position and size of the focused text area
 
 Splits are tested in iTerm2 and Ghostty, and editor terminals in VS Code and Cursor. Other editors built on VS Code use the same terminal but are not tested yet.
 
+### Zed (experimental)
+
+Zed reports only its window to Accessibility, not its terminal panel. To place the list in Zed's terminal, turn on **Settings > Experimental > Zed terminal**, then quit and reopen Zed.
+
+The setting adds a hidden input method, the macOS component that also places the window of Chinese and Japanese input next to the text cursor. Figxit uses it only to ask Zed where its text cursor is. It does not read or change what you type, and your keyboard layout stays as it is. Fig and Amazon Q used the same method.
+
+Turning the setting off removes the input method. Accessibility is not needed for Zed. Tested in Zed 1.27 on macOS 27.
+
 ## How it works
 
 Figxit has three parts that talk over local sockets:
 
-```
-shell script  ── line and cursor ──▶  engine  ── rows ──▶  app
-(zsh, bash, fish)                     (Bun)                (Swift)
-      ▲                                  │
-      └──────── text to insert ──────────┘
+```mermaid
+flowchart LR
+    shell["Shell script<br>zsh, bash, fish"] -- "line and cursor" --> engine["Engine<br>Bun"]
+    engine -- "rows" --> app["App<br>Swift"]
+    engine -- "text to insert" --> shell
 ```
 
 - **Shell script** (`shell/`): sends the line to the engine after each key, without waiting. It waits only when you press Tab or Enter with the list open.
@@ -201,7 +215,7 @@ Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/s
 
 - macOS only.
 - Without Accessibility, the list stays hidden in split panes of the terminal app and in editor terminals.
-- The terminal in Zed is not supported. Zed does not report its terminal panel to macOS.
+- The terminal in Zed needs the experimental Zed terminal setting.
 - fish: the list is off in vi mode.
 - Outside tmux, the terminal must report its cursor position.
 - Values that need a live service, like `kubectl get`, show nothing if the service does not answer in 1.5 seconds.
