@@ -38,6 +38,7 @@ interface Session {
   selected: number;
   scroll: number;
   remove: number;
+  lead: number;
   visible: boolean;
   anchorKey: string | null;
   anchor: Grid | null;
@@ -158,7 +159,7 @@ function render(s: Session) {
   if (!s.anchor || s.items.length === 0) return;
   follow(s);
   const items = s.items.slice(s.scroll, s.scroll + VISIBLE).map(({ label, detail, icon, tint }) => ({ label, detail, icon, tint }));
-  helper.send({ cmd: "show", grid: s.anchor, items, selected: chosen(s, s.items[s.selected]) ? s.selected - s.scroll : -1 });
+  helper.send({ cmd: "show", grid: s.anchor, caret: s.remove - s.lead, items, selected: chosen(s, s.items[s.selected]) ? s.selected - s.scroll : -1 });
   setVisible(s, true);
   s.fresh = true;
 }
@@ -167,6 +168,7 @@ function present(s: Session, result: Suggestion, keep: boolean) {
   const previous = keep && chosen(s, s.items[s.selected]) ? s.items[s.selected]?.label : undefined;
   s.items = result.items;
   s.remove = result.remove;
+  s.lead = result.lead ?? 0;
   const index = previous === undefined ? -1 : result.items.findIndex((item) => item.label === previous);
   s.selected = Math.max(index, 0);
   s.scroll = 0;
@@ -410,6 +412,7 @@ export async function daemon() {
           selected: 0,
           scroll: 0,
           remove: 0,
+          lead: 0,
           visible: false,
           anchorKey: null,
           anchor: null,

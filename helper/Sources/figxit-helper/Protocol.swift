@@ -25,6 +25,7 @@ struct Request: Decodable {
     let grid: Grid?
     let items: [Item]?
     let selected: Int?
+    let caret: Int?
 }
 
 struct Rect: Encodable {
