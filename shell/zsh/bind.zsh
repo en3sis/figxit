@@ -21,6 +21,7 @@ _figxit_bind() {
   done
   _figxit_bind_esc
   bindkey -M main '^[[?' figxit-report
+  bindkey -M main '^[[0n' figxit-report-end
 }
 
 _figxit_keytimeout() {

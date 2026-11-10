@@ -19,7 +19,7 @@ typeset -g _figxit_sep=$'\x1f'
 (( $+functions[_figxit_close] )) && _figxit_close
 typeset -g _figxit_fd=
 typeset -g _figxit_last= _figxit_size= _figxit_cell= _figxit_asked=
-typeset -gF _figxit_asked_at=0
+typeset -gF _figxit_asked_at=0 _figxit_wait=1
 typeset -gi _figxit_visible=0 _figxit_retry=0 _figxit_depth=0 _figxit_reports=1 _figxit_timed=0
 typeset -gA _figxit_orig _figxit_base
 typeset -gA _figxit_keys=(
@@ -41,6 +41,7 @@ typeset -gA _figxit_keys=(
 zle -N _figxit_recv
 zle -N figxit-tab
 zle -N figxit-report
+zle -N figxit-report-end
 zle -N figxit-enter
 zle -N figxit-up
 zle -N figxit-down
