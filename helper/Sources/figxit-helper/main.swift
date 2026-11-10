@@ -283,7 +283,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-func snapshot(itemsPath: String, outPath: String, dark: Bool) -> Never {
+func snapshot(itemsPath: String, outPath: String, dark: Bool, scale: CGFloat) -> Never {
     guard let data = FileManager.default.contents(atPath: itemsPath),
           let items = try? JSONDecoder().decode([Item].self, from: data)
     else { exit(2) }
@@ -293,7 +293,7 @@ func snapshot(itemsPath: String, outPath: String, dark: Bool) -> Never {
     view.selected = 0
     view.background = dark ? NSColor(white: 0.16, alpha: 1) : NSColor(white: 0.93, alpha: 1)
     guard let rep = NSBitmapImageRep(
-        bitmapDataPlanes: nil, pixelsWide: Int(view.bounds.width * 2), pixelsHigh: Int(view.bounds.height * 2),
+        bitmapDataPlanes: nil, pixelsWide: Int(view.bounds.width * scale), pixelsHigh: Int(view.bounds.height * scale),
         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
     ) else { exit(3) }
@@ -311,7 +311,8 @@ if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "snapshot" {
     snapshot(
         itemsPath: CommandLine.arguments[2],
         outPath: CommandLine.arguments[3],
-        dark: CommandLine.arguments.count > 4 && CommandLine.arguments[4] == "dark"
+        dark: CommandLine.arguments.count > 4 && CommandLine.arguments[4] == "dark",
+        scale: CommandLine.arguments.count > 5 ? CGFloat(Double(CommandLine.arguments[5]) ?? 2) : 2
     )
 }
 if CommandLine.arguments.count >= 6, CommandLine.arguments[1] == "snapshot-scene" {
