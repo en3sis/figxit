@@ -18,9 +18,9 @@ typeset -g _figxit_sock=${FIGXIT_SOCK:-$HOME/.local/state/figxit/engine.sock}
 typeset -g _figxit_sep=$'\x1f'
 (( $+functions[_figxit_close] )) && _figxit_close
 typeset -g _figxit_fd=
-typeset -g _figxit_last= _figxit_size= _figxit_cell= _figxit_asked=
+typeset -g _figxit_last= _figxit_size= _figxit_cell= _figxit_asked= _figxit_typed=
 typeset -gF _figxit_asked_at=0 _figxit_wait=1
-typeset -gi _figxit_visible=0 _figxit_retry=0 _figxit_depth=0 _figxit_reports=1 _figxit_timed=0 _figxit_seen=0
+typeset -gi _figxit_visible=0 _figxit_retry=0 _figxit_depth=0 _figxit_reports=1 _figxit_timed=0 _figxit_seen=0 _figxit_ends=0
 typeset -gA _figxit_orig _figxit_base
 typeset -gA _figxit_keys=(
   '"^I"' figxit-tab
