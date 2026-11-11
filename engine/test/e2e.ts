@@ -15,6 +15,7 @@ writeFileSync(join(project, "Makefile"), "admin-url:\nbuild:\ndeploy:\ndev: ## S
 Bun.spawnSync(["sh", "-c", "git init -q -b main && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m init && git branch feature-x"], { cwd: project });
 writeFileSync(join(project, "a.txt"), "");
 writeFileSync(join(project, "b.txt"), "");
+for (const folder of ["日本docs", "🎉party"]) mkdirSync(join(project, folder));
 const real = process.env.FIGXIT_E2E_REAL === "1";
 const plain = process.env.FIGXIT_E2E_PLAIN === "1";
 const name = process.env.FIGXIT_E2E_SHELL ?? "zsh";
@@ -153,6 +154,31 @@ try {
   await keys("make build ");
   check("no second list after a target", messages.at(-1)?.cmd === "hide", messages.slice(-3));
   await keys("C-u");
+
+  await keys("echo 🎉 && make dep");
+  show = lastShow();
+  check("after an emoji, the popup lists the target", show?.items[0]?.label === "deploy" && messages.at(-1)?.cmd === "show", messages.slice(-2));
+  check("after an emoji, the popup anchors at the word start", real || show?.grid.col === 18, show?.grid);
+  await keys("Tab");
+  await keys("X");
+  check("after an emoji, Tab replaces only the word", screen().includes("echo 🎉 && make deploy X"), screen());
+  await keys("C-u");
+
+  await keys("echo 🎉 && make dep ");
+  check("after an emoji, no list after a finished word", messages.at(-1)?.cmd === "hide", messages.slice(-2));
+  await keys("Enter");
+  check("after an emoji, Enter runs the line as typed", /target [`']dep'/.test(screen()) && !screen().includes("ddeploy"), screen());
+
+  for (const [word, folder] of [["日本d", "日本docs/"], ["🎉p", "🎉party/"]]) {
+    await keys(`cd ${word}`);
+    show = lastShow();
+    check(`the word ${word} lists ${folder}`, show?.items[0]?.label === folder && messages.at(-1)?.cmd === "show", messages.slice(-2));
+    check(`the word ${word} anchors the popup at its start`, real || show?.grid.col === 5, show?.grid);
+    await keys("Tab");
+    await keys("X");
+    check(`Tab replaces ${word} with ${folder}`, screen().includes(`cd ${folder}X`), screen());
+    await keys("C-u");
+  }
 
   await keys(name === "fish" ? "echo hi" : " echo hi");
   const before = messages.length;
