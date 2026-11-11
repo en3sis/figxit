@@ -133,6 +133,12 @@ describe("zsh reply reader", () => {
     expect(left).toEqual([" paused"]);
   });
 
+  test("keeps a lone Esc at the end of a reply cut off by the time limit, and drops a cut-off sequence", async () => {
+    const esc = await read([`62cx${ESC}`], { FX_WAIT: "0.2" });
+    const cut = await read([`62cx${ESC}[5;1`], { FX_WAIT: "0.2" });
+    expect([esc.left, cut.left]).toEqual([[`x${ESC} paused`], ["x paused"]]);
+  });
+
   test("turns reports off when the terminal answers without a cursor position", async () => {
     const { sent, left } = await read([`62cxy${END}`]);
     expect({ sent, left }).toEqual({ sent: ["C|7"], left: ["xy off"] });
