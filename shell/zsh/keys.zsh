@@ -66,3 +66,21 @@ figxit-esc() {
   fi
   _figxit_fallback figxit-esc beep
 }
+
+figxit-esc-esc() {
+  local c next=
+  # An Esc right before a terminal reply reads as Esc Esc
+  read -s -k 1 -t 0 c && next=$c
+  [[ $next == '[' ]] && read -s -k 1 -t 0 c && next+=$c
+  [[ $next == '[0' ]] && read -s -k 1 -t 0 c && next+=$c
+  if [[ $next == '[?' ]]; then
+    _figxit_typed+=$'\e'
+    zle figxit-report
+  elif [[ $next == '[0n' ]]; then
+    _figxit_typed+=$'\e'
+    zle figxit-report-end
+  else
+    [[ -n $next ]] && zle -U -- "$next"
+    _figxit_fallback figxit-esc-esc undefined-key
+  fi
+}

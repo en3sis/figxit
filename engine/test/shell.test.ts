@@ -158,6 +158,11 @@ describe("zsh reply reader", () => {
     expect({ sent, left, rest, typed }).toEqual({ sent: ["C|7|5|12|120|35|20|8|600|960"], left: [" on"], rest: END, typed: "cde" });
   });
 
+  test("right after asking, keeps a lone Esc typed before or inside the reply", async () => {
+    const { sent, rest, typed } = await read([`${ESC}${ESC}[?62c${ESC}${ESC}[5;12R${END}`], { FX_MODE: "ask" });
+    expect({ sent, rest, typed }).toEqual({ sent: ["C|7|5|12|120|35|"], rest: END, typed: `${ESC}${ESC}` });
+  });
+
   test("right after asking, holds keys typed just before the end marker and asks for a new marker", async () => {
     const { left, rest, typed, marked } = await read([`${ESC}[?62c${ESC}[5;12R`, 50, "x", 50, `${END}`], { FX_MODE: "ask" });
     expect({ left, rest, typed, marked }).toEqual({ left: [" on"], rest: "", typed: "x", marked: true });
@@ -205,6 +210,7 @@ describe("zsh cursor query", () => {
   const dir = join(work, "query");
   const fifo = join(dir, "engine");
   const rc = join(dir, "rc.zsh");
+  const figxit = readFileSync(join(root, "shell/zsh/figxit.zsh"), "utf8");
   mkdirSync(dir);
   for (const name of ["a1", "a2", "a3"]) writeFileSync(join(dir, name), "");
   Bun.spawnSync(["mkfifo", fifo]);
@@ -225,6 +231,21 @@ describe("zsh cursor query", () => {
       `source ${root}/shell/zsh/hooks.zsh`,
       "_figxit_connect() { return 0 }",
       "_figxit_bind() { }",
+      // figxit's own key bindings, with stand-ins for a plain Esc and for an Esc Esc binding like the sudo plugin's
+      "if [[ -n $FX_KEYS ]]; then",
+      `  source ${root}/shell/zsh/keys.zsh`,
+      `  source ${root}/shell/zsh/bind.zsh`,
+      "  typeset -gA _figxit_orig _figxit_base",
+      /^typeset -gA _figxit_keys=\([\s\S]*?^\)$/m.exec(figxit)![0],
+      ...figxit.match(/^zle -N .*$/gm)!,
+      "  _fx_esc() { print -r -- ESC >> $FX_OUT }",
+      '  _fx_sudo() { if [[ $BUFFER == "sudo "* ]]; then LBUFFER=${LBUFFER#sudo }; else LBUFFER="sudo $LBUFFER"; fi }',
+      "  zle -N _fx_esc",
+      "  zle -N _fx_sudo",
+      "  bindkey '\\e' _fx_esc",
+      "  bindkey '\\e\\e' _fx_sudo",
+      "  KEYTIMEOUT=100",
+      "fi",
       '_figxit_send() { [[ $1 == C* ]] && print -r -- "SENT ${1//$_figxit_sep/|}" >> $FX_OUT }',
       'preexec() { print -r -- "RAN $1" >> $FX_OUT }',
       '_fx_line() { print -r -- "LINE [$BUFFER] REPORTS $_figxit_reports" >> $FX_OUT }',
@@ -650,6 +671,114 @@ describe("zsh cursor query", () => {
         z.engine("Q\x1f8");
         await z.until("answer", () => z.lines().includes("SENT C|8"));
         expect({ queries: z.queries(), line: await z.line() }).toEqual({ queries: 1, line: ["LINE [wc ab] REPORTS -1"] });
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "with Esc Esc bound, an Esc typed right before the first reply of a shell stays an Esc",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        await z.typed("wc ");
+        await z.query(6, [ESC, 50, reply("")]);
+        await z.until("Esc", () => z.lines().includes("ESC"));
+        expect(await z.line()).toEqual(["LINE [wc ] REPORTS 1"]);
+        expect(z.sent()).toEqual(["SENT C|6|5|12|120|35|"]);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "Esc Esc with the first reply of a shell between the two presses runs the Esc Esc binding",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        await z.typed("wc ");
+        await z.query(6, [ESC, 50, reply(""), 50, ESC]);
+        await Bun.sleep(200);
+        expect(await z.line()).toEqual(["LINE [sudo wc ] REPORTS 1"]);
+        expect(z.lines().includes("ESC")).toBe(false);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "with Esc Esc bound, an Esc typed between the cursor position and the end marker stays an Esc behind the held keys",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        await z.typed("wc ");
+        await z.query(6);
+        await z.query(7, ["a", 30, `${ESC}[?62;22c${ESC}[5;12R`, 30, ESC, 30, END]);
+        await z.until("Esc", () => z.lines().includes("ESC"));
+        expect(await z.line()).toEqual(["LINE [wc a] REPORTS 1"]);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "Esc Esc still runs its binding without a reply, and right before one",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        await z.typed("wc ");
+        z.type(`${ESC}${ESC}`);
+        await Bun.sleep(200);
+        expect(await z.line()).toEqual(["LINE [sudo wc ] REPORTS 1"]);
+        await z.query(6, [`${ESC}${ESC}${reply("")}`]);
+        await Bun.sleep(200);
+        expect(await z.line()).toEqual(["LINE [wc ] REPORTS 1"]);
+        expect({ sent: z.sent(), escs: z.lines().includes("ESC") }).toEqual({ sent: ["SENT C|6|5|12|120|35|"], escs: false });
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "with shwordsplit set, a space typed right after Esc Esc stays a space",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        z.type("setopt shwordsplit\r");
+        await z.until("setopt", () => z.lines().some((line) => line.startsWith("RAN setopt")));
+        await z.typed("wc");
+        z.type(`${ESC}${ESC} x`);
+        await Bun.sleep(200);
+        expect(await z.line()).toEqual(["LINE [sudo wc x] REPORTS 1"]);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "an Esc Esc string bound with bindkey -s still runs",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        z.type("bindkey -s '\\e\\e' '^Asudo ^E'\r");
+        await z.until("bindkey", () => z.lines().some((line) => line.startsWith("RAN bindkey")));
+        await z.typed("wc ");
+        z.type(`${ESC}${ESC}`);
+        await Bun.sleep(200);
+        expect(await z.line()).toEqual(["LINE [sudo wc ] REPORTS 1"]);
+        expect(z.lines().includes("ESC")).toBe(false);
       } finally {
         await z.close();
       }
