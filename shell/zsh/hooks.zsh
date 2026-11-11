@@ -3,7 +3,7 @@ _figxit_line_init() {
   _figxit_visible=0
   _figxit_connect || return 0
   _figxit_bind
-  _figxit_send L
+  _figxit_send L && _figxit_stalled=0
 }
 
 _figxit_redraw() {
@@ -13,6 +13,10 @@ _figxit_redraw() {
     _figxit_bind
   fi
   (( PENDING )) && return 0
+  if (( _figxit_stalled )); then
+    _figxit_send L || return 0
+    _figxit_stalled=0
+  fi
   if [[ $KEYMAP == vicmd ]]; then
     (( _figxit_visible )) && _figxit_send "K${_figxit_sep}esc"
     return 0
@@ -20,7 +24,10 @@ _figxit_redraw() {
   local state="$CURSOR$_figxit_sep$BUFFER"
   [[ $state == "$_figxit_last" ]] && return 0
   _figxit_last=$state
-  _figxit_send "E${_figxit_sep}${CURSOR}${_figxit_sep}${PWD}${_figxit_sep}${BUFFER//$'\n'/$'\x1e'}${_figxit_sep}${COLUMNS} ${LINES}"
+  local line="E${_figxit_sep}${CURSOR}${_figxit_sep}${PWD}${_figxit_sep}${BUFFER//$'\n'/$'\x1e'}${_figxit_sep}${COLUMNS} ${LINES}"
+  # zselect only promises room for 2048 bytes, the send low-water mark
+  (( $#line * 4 < 2048 )) || () { setopt localoptions nomultibyte; (( $#1 < 2048 )) } "$line" || line=N
+  _figxit_send "$line" || _figxit_last=
 }
 
 _figxit_preexec() {

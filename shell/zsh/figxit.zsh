@@ -10,7 +10,7 @@ figxit() {
   fi
 }
 
-zmodload zsh/net/socket zsh/datetime 2>/dev/null || return 0
+zmodload zsh/net/socket zsh/datetime zsh/zselect 2>/dev/null || return 0
 autoload -Uz add-zle-hook-widget add-zsh-hook
 
 typeset -g FIGXIT_HOME=${FIGXIT_HOME:-${${(%):-%x}:A:h:h:h}}
@@ -20,7 +20,7 @@ typeset -g _figxit_sep=$'\x1f'
 typeset -g _figxit_fd=
 typeset -g _figxit_last= _figxit_size= _figxit_cell= _figxit_asked= _figxit_typed=
 typeset -gF _figxit_asked_at=0 _figxit_wait=1
-typeset -gi _figxit_visible=0 _figxit_retry=0 _figxit_depth=0 _figxit_reports=1 _figxit_timed=0 _figxit_seen=0 _figxit_ends=0
+typeset -gi _figxit_visible=0 _figxit_retry=0 _figxit_depth=0 _figxit_reports=1 _figxit_timed=0 _figxit_seen=0 _figxit_ends=0 _figxit_stalled=0
 typeset -gA _figxit_orig _figxit_base
 typeset -gA _figxit_keys=(
   '"^I"' figxit-tab

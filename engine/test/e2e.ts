@@ -280,6 +280,27 @@ try {
     await keys("C-u");
   }
 
+  const enginePid = Number(Bun.spawnSync(["pgrep", "-f", `daemon ${work}`]).stdout.toString().split("\n")[0]);
+  check("finds the engine to stop", enginePid > 0);
+  if (enginePid > 0) {
+    process.kill(enginePid, "SIGSTOP");
+    try {
+      await keys("-l", `: ${"x".repeat(1500)}`);
+      for (let i = 0; i < 12; i++) await keys("y");
+      check("typing goes on while the engine is stopped", (screen().split("\n").at(-1) ?? "").endsWith("x" + "y".repeat(12)), screen().split("\n").slice(-2));
+      await keys("C-u");
+      await keys(name === "fish" ? "echo stopped-ok" : " echo stopped-ok");
+      await keys("Enter");
+      check("Enter runs a line while the engine is stopped", /^stopped-ok$/m.test(screen()), screen());
+    } finally {
+      process.kill(enginePid, "SIGCONT");
+    }
+    await Bun.sleep(1000);
+    await keys("make ");
+    check("the popup returns once the engine runs again", messages.at(-1)?.cmd === "show" && lastShow()?.items.some((i: any) => i.label === "deploy"), messages.slice(-2));
+    await keys("C-u");
+  }
+
   const word: number[] = [];
   const letter: number[] = [];
   const timed = async (key: string, into: number[]) => {
