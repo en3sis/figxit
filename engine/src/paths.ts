@@ -30,7 +30,7 @@ export function appPath(): string | null {
 }
 
 export function userSpecsDir(): string {
-  return process.env.FIGXIT_USER_SPECS ?? join(homedir(), ".figxit/specs");
+  return process.env.FIGXIT_USER_SPECS ?? join(absolute(process.env.XDG_CONFIG_HOME) ?? join(homedir(), ".config"), "figxit/specs");
 }
 
 export function specsDir(): string | null {

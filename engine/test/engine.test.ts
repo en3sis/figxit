@@ -963,7 +963,7 @@ describe("cursor report from the shell", () => {
   });
 });
 
-describe("user specs in ~/.figxit/specs", () => {
+describe("user specs in ~/.config/figxit/specs", () => {
   async function withUserSpecs(run: (dir: string) => Promise<void>) {
     const dir = mkdtempSync(join(tmpdir(), "figxit-user-specs-"));
     const saved = process.env.FIGXIT_USER_SPECS;
