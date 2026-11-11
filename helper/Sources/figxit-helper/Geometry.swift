@@ -86,10 +86,19 @@ enum Geometry {
         }
         for _ in 0...surfaceDepth {
             guard let current = element, axRole(current) != kAXWindowRole as String else { return nil }
-            if let frame = axFrame(current), frame.width > 100, frame.height > 100 { return frame }
             element = axElement(current, kAXParentAttribute)
+            if let frame = axFrame(current),
+               let surface = visibleSurface(frame, parentRole: element.map(axRole), parentFrame: element.flatMap(axFrame)) {
+                return surface
+            }
         }
         return nil
+    }
+
+    static func visibleSurface(_ frame: CGRect, parentRole: String?, parentFrame: @autoclosure () -> CGRect?) -> CGRect? {
+        var visible = frame
+        if parentRole == kAXScrollAreaRole as String, let parent = parentFrame() { visible = frame.intersection(parent) }
+        return visible.width > 100 && visible.height > 100 ? visible : nil
     }
 
     static func axWindow(pid: pid_t) -> AXUIElement? {
