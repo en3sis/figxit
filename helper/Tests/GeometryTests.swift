@@ -55,4 +55,29 @@ final class GeometryTests: XCTestCase {
         XCTAssertFalse(result.split)
         XCTAssertEqual(result.placement?.cellW, 8)
     }
+
+    func testTerminalAppScrollbackIsClippedToTheScrollArea() throws {
+        let textArea = CGRect(x: 55, y: -90410.623046875, width: 740, height: 91006.623046875)
+        let scrollArea = CGRect(x: 55, y: 148, width: 740, height: 448)
+        let surface = try XCTUnwrap(Geometry.clip(textArea, to: [scrollArea]))
+        XCTAssertEqual(surface, scrollArea)
+        let result = fit(#"{"cols":80,"rows":24,"col":10,"row":23,"padX":0,"padY":0,"pane":true}"#, base: surface, focused: true)
+        XCTAssertEqual(result.placement!.yTop, 148 + 23 * 448 / 24, accuracy: 0.001)
+        XCTAssertEqual(result.placement?.yBelow, 596)
+    }
+
+    func testShortTerminalAppWindowFallsBackToTheWindow() {
+        let textArea = CGRect(x: 55, y: -90410, width: 740, height: 91006)
+        XCTAssertNil(Geometry.clip(textArea, to: [CGRect(x: 55, y: 506, width: 740, height: 90)]))
+    }
+
+    func testClipKeepsASurfaceInsideItsAncestors() {
+        let pane = CGRect(x: 594, y: 141, width: 476, height: 715)
+        XCTAssertEqual(Geometry.clip(pane, to: [CGRect(x: 594, y: 141, width: 491, height: 715), window]), pane)
+    }
+
+    func testClipIgnoresAncestorsThatDoNotOverlap() {
+        let frame = CGRect(x: 0, y: 0, width: 500, height: 400)
+        XCTAssertEqual(Geometry.clip(frame, to: [CGRect(x: 2000, y: 0, width: 300, height: 300)]), frame)
+    }
 }

@@ -86,10 +86,30 @@ enum Geometry {
         }
         for _ in 0...surfaceDepth {
             guard let current = element, axRole(current) != kAXWindowRole as String else { return nil }
-            if let frame = axFrame(current), frame.width > 100, frame.height > 100 { return frame }
+            if let frame = axFrame(current), frame.width > 100, frame.height > 100 {
+                return clip(frame, to: axAncestorFrames(current))
+            }
             element = axElement(current, kAXParentAttribute)
         }
         return nil
+    }
+
+    static func axAncestorFrames(_ element: AXUIElement, limit: Int = 8) -> [CGRect] {
+        var frames: [CGRect] = []
+        var parent = axElement(element, kAXParentAttribute)
+        while let current = parent, frames.count < limit, axRole(current) != kAXWindowRole as String {
+            if let frame = axFrame(current) { frames.append(frame) }
+            parent = axElement(current, kAXParentAttribute)
+        }
+        return frames
+    }
+
+    static func clip(_ frame: CGRect, to ancestors: [CGRect]) -> CGRect? {
+        var visible = frame
+        for ancestor in ancestors where visible.intersects(ancestor) {
+            visible = visible.intersection(ancestor)
+        }
+        return visible.width > 100 && visible.height > 100 ? visible : nil
     }
 
     static func axWindow(pid: pid_t) -> AXUIElement? {
