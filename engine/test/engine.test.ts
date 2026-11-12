@@ -450,6 +450,41 @@ describe("aliases", () => {
     expect(await alias("prs", run)).toBe("'!gh pr list'");
     await expect(alias("nope", run)).rejects.toThrow();
   });
+
+  test("kubectl patches -n and resources with context awareness", async () => {
+    registerSpec("kubectl", {
+      name: "kubectl",
+      options: [{ name: ["-n", "--namespace"], args: { name: "namespace" } }],
+      subcommands: [
+        { name: "get", args: [{ name: "TYPE" }, { name: "Resource" }] },
+        { name: "logs", args: [{ name: "TYPE" }] },
+      ],
+    });
+    const patched = (await loadSpec("kubectl"))!;
+    expect(patched.options.find((o: any) => o.name.includes("-n")).isPersistent).toBe(true);
+    expect(patched.options.some((o: any) => o.name === "--context")).toBe(true);
+    expect(patched.options.some((o: any) => o.name === "--kubeconfig")).toBe(true);
+
+    const getSub = patched.subcommands.find((s: any) => s.name === "get");
+    expect(getSub.args[0].suggestions.some((s: any) => s.name === "pods")).toBe(true);
+    expect(getSub.args[1].isVariadic).toBe(true);
+
+    const nsCmd = patched.options.find((o: any) => o.name.includes("-n")).args.generators.script(["kubectl", "-n", ""]);
+    expect(nsCmd).toEqual(["kubectl", "get", "namespaces", "-o", "name"]);
+
+    const resCmd = getSub.args[1].generators.script(["kubectl", "-n", "kube-system", "get", "pods", ""]);
+    expect(resCmd).toEqual(["kubectl", "-n", "kube-system", "get", "pods", "-o", "name"]);
+
+    const resCmdAfter = getSub.args[1].generators.script(["kubectl", "get", "pods", "-n", "staging", ""]);
+    expect(resCmdAfter).toEqual(["kubectl", "-n", "staging", "get", "pods", "-o", "name"]);
+
+    const slashCmd = getSub.args[0].generators.script(["kubectl", "get", "pod/"]);
+    expect(slashCmd).toEqual(["kubectl", "get", "pod", "-o", "name"]);
+
+    const logsSub = patched.subcommands.find((s: any) => s.name === "logs");
+    const logsCmd = logsSub.args[0].generators.script(["kubectl", "-n", "kube-system", "logs", ""]);
+    expect(logsCmd).toEqual(["kubectl", "-n", "kube-system", "get", "pods", "-o", "name"]);
+  });
 });
 
 describe("figxit specs", () => {
