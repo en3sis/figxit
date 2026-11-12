@@ -62,6 +62,7 @@ const fakeHelper = Bun.listen({
 
 const env: Record<string, string | undefined> = {
   ...process.env,
+  LC_ALL: "en_US.UTF-8",
   ZDOTDIR: work,
   ...(real ? {} : { FIGXIT_ATUIN_DB: join(work, "none.db") }),
   FIGXIT_AUTOSTART: "1",
