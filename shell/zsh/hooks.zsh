@@ -1,6 +1,6 @@
 _figxit_line_init() {
   _figxit_last= _figxit_typed=
-  _figxit_visible=0
+  _figxit_visible=0 _figxit_held=0
   _figxit_connect || return 0
   _figxit_bind
   _figxit_send L
@@ -12,6 +12,12 @@ _figxit_redraw() {
     _figxit_connect || return 0
     _figxit_bind
   fi
+  if (( $funcstack[(I)figxit-tab] )) || [[ $LASTWIDGET == (*complete*|menu-select|list-choices) ]] ||
+    { (( _figxit_held )) && [[ $BUFFER == "$_figxit_last" || $LASTWIDGET == (figxit-*|_figxit_*) ]] }; then
+    _figxit_hold
+    return 0
+  fi
+  _figxit_held=0
   (( PENDING )) && return 0
   if [[ $KEYMAP == vicmd ]]; then
     (( _figxit_visible )) && _figxit_send "K${_figxit_sep}esc"
@@ -21,6 +27,11 @@ _figxit_redraw() {
   [[ $state == "$_figxit_last" ]] && return 0
   _figxit_last=$state
   _figxit_send "E${_figxit_sep}${CURSOR}${_figxit_sep}${PWD}${_figxit_sep}${BUFFER//$'\n'/$'\x1e'}${_figxit_sep}${COLUMNS} ${LINES}"
+}
+
+_figxit_hold() {
+  (( _figxit_held )) || _figxit_send N
+  _figxit_held=1 _figxit_last=$BUFFER
 }
 
 _figxit_preexec() {

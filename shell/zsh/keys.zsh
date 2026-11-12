@@ -31,6 +31,7 @@ _figxit_fallback() {
 
 figxit-tab() {
   (( _figxit_visible && ! _figxit_depth )) && _figxit_accept && return
+  _figxit_hold
   _figxit_fallback figxit-tab expand-or-complete
 }
 
