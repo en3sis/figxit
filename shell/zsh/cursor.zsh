@@ -82,7 +82,6 @@ _figxit_report() {
         _figxit_ends=0
       fi
     fi
-    # zle -U in a -F handler lands after the next input byte
     [[ -n $REPLY$int ]] && [[ -n $done || -z $row ]] && print -n -- $'\e[5n' >/dev/tty
     _figxit_typed+=$REPLY REPLY=
   fi
