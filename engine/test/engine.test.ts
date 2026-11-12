@@ -450,8 +450,10 @@ describe("aliases", () => {
     expect(await alias("prs", run)).toBe("'!gh pr list'");
     await expect(alias("nope", run)).rejects.toThrow();
   });
+});
 
-  test("kubectl patches -n and resources with context awareness", async () => {
+describe("kubectl patch", () => {
+  const patchedKubectl = async () => {
     registerSpec("kubectl", {
       name: "kubectl",
       options: [{ name: ["-n", "--namespace"], args: { name: "namespace" } }],
@@ -460,13 +462,17 @@ describe("aliases", () => {
         { name: "logs", args: [{ name: "TYPE" }] },
       ],
     });
-    const patched = (await loadSpec("kubectl"))!;
+    return (await loadSpec("kubectl"))!;
+  };
+
+  test("namespaces, contexts and resources follow the -n and connection flags", async () => {
+    const patched = await patchedKubectl();
     expect(patched.options.find((o: any) => o.name.includes("-n")).isPersistent).toBe(true);
     expect(patched.options.some((o: any) => o.name === "--context")).toBe(true);
     expect(patched.options.some((o: any) => o.name === "--kubeconfig")).toBe(true);
 
     const getSub = patched.subcommands.find((s: any) => s.name === "get");
-    expect(getSub.args[0].suggestions.some((s: any) => s.name === "pods")).toBe(true);
+    expect(getSub.args[0].suggestions.find((s: any) => [s.name].flat().includes("po")).name).toEqual(["pods", "po"]);
     expect(getSub.args[1].isVariadic).toBe(true);
 
     const nsCmd = patched.options.find((o: any) => o.name.includes("-n")).args.generators.script(["kubectl", "-n", ""]);
@@ -484,6 +490,13 @@ describe("aliases", () => {
     const logsSub = patched.subcommands.find((s: any) => s.name === "logs");
     const logsCmd = logsSub.args[0].generators.script(["kubectl", "-n", "kube-system", "logs", ""]);
     expect(logsCmd).toEqual(["kubectl", "-n", "kube-system", "get", "pods", "-o", "name"]);
+  });
+
+  test("the value of a logs option is not read as a resource type", async () => {
+    const logs = (await patchedKubectl()).subcommands.find((s: any) => s.name === "logs").args[0].generators;
+    for (const flag of ["--tail", "--since", "--since-time", "--limit-bytes"]) {
+      expect(logs.script(["kubectl", "logs", flag, "10", ""])).toEqual(["kubectl", "get", "pods", "-o", "name"]);
+    }
   });
 });
 
