@@ -218,11 +218,13 @@ describe("zsh cursor query", () => {
       "bindkey -e",
       "typeset -g _figxit_sep=$'\\x1f' _figxit_asked= _figxit_size= _figxit_cell= _figxit_typed=",
       "typeset -gF _figxit_asked_at=0 _figxit_wait=${FX_WAIT:-5}",
-      "typeset -gi _figxit_reports=1 _figxit_seen=0 _figxit_ends=0 _figxit_visible=0",
+      "typeset -gi _figxit_reports=1 _figxit_seen=0 _figxit_ends=0 _figxit_visible=0 _figxit_held=0 _figxit_depth=0",
+      "typeset -gA _figxit_orig _figxit_base",
       "typeset -g _figxit_last= _figxit_fd= _figxit_sock=$PWD/none.sock",
       `source ${root}/shell/zsh/connect.zsh`,
       `source ${root}/shell/zsh/cursor.zsh`,
       `source ${root}/shell/zsh/hooks.zsh`,
+      `source ${root}/shell/zsh/keys.zsh`,
       "_figxit_connect() { return 0 }",
       "_figxit_bind() { }",
       '_figxit_send() { [[ $1 == C* ]] && print -r -- "SENT ${1//$_figxit_sep/|}" >> $FX_OUT }',
@@ -231,6 +233,7 @@ describe("zsh cursor query", () => {
       "zle -N _figxit_recv",
       "zle -N figxit-report",
       "zle -N figxit-report-end",
+      "zle -N figxit-tab",
       "zle -N _fx_line",
       "bindkey '^[[?' figxit-report",
       "bindkey '^[[0n' figxit-report-end",
@@ -630,6 +633,67 @@ describe("zsh cursor query", () => {
         z.type(END);
         await Bun.sleep(100);
         expect(await z.line()).toEqual(["LINE [x] REPORTS 1"]);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  async function tellAll(z: Awaited<ReturnType<typeof start>>, tab: string) {
+    z.type(`bindkey '^I' ${tab}; _figxit_send() { print -r -- "SENT \${1//$_figxit_sep/|}" >> $FX_OUT }\r`);
+    await z.until("bindkey", () => z.lines().some((line) => line.startsWith("RAN bindkey")));
+    return () =>
+      z
+        .sent()
+        .filter((line) => /^SENT [EN]/.test(line))
+        .map((line) => (line.startsWith("SENT E") ? line.split("|")[3] : "hide"))
+        .filter((line) => line !== "");
+  }
+
+  test(
+    "the popup stays hidden while zsh's menu from Tab is open, until a key is typed",
+    async () => {
+      const z = await start();
+      try {
+        const told = await tellAll(z, "figxit-tab");
+        await z.typed("wc a");
+        await z.query(7);
+        z.type("\t");
+        await z.until("list", () => z.screen().includes("a3"));
+        z.type("\t");
+        await z.until("menu", () => z.screen().includes(`${ESC}[7ma1`));
+        await z.query(8);
+        z.type(`${ESC}[C`);
+        await z.until("next entry", () => z.screen().includes(`${ESC}[7ma2`));
+        z.type("\r");
+        expect(await z.line()).toEqual(["LINE [wc a2 ] REPORTS 1"]);
+        z.type("x");
+        expect(await z.line()).toEqual(["LINE [wc a2 x] REPORTS 1"]);
+        expect(told()).toEqual(["wc a", "hide", "wc a2 x"]);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "the popup stays hidden while Tab bound to menu-complete cycles, until a key is typed",
+    async () => {
+      const z = await start();
+      try {
+        z.type("zstyle -d ':completion:*' menu\r");
+        const told = await tellAll(z, "menu-complete");
+        await z.typed("wc a");
+        z.type("\t");
+        await z.until("first entry", () => z.screen().includes("wc a1"));
+        z.type("\t");
+        await z.until("second entry", () => z.screen().includes("a2"));
+        expect(await z.line()).toEqual(["LINE [wc a2] REPORTS 1"]);
+        z.type("x");
+        expect(await z.line()).toEqual(["LINE [wc a2x] REPORTS 1"]);
+        expect(told()).toEqual(["wc a", "hide", "wc a2x"]);
       } finally {
         await z.close();
       }
