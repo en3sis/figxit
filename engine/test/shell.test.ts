@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Socket } from "bun";
 
 const root = join(import.meta.dir, "../..");
 const work = mkdtempSync(join(tmpdir(), "figxit-shell-"));
@@ -656,6 +657,236 @@ describe("zsh cursor query", () => {
     },
     30000,
   );
+});
+
+describe("zsh with an engine that stops reading", () => {
+  const SEP = "\x1f";
+  const zdot = join(work, "zdot");
+  mkdirSync(zdot);
+  writeFileSync(join(zdot, ".zshrc"), `PS1='> '\nsource ${root}/shell/zsh/figxit.zsh\n`);
+  writeFileSync(join(work, "stallmarker-file"), "");
+  let engines = 0;
+
+  async function until(done: () => boolean, ms = 10000) {
+    const stop = performance.now() + ms;
+    while (!done()) {
+      if (performance.now() > stop) return false;
+      await Bun.sleep(10);
+    }
+    return true;
+  }
+
+  async function start(paused: boolean) {
+    let client: Socket | undefined;
+    let connections = 0;
+    let received = "";
+    let out = "";
+    const sock = join(work, `engine${++engines}.sock`);
+    const server = Bun.listen({
+      unix: sock,
+      socket: {
+        open(socket) {
+          client = socket;
+          connections++;
+          if (paused) socket.pause();
+        },
+        data(_socket, chunk) {
+          received += Buffer.from(chunk).toString("latin1");
+        },
+      },
+    });
+    const proc = Bun.spawn(["zsh", "-d", "-i"], {
+      cwd: work,
+      env: { PATH: "/usr/bin:/bin", HOME: work, ZDOTDIR: zdot, FIGXIT_SOCK: sock, TERM: "xterm", LANG: "en_US.UTF-8" },
+      terminal: { cols: 120, rows: 35, data: (_terminal, data) => (out += Buffer.from(data).toString("latin1")) },
+    });
+    const shell = {
+      out: () => out,
+      received: () => received,
+      lines: () => received.split("\n").slice(0, -1),
+      connections: () => connections,
+      engine: () => client!,
+      write: (keys: string) => proc.terminal!.write(keys),
+      async type(keys: string) {
+        let echoed = 0;
+        for (const key of keys) {
+          const before = out.length;
+          proc.terminal!.write(key);
+          if (!(await until(() => out.length > before, 3000))) break;
+          echoed++;
+        }
+        return echoed;
+      },
+      async fill() {
+        const line = `: ${"abcdefghijklmnopqrstuvwxyz0123456789".repeat(4)}`;
+        expect(await shell.type(line)).toBe(line.length);
+        shell.write("\x15");
+      },
+      async resume() {
+        client!.resume();
+        expect(await until(() => received.length > 0)).toBe(true);
+        await Bun.sleep(300);
+      },
+      stop() {
+        proc.kill(9);
+        proc.terminal!.close();
+        server.stop(true);
+      },
+    };
+    if (!(await until(() => out.includes("> ") && client !== undefined))) shell.stop();
+    return shell;
+  }
+
+  test("sends the line again when the socket filled up on its last key", () => {
+    const script = join(work, "redraw.zsh");
+    writeFileSync(
+      script,
+      [
+        "typeset -g _figxit_sep=$'\\x1f' _figxit_fd=9 _figxit_last=",
+        "typeset -gi _figxit_stalled=0 _figxit_visible=1 full=1",
+        "COLUMNS=120 LINES=35 PWD=/p BUFFER='make b' CURSOR=6",
+        '_figxit_send() { (( full )) && { _figxit_stalled=1 _figxit_visible=0; return 1 }; print -r -- "SENT ${1//$_figxit_sep/|}" }',
+        body("shell/zsh/hooks.zsh", "_figxit_redraw"),
+        "_figxit_redraw; _figxit_redraw",
+        'print -r -- "VISIBLE $_figxit_visible"',
+        "full=0",
+        "_figxit_redraw; _figxit_redraw",
+        "",
+      ].join("\n"),
+    );
+    const out = Bun.spawnSync(["zsh", "-f", script]).stdout.toString().trim().split("\n");
+    expect(out).toEqual(["VISIBLE 0", "SENT L", "SENT E|6|/p|make b|120 35"]);
+  });
+
+  test("sends lines of up to 2047 bytes, and a hide in place of longer ones", () => {
+    const script = join(work, "long.zsh");
+    writeFileSync(
+      script,
+      [
+        "typeset -g _figxit_sep=$'\\x1f' _figxit_fd=9 _figxit_last=",
+        "typeset -gi _figxit_stalled=0 _figxit_visible=0",
+        "COLUMNS=120 LINES=35 PWD=/p",
+        '_figxit_send() { () { setopt localoptions nomultibyte; print -r -- "SENT ${1[1]} ${#1}" } $1 }',
+        body("shell/zsh/hooks.zsh", "_figxit_redraw"),
+        "BUFFER=${(l:2030::x:)} CURSOR=2030 _figxit_redraw",
+        "BUFFER=${(l:2031::x:)} CURSOR=2031 _figxit_redraw",
+        "BUFFER=${(l:600::é:)} CURSOR=600 _figxit_redraw",
+        "BUFFER=${(l:700::日:)} CURSOR=700 _figxit_redraw",
+        "",
+      ].join("\n"),
+    );
+    const out = Bun.spawnSync(["zsh", "-f", script], { env: { ...process.env, LC_ALL: "en_US.UTF-8" } });
+    expect(out.stdout.toString().trim().split("\n")).toEqual(["SENT E 2047", "SENT N 1", "SENT E 1216", "SENT N 1"]);
+  });
+
+  test("keeps a full socket open, but closes a socket that something else closed", () => {
+    const script = join(work, "send.zsh");
+    writeFileSync(
+      script,
+      [
+        "zmodload zsh/net/socket zsh/zselect",
+        "typeset -g _figxit_fd=",
+        "typeset -gi _figxit_stalled=0 _figxit_visible=1 sent=0",
+        body("shell/zsh/connect.zsh", "_figxit_close"),
+        body("shell/zsh/connect.zsh", "_figxit_send"),
+        "zsocket -l $1 && listener=$REPLY && zsocket $1 && _figxit_fd=$REPLY && zsocket -a $listener || exit 1",
+        "while _figxit_send ${(l:80::x:)}; do (( sent++ )); done",
+        'print -r -- "FULL $(( sent > 50 )) ${_figxit_fd:+open} $_figxit_stalled $_figxit_visible"',
+        "_figxit_stalled=0 _figxit_visible=1 fd=$_figxit_fd",
+        "exec {fd}>&-",
+        "_figxit_send x",
+        'print -r -- "CLOSED $? ${_figxit_fd:-none} $_figxit_stalled $_figxit_visible"',
+        "",
+      ].join("\n"),
+    );
+    const out = Bun.spawnSync(["zsh", "-f", script, join(work, "send.sock")], { timeout: 5000 }).stdout.toString().trim().split("\n");
+    expect(out).toEqual(["FULL 1 open 1 0", "CLOSED 1 none 0 0"]);
+  }, 15000);
+
+  test("keeps typing past 8 KB, gives the keys to zsh, and sends the current line once the engine reads again", async () => {
+    const shell = await start(true);
+    try {
+      await shell.fill();
+      shell.engine().write(`S${SEP}1\n`);
+      await shell.type("ls stallmark");
+      shell.write("\t");
+      expect(await until(() => shell.out().includes("stallmarker-file"))).toBe(true);
+
+      shell.write("\x15");
+      await shell.type("echo done-$((6*7))");
+      shell.write("\r");
+      expect(await until(() => shell.out().includes("done-42"))).toBe(true);
+      shell.engine().write(`S${SEP}1\n`);
+      await Bun.sleep(200);
+      shell.write("\x1b[A");
+      await Bun.sleep(200);
+      shell.write("\r");
+      expect(await until(() => shell.out().split("done-42").length === 3)).toBe(true);
+      await shell.type("echo pending");
+
+      await shell.resume();
+      expect(shell.received()).not.toContain("done");
+      shell.engine().write(`S${SEP}0\n`);
+      expect(await until(() => /\nL\nE\x1f12\x1f[^\x1f\n]*\x1fecho pending\x1f120 35\n$/.test(shell.received()))).toBe(true);
+      await shell.type("x");
+      expect(await until(() => /\nE\x1f13\x1f[^\x1f\n]*\x1fecho pendingx\x1f120 35\n$/.test(shell.received()))).toBe(true);
+      expect(shell.lines().filter((l) => !/^([HLXN]|E(\x1f[^\x1f]*){4})(\x1f|$)/.test(l))).toEqual([]);
+    } finally {
+      shell.stop();
+    }
+  }, 60000);
+
+  test("keeps the popup closed for a line recalled from history while the engine was not reading", async () => {
+    const shell = await start(true);
+    try {
+      await shell.type("echo recall-$((6*7))");
+      shell.write("\r");
+      expect(await until(() => shell.out().includes("recall-42"))).toBe(true);
+      await shell.fill();
+      shell.write("\x1b[A");
+      await Bun.sleep(200);
+
+      await shell.resume();
+      shell.write("\x05");
+      expect(await until(() => shell.received().endsWith("\nL\n"))).toBe(true);
+      await Bun.sleep(300);
+      expect(shell.received().endsWith("\nL\n")).toBe(true);
+      await shell.type("x");
+      expect(await until(() => /\nE\x1f21\x1f[^\x1f\n]*\x1fecho recall-\$\(\(6\*7\)\)x\x1f120 35\n$/.test(shell.received()))).toBe(true);
+    } finally {
+      shell.stop();
+    }
+  }, 60000);
+
+  test("sends a hide instead of a line longer than the 2 KB a writable socket has room for", async () => {
+    const shell = await start(false);
+    try {
+      const last = () => shell.lines().at(-1) ?? "";
+      shell.write(`: ${"x".repeat(3000)}`);
+      expect(await until(() => last() === "N")).toBe(true);
+      shell.write("\x15");
+      expect(await until(() => /^E\x1f0\x1f[^\x1f]*\x1f\x1f120 35$/.test(last()))).toBe(true);
+      shell.write(`: ${"日".repeat(700)}`);
+      expect(await until(() => last() === "N")).toBe(true);
+      expect(shell.lines().filter((l) => l.length >= 2048).map((l) => l.length)).toEqual([]);
+    } finally {
+      shell.stop();
+    }
+  }, 60000);
+
+  test("reconnects when a command closes the socket", async () => {
+    const shell = await start(false);
+    try {
+      shell.write('eval "exec $_figxit_fd>&-"; echo closed-$((6*7))\r');
+      expect(await until(() => shell.out().includes("closed-42"))).toBe(true);
+      await shell.type("echo after");
+      expect(await until(() => shell.connections() === 2)).toBe(true);
+      expect(await until(() => shell.received().endsWith(`${SEP}echo after${SEP}120 35\n`))).toBe(true);
+      expect(shell.out().split("bad file descriptor").length - 1).toBe(1);
+    } finally {
+      shell.stop();
+    }
+  }, 60000);
 });
 
 describe.skipIf(!bash)("bash reply reader", () => {

@@ -8,6 +8,9 @@ _figxit_close() {
 
 _figxit_send() {
   [[ -n $_figxit_fd ]] || return 1
+  [[ -e /dev/fd/$_figxit_fd ]] || { _figxit_close; return 1 }
+  local -a ready
+  zselect -t 0 -a ready -w $_figxit_fd || { _figxit_stalled=1 _figxit_visible=0; return 1 }
   print -r -u $_figxit_fd -- $1 2>/dev/null || { _figxit_close; return 1 }
 }
 
@@ -62,7 +65,8 @@ _figxit_recv() {
   fi
   if [[ $line == Q$_figxit_sep* ]]; then
     _figxit_ask ${line#*$_figxit_sep}
-    return
+  else
+    _figxit_apply $line
   fi
-  _figxit_apply $line
+  (( _figxit_stalled )) && _figxit_redraw
 }
