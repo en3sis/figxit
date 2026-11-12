@@ -169,9 +169,9 @@ function render(s: Session) {
   s.fresh = true;
 }
 
-function present(s: Session, result: Suggestion, keep: boolean) {
+function present(s: Session, result: Suggestion, keep: boolean, buffer: string, cursor: number) {
   const previous = keep && chosen(s, s.items[s.selected]) ? s.items[s.selected]?.label : undefined;
-  const word = s.line.slice(s.point - result.remove, s.point);
+  const word = buffer.slice(cursor - result.remove, cursor);
   s.items = result.items;
   s.remove = [...word].length;
   s.width = Bun.stringWidth(word);
@@ -253,7 +253,7 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
   if (!result.now && !result.more) return hide(s);
 
   if (result.now) {
-    present(s, result.now, false);
+    present(s, result.now, false, buffer, cursor);
     if (!(await anchor(s, seq, result.now, cwd, buffer))) return;
     render(s);
   } else if (s.visible) {
@@ -271,7 +271,7 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
   }
   const held = s.navigated ? s.items[s.selected]?.label : undefined;
   if (held !== undefined && !full.items.some((item) => item.label === held)) return;
-  present(s, full, result.now !== null);
+  present(s, full, result.now !== null, buffer, cursor);
   if (!(await anchor(s, seq, full, cwd, buffer))) return;
   render(s);
 }
