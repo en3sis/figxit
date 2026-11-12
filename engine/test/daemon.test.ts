@@ -86,10 +86,15 @@ describe("daemon", () => {
     rmSync(work, { recursive: true, force: true });
   });
 
-  function type(text: string, cursor = [...text].length): number {
+  function edit(text: string, cursor = [...text].length): number {
     const from = shown.length;
-    shell?.write(`L\n${line("E", cursor, cwd, text, "120 30")}\n`);
+    shell?.write(`${line("E", cursor, cwd, text, "120 30")}\n`);
     return from;
+  }
+
+  function type(text: string, cursor = [...text].length): number {
+    shell?.write("L\n");
+    return edit(text, cursor);
   }
 
   const show = (from: number) => until(() => shown.slice(from).find((message) => message.cmd === "show"));
@@ -113,10 +118,10 @@ describe("daemon", () => {
     expect(await accept()).toBe(line("A", 0, "build "));
   }, 20000);
 
-  test("an emoji before a finished word: no popup, and Tab changes nothing", async () => {
-    const from = type("echo 🎉 && make dep ");
-    await Bun.sleep(1000);
-    expect(shown.slice(from).filter((message) => message.cmd === "show")).toEqual([]);
+  test("an emoji before a finished word: the popup closes, and Tab changes nothing", async () => {
+    expect((await show(type("echo 🎉 && make dep")))?.items[0]?.label).toBe("deploy");
+    const from = edit("echo 🎉 && make dep ");
+    expect(await until(() => shown.slice(from).find((message) => message.cmd === "hide"))).toBeDefined();
     expect(await accept()).toBe(line("A", -1, ""));
   }, 20000);
 
