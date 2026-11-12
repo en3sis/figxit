@@ -291,6 +291,7 @@ final class PopupController {
         if top - size.height < visible.minY {
             top = primary - CGFloat(placement.yTop) + size.height + 2
         }
+        if top > visible.maxY { top = visible.maxY }
         var x = CGFloat(placement.x)
         if x + size.width > visible.maxX { x = visible.maxX - size.width }
         if x < visible.minX { x = visible.minX }
