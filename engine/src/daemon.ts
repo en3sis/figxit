@@ -38,6 +38,7 @@ interface Session {
   selected: number;
   scroll: number;
   remove: number;
+  width: number;
   lead: number;
   visible: boolean;
   anchorKey: string | null;
@@ -60,6 +61,10 @@ let shells = 0;
 let historySource: string | null | undefined;
 const downloads = new Map<string, Promise<string | null>>();
 const failures = new Map<string, string>();
+
+export function utf16Index(text: string, chars: number): number {
+  return [...text].slice(0, Math.max(0, chars)).join("").length;
+}
 
 function prompts(): Record<string, number> {
   try {
@@ -159,15 +164,17 @@ function render(s: Session) {
   if (!s.anchor || s.items.length === 0) return;
   follow(s);
   const items = s.items.slice(s.scroll, s.scroll + VISIBLE).map(({ label, detail, icon, tint }) => ({ label, detail, icon, tint }));
-  helper.send({ cmd: "show", grid: s.anchor, caret: s.remove - s.lead, items, selected: chosen(s, s.items[s.selected]) ? s.selected - s.scroll : -1 });
+  helper.send({ cmd: "show", grid: s.anchor, caret: s.width - s.lead, items, selected: chosen(s, s.items[s.selected]) ? s.selected - s.scroll : -1 });
   setVisible(s, true);
   s.fresh = true;
 }
 
-function present(s: Session, result: Suggestion, keep: boolean) {
+function present(s: Session, result: Suggestion, keep: boolean, buffer: string, cursor: number) {
   const previous = keep && chosen(s, s.items[s.selected]) ? s.items[s.selected]?.label : undefined;
+  const word = buffer.slice(cursor - result.remove, cursor);
   s.items = result.items;
-  s.remove = result.remove;
+  s.remove = [...word].length;
+  s.width = Bun.stringWidth(word);
   s.lead = result.lead ?? 0;
   const index = previous === undefined ? -1 : result.items.findIndex((item) => item.label === previous);
   s.selected = Math.max(index, 0);
@@ -229,7 +236,7 @@ async function anchor(s: Session, seq: number, result: Suggestion, cwd: string, 
     hide(s);
     return false;
   }
-  grid.col = Math.max(0, grid.col - result.remove + (result.lead ?? 0));
+  grid.col = Math.max(0, grid.col - s.width + s.lead);
   s.anchorKey = key;
   s.anchor = grid;
   return true;
@@ -246,7 +253,7 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
   if (!result.now && !result.more) return hide(s);
 
   if (result.now) {
-    present(s, result.now, false);
+    present(s, result.now, false, buffer, cursor);
     if (!(await anchor(s, seq, result.now, cwd, buffer))) return;
     render(s);
   } else if (s.visible) {
@@ -264,7 +271,7 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
   }
   const held = s.navigated ? s.items[s.selected]?.label : undefined;
   if (held !== undefined && !full.items.some((item) => item.label === held)) return;
-  present(s, full, result.now !== null);
+  present(s, full, result.now !== null, buffer, cursor);
   if (!(await anchor(s, seq, full, cwd, buffer))) return;
   render(s);
 }
@@ -353,7 +360,7 @@ function onLine(s: Session, line: string) {
       s.size = f[4] ?? "";
       s.line = (f[3] ?? "").replaceAll("\x1e", "\n");
       s.cwd = f[2] ?? "";
-      s.point = Number(f[1]) || 0;
+      s.point = utf16Index(s.line, Number(f[1]) || 0);
       edit(s, s.point, s.cwd, s.line);
       break;
     case "K":
@@ -412,6 +419,7 @@ export async function daemon() {
           selected: 0,
           scroll: 0,
           remove: 0,
+          width: 0,
           lead: 0,
           visible: false,
           anchorKey: null,
