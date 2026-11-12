@@ -53,7 +53,7 @@ describe("daemon", () => {
 
   beforeAll(async () => {
     mkdirSync(cwd);
-    for (const name of ["日本", "🎉x", "👨‍👩‍👧x", "e\u0301t"]) mkdirSync(join(cwd, name));
+    for (const name of ["日本", "🎉x", "👨‍👩‍👧x", "🇪🇸x", "e\u0301t"]) mkdirSync(join(cwd, name));
     writeFileSync(join(cwd, "Makefile"), "build:\ndeploy:\ndev:\n");
     writeFileSync(join(work, "stopped"), "");
     const fromEngine = lines((reply) => shown.push(JSON.parse(reply)));
@@ -129,6 +129,7 @@ describe("daemon", () => {
     ["a CJK letter", "日", "日本/", 1, 2],
     ["an emoji", "🎉", "🎉x/", 1, 2],
     ["a family emoji", "👨‍👩‍👧", "👨‍👩‍👧x/", 5, 2],
+    ["a flag", "🇪🇸", "🇪🇸x/", 2, 2],
     ["a combining accent", "e\u0301", "e\u0301t/", 2, 1],
   ] as const) {
     test(`a word with ${name}: Tab removes it in characters, and the popup starts its width left of the cursor`, async () => {
