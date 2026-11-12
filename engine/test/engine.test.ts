@@ -1,7 +1,8 @@
 process.env.FIGXIT_SPECS = "off";
+process.env.FIGXIT_USER_SPECS = "/nonexistent/figxit-user-specs";
 
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
@@ -1008,5 +1009,70 @@ describe("cursor report from the shell", () => {
     expect(parseShell(["", "", "80", "24"], pad)).toBeNull();
     expect(parseShell(["5", "x", "80", "24"], pad)).toBeNull();
     expect(parseShell(["0", "3", "80", "24"], pad)).toBeNull();
+  });
+});
+
+describe("user specs in ~/.config/figxit/specs", () => {
+  async function withUserSpecs(run: (dir: string) => Promise<void>) {
+    const dir = mkdtempSync(join(tmpdir(), "figxit-user-specs-"));
+    const saved = process.env.FIGXIT_USER_SPECS;
+    process.env.FIGXIT_USER_SPECS = dir;
+    try {
+      await run(dir);
+    } finally {
+      process.env.FIGXIT_USER_SPECS = saved;
+    }
+  }
+  const spec = (body: string) => `export default ${body};\n`;
+  const subcommands = async (name: string) => ((await loadSpec(name))?.subcommands ?? []).map((s: any) => s.name);
+
+  test("a file named after the command loads without an index and wins over a bundled spec", async () => {
+    await withUserSpecs(async (dir) => {
+      registerSpec("tool-a", { name: "tool-a", subcommands: [{ name: "bundled" }] });
+      writeFileSync(join(dir, "tool-a.js"), spec('{ name: "tool-a", subcommands: [{ name: "mine" }] }'));
+      writeFileSync(join(dir, "tool-b.js"), spec('{ name: "tool-b", subcommands: [{ name: "only" }] }'));
+      expect(await subcommands("tool-a")).toEqual(["mine"]);
+      expect(await subcommands("tool-b")).toEqual(["only"]);
+      const result = await suggest("tool-b ", 7, project({}), historyOf([]), NOW);
+      expect(result?.items.map((i) => i.label)).toEqual(["only"]);
+    });
+  });
+
+  test("adding, editing and removing a file takes effect without a restart", async () => {
+    await withUserSpecs(async (dir) => {
+      const file = join(dir, "tool-c.js");
+      registerSpec("tool-c", { name: "tool-c", subcommands: [{ name: "bundled" }] });
+      expect(await subcommands("tool-c")).toEqual(["bundled"]);
+      writeFileSync(file, spec('{ name: "tool-c", subcommands: [{ name: "first" }] }'));
+      utimesSync(file, new Date(NOW), new Date(NOW));
+      expect(await subcommands("tool-c")).toEqual(["first"]);
+      writeFileSync(file, spec('{ name: "tool-c", subcommands: [{ name: "second" }] }'));
+      utimesSync(file, new Date(NOW + DAY), new Date(NOW + DAY));
+      expect(await subcommands("tool-c")).toEqual(["second"]);
+      rmSync(file);
+      expect(await subcommands("tool-c")).toEqual(["bundled"]);
+    });
+  });
+
+  test("nested spec paths load, paths that climb out of the folder do not", async () => {
+    await withUserSpecs(async (dir) => {
+      mkdirSync(join(dir, "tool-d"));
+      writeFileSync(join(dir, "tool-d/plugin.js"), spec('{ name: "plugin", subcommands: [{ name: "nested" }] }'));
+      writeFileSync(join(dir, "escape.js"), spec('{ name: "escape" }'));
+      expect(await subcommands("tool-d/plugin")).toEqual(["nested"]);
+      expect(await loadSpec("tool-d/../escape")).toBeNull();
+    });
+  });
+
+  test("a broken or group-writable file falls back to the bundled spec", async () => {
+    await withUserSpecs(async (dir) => {
+      registerSpec("tool-e", { name: "tool-e", subcommands: [{ name: "bundled" }] });
+      registerSpec("tool-f", { name: "tool-f", subcommands: [{ name: "bundled" }] });
+      writeFileSync(join(dir, "tool-e.js"), "export default {{ not javascript");
+      writeFileSync(join(dir, "tool-f.js"), spec('{ name: "tool-f", subcommands: [{ name: "planted" }] }'));
+      chmodSync(join(dir, "tool-f.js"), 0o664);
+      expect(await subcommands("tool-e")).toEqual(["bundled"]);
+      expect(await subcommands("tool-f")).toEqual(["bundled"]);
+    });
   });
 });
