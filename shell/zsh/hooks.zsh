@@ -1,5 +1,5 @@
 _figxit_line_init() {
-  _figxit_last=
+  _figxit_last= _figxit_typed=
   _figxit_visible=0
   _figxit_connect || return 0
   _figxit_bind
@@ -7,6 +7,7 @@ _figxit_line_init() {
 }
 
 _figxit_redraw() {
+  _figxit_release && return 0
   if [[ -z $_figxit_fd ]]; then
     _figxit_connect || return 0
     _figxit_bind

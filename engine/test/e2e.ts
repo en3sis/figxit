@@ -30,6 +30,7 @@ if (!launch[name]) throw new Error(`unknown shell ${name}`);
 const shell = plain ? ["env", "-u", "TMUX", "-u", "TMUX_PANE", ...launch[name]] : launch[name];
 const rc = real ? `source $HOME/.zshrc` : `PS1='> '`;
 writeFileSync(join(work, ".zshrc"), `${rc}\nsource ${root}/shell/zsh/figxit.zsh\n`);
+writeFileSync(join(work, "menu.zsh"), "zmodload zsh/complist\nautoload -Uz compinit && compinit -D -u\nzstyle ':completion:*' menu select\n");
 mkdirSync(join(work, "config/fish"), { recursive: true });
 writeFileSync(
   join(work, "config/fish/config.fish"),
@@ -326,6 +327,21 @@ try {
   await keys("echo esc-ok");
   await keys("Enter");
   check("the shell works after an Escape with the popup closed", screen().includes("esc-ok") && !/error|not found/i.test(screen()), screen());
+
+  if (name === "zsh" && !real) {
+    await keys(` source ${join(work, "menu.zsh")}`);
+    await keys("Enter");
+    await keys("C-l");
+    await keys("wc a");
+    check("menu: the popup is open after 'wc a'", messages.at(-1)?.cmd === "show", messages.slice(-2));
+    await keys("Tab");
+    await keys("Tab");
+    await keys("Tab");
+    await keys("Enter");
+    const menuLine = screen().split("\n").find((line) => line.startsWith(">")) ?? "";
+    check("Enter in zsh's completion menu picks the entry and does not run the line", /^> +wc \S+ \S+ ?$/.test(menuLine) && !screen().includes("total"), screen());
+    await keys("C-u");
+  }
 
   if (name !== "fish") {
     await keys(name === "zsh" ? "bindkey -v" : "set -o vi");
