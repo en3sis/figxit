@@ -32,6 +32,7 @@ _figxit_prompt() {
   fi
   _figxit_open || return 0
   _figxit_drain
+  _figxit_aliases
   _figxit_send L
   return 0
 }

@@ -12,6 +12,7 @@ import { atuinDb } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
+import { expandCommandWords, parseAliases } from "../src/aliases";
 import { loadSpec, registerSpec } from "../src/specs";
 import { commandWords, scan } from "../src/tokenize";
 import { verbOf } from "../src/verbs";
@@ -25,8 +26,8 @@ function project(files: Record<string, string>): string {
   return dir;
 }
 
-async function suggest(buffer: string, cursor: number, cwd: string, history: History, now: number) {
-  const result = await suggestAsync(buffer, cursor, cwd, history, now);
+async function suggest(buffer: string, cursor: number, cwd: string, history: History, now: number, aliases?: Map<string, string>) {
+  const result = await suggestAsync(buffer, cursor, cwd, history, now, aliases);
   return result.more ? await result.more : result.now;
 }
 
@@ -498,6 +499,77 @@ describe("kubectl patch", () => {
     for (const flag of ["--tail", "--since", "--since-time", "--limit-bytes"]) {
       expect(logs.script(["kubectl", "logs", flag, "10", ""])).toEqual(["kubectl", "get", "pods", "-o", "name"]);
     }
+  });
+});
+
+describe("shell command aliases", () => {
+  test("zsh and bash send name=value, fish sends abbr --show lines", () => {
+    const text = [
+      "k=kubectl",
+      "ll=ls -l",
+      "busy=kubectl exec -it busy --",
+      "q=echo 'hi'",
+      "eq=a=b",
+      "none=",
+      "abbr -a -- gco 'git checkout'",
+      "abbr -a -- d docker",
+      "abbr -a --position anywhere -- L '| less'",
+      "abbr -a --function last_history_item -- !!",
+    ].join("\x1e");
+    expect(parseAliases(text)).toEqual(
+      new Map([
+        ["k", "kubectl"],
+        ["ll", "ls -l"],
+        ["busy", "kubectl exec -it busy --"],
+        ["q", "echo 'hi'"],
+        ["eq", "a=b"],
+        ["none", ""],
+        ["gco", "git checkout"],
+        ["d", "docker"],
+      ]),
+    );
+  });
+
+  test("an alias expands to the words it stands for, through other aliases", () => {
+    const aliases = new Map([
+      ["k", "kubectl"],
+      ["kgp", "k get pods"],
+      ["busy", "kubectl exec -it busy --"],
+      ["ls", "ls -G"],
+      ["kc", "KUBECONFIG=~/other sudo kubectl"],
+      ["ping", "pong"],
+      ["pong", "ping"],
+      ["both", "make; make test"],
+      ["none", ""],
+    ]);
+    const expand = (...words: string[]) => expandCommandWords(words, aliases);
+    expect(expand("k", "get", "pods")).toEqual(["kubectl", "get", "pods"]);
+    expect(expand("kgp", "-n", "kube-system")).toEqual(["kubectl", "get", "pods", "-n", "kube-system"]);
+    expect(expand("busy")).toEqual(["kubectl", "exec", "-it", "busy", "--"]);
+    expect(expand("ls", "-l")).toEqual(["ls", "-G", "-l"]);
+    expect(expand("kc", "get")).toEqual(["kubectl", "get"]);
+    expect(expand("ping")).toEqual(["ping"]);
+    expect(expand("both")).toEqual(["both"]);
+    expect(expand("none", "x")).toEqual(["x"]);
+    expect(expand("nope", "foo")).toEqual(["nope", "foo"]);
+  });
+
+  test("an alias completes like the command it stands for", async () => {
+    registerSpec("kubectl", {
+      name: "kubectl",
+      subcommands: [{ name: "get", args: [{ name: "TYPE", suggestions: ["pods", "services"] }] }],
+    });
+    const aliases = new Map([["k", "kubectl"]]);
+    const labels = (await suggest("k get ", 6, "/", historyOf([]), NOW, aliases))?.items.map((i) => i.label) ?? [];
+    expect(labels).toContain("pods");
+    expect(labels).toContain("services");
+    expect(labels).toContain("deployments");
+  });
+
+  test("an alias of make lists the targets of the Makefile", async () => {
+    const cwd = project({ Makefile: "build:\ndeploy:\n" });
+    const labels = (await suggest("m ", 2, cwd, historyOf([]), NOW, new Map([["m", "make"]])))?.items.map((i) => i.label);
+    expect(labels).toEqual(["build", "deploy"]);
   });
 });
 

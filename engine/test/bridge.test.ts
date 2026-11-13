@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { advance, Bridge, type Located, parseReports, QUERY, splitTyped } from "../src/bridge";
 
 const SEP = "\x1f";
@@ -253,4 +256,41 @@ describe("fish bridge", () => {
     expect(shell.at(-1)).toBe(line("s", 12));
     expect(engine.at(-1)).toBe(line("L", 12));
   });
+});
+
+describe("the bridge process", () => {
+  test("sends the hello and the alias list to the engine on each connect", async () => {
+    const work = mkdtempSync(join(tmpdir(), "figxit-bridge-"));
+    const sock = join(work, "e.sock");
+    writeFileSync(join(work, "stopped"), "");
+    const got: string[] = [];
+    const listen = () =>
+      Bun.listen({ unix: sock, socket: { data: (_socket, chunk) => void got.push(...chunk.toString().split("\n").filter(Boolean)) } });
+    let engine = listen();
+    const env: Record<string, string | undefined> = { ...process.env, FIGXIT_SOCK: sock };
+    delete env.FIGXIT_APP;
+    delete env.FIGXIT_AUTOSTART;
+    const bridge = Bun.spawn([process.execPath, join(import.meta.dir, "../src/main.ts"), "bridge"], { env, stdin: "pipe", stdout: "ignore", stderr: "ignore" });
+    const hello = line("H", 1, "", "", "/bin", "");
+    const aliases = line("U", "k=kubectl");
+    const wait = async (count: number) => {
+      for (const stop = Date.now() + 8000; got.length < count && Date.now() < stop; await Bun.sleep(20));
+      return got.slice();
+    };
+    try {
+      bridge.stdin.write(`${hello}\n${aliases}\n`);
+      expect(await wait(2)).toEqual([hello, aliases]);
+      engine.stop(true);
+      got.length = 0;
+      await Bun.sleep(100);
+      engine = listen();
+      bridge.stdin.write("L\n");
+      await wait(3);
+      expect(got.slice(0, 2)).toEqual([hello, aliases]);
+    } finally {
+      bridge.kill();
+      engine.stop(true);
+      rmSync(work, { recursive: true, force: true });
+    }
+  }, 20000);
 });

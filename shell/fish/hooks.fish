@@ -53,6 +53,7 @@ function _figxit_prompt --on-event fish_prompt
     set _figxit_last
     set _figxit_painted 0
     _figxit_open; or return 0
+    _figxit_aliases
     set _figxit_turn (math $_figxit_turn + 1)
     _figxit_send "L$_figxit_sep$_figxit_turn"
 end

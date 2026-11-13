@@ -35,6 +35,7 @@ _figxit_precmd() {
   (( _figxit_reports == 0 )) && _figxit_reports=1
   (( _figxit_timed )) || _figxit_keytimeout
   _figxit_connect && _figxit_bind
+  _figxit_aliases
   return 0
 }
 

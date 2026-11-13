@@ -1,5 +1,6 @@
 _figxit_close() {
   [[ -n $_figxit_fd ]] || return
+  _figxit_alias_state=
   zle -F $_figxit_fd 2>/dev/null
   exec {_figxit_fd}>&-
   _figxit_fd=
@@ -25,6 +26,18 @@ _figxit_start() {
   fi
 }
 
+_figxit_aliases() {
+  [[ -n $_figxit_fd ]] || return 0
+  local -a items
+  local k v
+  for k v in "${(@kv)aliases}"; do
+    [[ $k$v == *[$'\n\x1e\x1f']* ]] || items+=("$k=$v")
+  done
+  local list=${(pj:\x1e:)items}
+  [[ $1 != 1 && $list == "$_figxit_alias_state" ]] && return 0
+  _figxit_send "U${_figxit_sep}${list}" && _figxit_alias_state=$list
+}
+
 _figxit_connect() {
   [[ -n $_figxit_fd ]] && return 0
   (( EPOCHSECONDS < _figxit_retry )) && return 1
@@ -36,6 +49,7 @@ _figxit_connect() {
   _figxit_fd=$REPLY
   zle -F -w $_figxit_fd _figxit_recv
   _figxit_send "H${_figxit_sep}$$${_figxit_sep}${TMUX%%,*}${_figxit_sep}${TMUX_PANE}${_figxit_sep}${PATH}${_figxit_sep}${TERM_PROGRAM}${_figxit_sep}${HERDR_PANE_ID}${_figxit_sep}${HERDR_SOCKET_PATH}${_figxit_sep}${HERDR_BIN_PATH}"
+  _figxit_aliases 1
 }
 
 _figxit_apply() {
