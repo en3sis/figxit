@@ -25,7 +25,7 @@ export interface SourceResult {
 }
 
 const MAKEFILES = ["GNUmakefile", "makefile", "Makefile"];
-const TARGET = /^([A-Za-z0-9][A-Za-z0-9_.\/-]*)\s*:(?![=:])(.*)$/;
+const TARGET = /^([A-Za-z0-9][A-Za-z0-9_.\/-]*)\s*::?(?!:*=)(.*)$/;
 const SECTION = /^##@\s*(.+)$/;
 const INCLUDE = /^ *(?:-include|sinclude|include)\s+(.*)$/;
 const INCLUDE_DEPTH = 4;

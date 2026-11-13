@@ -90,6 +90,12 @@ describe("Makefile and package.json", () => {
     expect(targets[1]!.detail).toBe("make target");
   });
 
+  test("reads double-colon rules, one row per target", () => {
+    const targets = parseMakefile("clean:: ## Remove build files\n\techo clean 1\nclean::\n\techo clean 2\ndist :: build ## Pack the release\nA ::= 1\nB :::= 2\nC::=3\n");
+    expect(targets.map((t) => t.label)).toEqual(["clean", "dist"]);
+    expect(targets.map((t) => t.detail)).toEqual(["Remove build files", "Pack the release"]);
+  });
+
   test("reads the targets of included makefiles where they are included", () => {
     const files: Record<string, string> = { "a.mk": "##@ Release\nrelease: ## Publish\n", "b.mk": "deploy:\n" };
     const targets = parseMakefile("##@ Build\nbuild:\n-include a.mk\ninclude b.mk missing.mk # local\nsinclude $(HOME)/x.mk *.mk\nlint:\n", (name) => files[name] ?? null);
