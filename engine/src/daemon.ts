@@ -5,6 +5,7 @@ import { herdrGrid, parseShell, placeInPane, termPad, tmuxGrid, tmuxOrigin, tmux
 import { Helper } from "./helper";
 import { History } from "./history";
 import { addExtra, downloadable, updateExtras } from "./extras";
+import { parseAliases } from "./aliases";
 import { ENGINE_SOCK } from "./paths";
 import type { Candidate } from "./sources";
 import { suggest, type Suggestion } from "./suggest";
@@ -51,6 +52,7 @@ interface Session {
   cwd: string;
   point: number;
   prompted: string | null;
+  aliases: Map<string, string>;
 }
 
 const history = new History();
@@ -246,7 +248,7 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
   const seq = ++s.seq;
   s.fresh = false;
   s.navigated = false;
-  const result = await suggest(buffer, cursor, cwd, history);
+  const result = await suggest(buffer, cursor, cwd, history, Date.now(), s.aliases);
   if (seq !== s.seq) return;
   const row = downloadRow(s, buffer, cursor);
   if (row) result.now = withRow(result.now, row, cursor);
@@ -345,6 +347,9 @@ function onLine(s: Session, line: string) {
       s.term = f[5] ?? "";
       s.herdr = s.term === "herdr" && f[6] && f[7] ? { pane: f[6], socket: f[7], bin: f[8] || "herdr" } : null;
       break;
+    case "U":
+      s.aliases = parseAliases(f.slice(1).join(SEP));
+      break;
     case "C":
       if (Number(f[1]) === s.seq) s.cursor?.(parseShell(f.slice(2), termPad(s.term)));
       break;
@@ -432,6 +437,7 @@ export async function daemon() {
           cwd: "",
           point: 0,
           prompted: null,
+          aliases: new Map(),
         };
       },
       data(socket, chunk) {

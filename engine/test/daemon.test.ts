@@ -146,6 +146,13 @@ describe("daemon", () => {
     expect([message?.grid.col, message?.caret]).toEqual([COL, -1]);
   }, 20000);
 
+  test("the alias list from the shell completes an alias like its command", async () => {
+    shell?.write(`${line("U", ["m=make", "ll=ls -l"].join("\x1e"))}\n`);
+    const message = await show(type("m "));
+    expect(message?.items.map((item: any) => item.label)).toEqual(["build", "deploy", "dev"]);
+    expect(await accept()).toBe(line("A", 0, "build "));
+  }, 20000);
+
   test("a cursor past the end of the line is read as the end", async () => {
     const message = await show(type("cd 🎉", 99));
     expect(message?.items[0]?.label).toBe("🎉x/");

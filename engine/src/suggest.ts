@@ -1,3 +1,4 @@
+import { expandCommandWords } from "./aliases";
 import { ICONS, type Icon } from "./brands";
 import { escapePath, fileCandidates, lookup, queryHead, type GenContext, type Lookup } from "./generators";
 import type { History } from "./history";
@@ -66,12 +67,13 @@ export async function suggest(
   cwd: string,
   history: History,
   now = Date.now(),
+  aliases?: Map<string, string>,
 ): Promise<Result> {
-  const base = await inside(await complete(buffer, cursor, cwd, history, now), buffer, cursor, cwd, history, now);
+  const base = await inside(await complete(buffer, cursor, cwd, history, now, aliases), buffer, cursor, cwd, history, now, aliases);
   const head = buffer.slice(0, cursor);
   if (cursor !== buffer.length || !COMMAND.test(head) || keyword(head) || !(await loadSpec(head))) return base;
 
-  const next = await complete(`${head} `, cursor + 1, cwd, history, now);
+  const next = await complete(`${head} `, cursor + 1, cwd, history, now, aliases);
   const ahead = (list: Suggestion | null): Suggestion | null => {
     const rows = (list?.items ?? [])
       .filter((item) => item.pick && !item.run && !item.label.startsWith("-"))
@@ -90,7 +92,15 @@ export async function suggest(
   };
 }
 
-async function inside(base: Result, buffer: string, cursor: number, cwd: string, history: History, now: number): Promise<Result> {
+async function inside(
+  base: Result,
+  buffer: string,
+  cursor: number,
+  cwd: string,
+  history: History,
+  now: number,
+  aliases?: Map<string, string>,
+): Promise<Result> {
   const named = (list: Suggestion | null): number => {
     if (!list) return -1;
     const token = buffer.slice(list.tokenStart, cursor);
@@ -101,7 +111,7 @@ async function inside(base: Result, buffer: string, cursor: number, cwd: string,
   const merge = async (list: Suggestion | null, wait: boolean): Promise<Suggestion | null> => {
     const at = named(list);
     if (!list || at < 0) return list;
-    next ??= complete(`${buffer.slice(0, cursor)}/${buffer.slice(cursor)}`, cursor + 1, cwd, history, now);
+    next ??= complete(`${buffer.slice(0, cursor)}/${buffer.slice(cursor)}`, cursor + 1, cwd, history, now, aliases);
     const found = await next;
     const inner = (wait && found.more ? await found.more : null) ?? found.now;
     if (!inner) return list;
@@ -122,6 +132,7 @@ async function complete(
   cwd: string,
   history: History,
   now: number,
+  aliases?: Map<string, string>,
 ): Promise<Result> {
   const after = buffer[cursor];
   if (after !== undefined && after !== " " && after !== "\n") return EMPTY;
@@ -134,10 +145,11 @@ async function complete(
   if (depth === 0 && prefix === "") return EMPTY;
   if (UNSAFE.test(prefix)) return EMPTY;
 
-  const command = words[0];
+  const effectiveWords = expandCommandWords(words, aliases);
+  const command = effectiveWords[0];
   const spec = command && !command.includes("/") ? await loadSpec(command) : null;
-  const project = projectCandidates(words, prefix, cwd, spec !== null);
-  const position = spec ? await locate(spec, words, cwd) : null;
+  const project = projectCandidates(effectiveWords, prefix, cwd, spec !== null);
+  const position = spec ? await locate(spec, effectiveWords, cwd) : null;
   const generated = list<Spec>(position?.arg?.generators).some((generator) => !generator.template);
   if (position?.repeated && prefix === "" && !generated) return EMPTY;
   const emitted: Emitted | null = position ? emit(position, prefix) : null;
@@ -153,8 +165,8 @@ async function complete(
       files.push(...fileCandidates(prefix, cwd, !emitted.templates.has("filepaths")));
     }
     if (project.candidates.length === 0) {
-      const plain = ![...words, prefix].some((word) => SHELL.test(word) || BARE.test(word));
-      const ctx: GenContext = { tokens: [...words, prefix], cwd, prefix, plain };
+      const plain = ![...effectiveWords, prefix].some((word) => SHELL.test(word) || BARE.test(word));
+      const ctx: GenContext = { tokens: [...effectiveWords, prefix], cwd, prefix, plain };
       for (const generator of emitted.generators) {
         slots.push({ found: lookup(generator, ctx, now), head: queryHead(generator, prefix), filtered: generator.filtered === true });
       }
