@@ -33,6 +33,14 @@ function _figxit_open
     disown $_figxit_pid 2>/dev/null
     set _figxit_lost 0
     _figxit_send "H$_figxit_sep$fish_pid$_figxit_sep"(string split -m1 , -- "$TMUX")[1]"$_figxit_sep$TMUX_PANE$_figxit_sep"(string join : -- $PATH)"$_figxit_sep$TERM_PROGRAM$_figxit_sep$HERDR_PANE_ID$_figxit_sep$HERDR_SOCKET_PATH$_figxit_sep$HERDR_BIN_PATH"
+    _figxit_aliases 1
+end
+
+function _figxit_aliases
+    test -n "$_figxit_pid" -a $_figxit_lost -eq 0; or return 0
+    set -l list (string join \x1e -- (abbr --show 2>/dev/null | string match -rv '[\x1e\x1f]'))
+    test "$argv[1]" != 1 -a "$list" = "$_figxit_alias_state"; and return 0
+    _figxit_send "U$_figxit_sep$list"; and set -g _figxit_alias_state "$list"
 end
 
 function _figxit_wait

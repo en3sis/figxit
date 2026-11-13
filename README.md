@@ -16,7 +16,7 @@ Free and open source. No account, no AI chat, no telemetry.
 - **Makefile targets and `package.json` scripts**, with their help text
 - **Ranked by your history** in the current folder, with [Atuin](https://atuin.sh)
 - **Red icons for production**: Enter inserts those rows without running them
-- **Your aliases**: `git co ` completes like `git checkout `
+- **Your aliases**: `k get ` completes like `kubectl get `, and `git co ` like `git checkout `
 - **zoxide**: `z rack` lists the folders `z` would jump to
 - **zsh, bash, and fish**, in Ghostty, iTerm2, Terminal, tmux, and the terminals of VS Code, Cursor, and Zed (experimental)
 
@@ -45,7 +45,7 @@ Figxit uses the open source Fig specs for 700+ tools. Type a command and a space
   <img src="assets/git.png" width="640" alt="Terminal window with git ch typed and the list of matching git subcommands">
 </picture>
 
-Specs also fill in live values: git branches after `git checkout `, hosts after `ssh `, files and folders where a command takes a path. Your git and gh aliases work too: `git co ` completes like `git checkout `.
+Specs also fill in live values: git branches after `git checkout `, hosts after `ssh `, files and folders where a command takes a path. Your git and gh aliases work too: `git co ` completes like `git checkout `. So do your shell aliases and fish abbreviations: with `alias k=kubectl`, `k get ` completes like `kubectl get `. The shell sends its alias list when it connects and again at the prompt when the list changes.
 
 ### Makefile targets and scripts
 

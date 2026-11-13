@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { parseAliases } from "../src/aliases";
 
 const root = join(import.meta.dir, "../..");
 const work = mkdtempSync(join(tmpdir(), "figxit-shell-"));
@@ -21,6 +22,7 @@ function result(out: string): { sent: string; left: string } {
   return { sent: /SENT ([^\r\n]*)/.exec(out)?.[1] ?? "", left: /LEFT \[([^\]]*)\]/.exec(out)?.[1] ?? "" };
 }
 
+const fish = Bun.which("fish");
 const bash = ["/opt/homebrew/bin/bash", "/usr/local/bin/bash", Bun.which("bash") ?? ""].find((path) => {
   if (!path) return false;
   try {
@@ -691,5 +693,85 @@ describe.skipIf(!bash)("bash reply reader", () => {
 
   test("sends no position without a cursor reply", () => {
     expect(read(`${ESC}[?62cxy`)).toEqual({ sent: "c", left: "xy" });
+  });
+});
+
+const ALIASES = new Map([
+  ["k", "kubectl"],
+  ["ll", "ls -l"],
+  ["q", "echo 'hi' \\x1e"],
+]);
+
+describe("zsh alias list", () => {
+  test("sends each alias as its own record, and again only when one changes", () => {
+    const script = [
+      "_figxit_fd=1 _figxit_sep=$'\\x1f' _figxit_alias_state=",
+      '_figxit_send() { print -r -- "$1" }',
+      "unalias -m '*'; alias k=kubectl ll='ls -l' q=\"echo 'hi' \\\\x1e\" bad=$'a\\nb' $'x\\x1ey'=z",
+      body("shell/zsh/connect.zsh", "_figxit_aliases"),
+      "_figxit_aliases 1; _figxit_aliases; alias ll='ls -la'; _figxit_aliases",
+    ].join("\n");
+    const sent = Bun.spawnSync(["zsh", "-f", "-c", script]).stdout.toString().split("\n").filter(Boolean);
+    expect(sent.length).toBe(2);
+    expect(sent.every((line) => line.startsWith("U\x1f"))).toBe(true);
+    expect(parseAliases(sent[0]!.slice(2))).toEqual(ALIASES);
+    expect(parseAliases(sent[1]!.slice(2)).get("ll")).toBe("ls -la");
+  });
+
+  test("sends the list again at the next prompt when a send fails", () => {
+    const script = [
+      "_figxit_fd=1 _figxit_sep=$'\\x1f' _figxit_alias_state= fails=1",
+      '_figxit_send() { (( fails-- > 0 )) && return 1; print -r -- "$1" }',
+      "unalias -m '*'; alias k=kubectl",
+      body("shell/zsh/connect.zsh", "_figxit_aliases"),
+      "_figxit_aliases 1; _figxit_aliases; _figxit_aliases",
+    ].join("\n");
+    const sent = Bun.spawnSync(["zsh", "-f", "-c", script]).stdout.toString().split("\n").filter(Boolean);
+    expect(sent).toEqual(["U\x1fk=kubectl"]);
+  });
+});
+
+describe.skipIf(!bash)("bash alias list", () => {
+  test("sends each alias as its own record, and again only when one changes", () => {
+    const script = [
+      "_figxit_out=1 _figxit_sep=$'\\x1f' _figxit_alias_state=",
+      "_figxit_send() { printf '%s\\n' \"$1\"; }",
+      "alias k=kubectl ll='ls -l' q=\"echo 'hi' \\\\x1e\" bad=$'a\\nb' sep=$'a\\x1eb'",
+      body("shell/bash/connect.bash", "_figxit_aliases"),
+      "_figxit_aliases 1; _figxit_aliases; alias ll='ls -la'; _figxit_aliases",
+    ].join("\n");
+    const sent = Bun.spawnSync([bash!, "--norc", "-c", script]).stdout.toString().split("\n").filter(Boolean);
+    expect(sent.length).toBe(2);
+    expect(parseAliases(sent[0]!.slice(2))).toEqual(ALIASES);
+    expect(parseAliases(sent[1]!.slice(2)).get("ll")).toBe("ls -la");
+  });
+
+  test("sends the list again at the next prompt when a send fails", () => {
+    const script = [
+      "_figxit_out=1 _figxit_sep=$'\\x1f' _figxit_alias_state= fails=1",
+      "_figxit_send() { (( fails-- > 0 )) && return 1; printf '%s\\n' \"$1\"; }",
+      "alias k=kubectl",
+      body("shell/bash/connect.bash", "_figxit_aliases"),
+      "_figxit_aliases 1; _figxit_aliases; _figxit_aliases",
+    ].join("\n");
+    const sent = Bun.spawnSync([bash!, "--norc", "-c", script]).stdout.toString().split("\n").filter(Boolean);
+    expect(sent).toEqual(["U\x1fk=kubectl"]);
+  });
+});
+
+describe.skipIf(!fish)("fish abbreviation list", () => {
+  test("sends the abbreviations that expand a command, and again only when one changes", () => {
+    const script = [
+      "set -g _figxit_pid 1; set -g _figxit_lost 0; set -g _figxit_sep \\x1f; set -g _figxit_alias_state",
+      "function _figxit_send; printf '%s\\n' $argv[1]; end",
+      "abbr -a -- k kubectl; abbr -a -- gco 'git checkout'; abbr -a -- sep a\\x1eb; abbr -a --position anywhere -- L '| less'",
+      readFileSync(join(root, "shell/fish/connect.fish"), "utf8").match(/^function _figxit_aliases\n[\s\S]*?\nend$/m)![0],
+      "_figxit_aliases 1; _figxit_aliases; abbr -a -- d docker; _figxit_aliases",
+    ].join("\n");
+    const sent = Bun.spawnSync([fish!, "--no-config", "-c", script]).stdout.toString().split("\n").filter(Boolean);
+    expect(sent.map((line) => parseAliases(line.slice(2)))).toEqual([
+      new Map([["k", "kubectl"], ["gco", "git checkout"]]),
+      new Map([["k", "kubectl"], ["gco", "git checkout"], ["d", "docker"]]),
+    ]);
   });
 });
