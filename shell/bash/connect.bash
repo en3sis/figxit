@@ -1,5 +1,17 @@
+_figxit_aliases() {
+  [[ -n $_figxit_out ]] || return 0
+  local name value list=
+  for name in "${!BASH_ALIASES[@]}"; do
+    value=${BASH_ALIASES[$name]}
+    [[ $name$value == *[$'\n\x1e\x1f']* ]] || list+=${list:+$'\x1e'}$name=$value
+  done
+  [[ $1 != 1 && $list == "$_figxit_alias_state" ]] && return 0
+  _figxit_send "U${_figxit_sep}${list}" && _figxit_alias_state=$list
+}
+
 _figxit_close() {
   [[ -n $_figxit_out ]] || return 0
+  _figxit_alias_state=
   exec {_figxit_out}>&- {_figxit_in}<&-
   _figxit_out= _figxit_in= _figxit_pid=
   _figxit_visible=0
@@ -42,6 +54,7 @@ _figxit_open() {
   exec {_figxit_out}>&"${_figxit_co[1]}" {_figxit_in}<&"${_figxit_co[0]}"
   disown "$_figxit_pid" 2>/dev/null
   _figxit_send "H${_figxit_sep}$$${_figxit_sep}${TMUX%%,*}${_figxit_sep}${TMUX_PANE}${_figxit_sep}${PATH}${_figxit_sep}${TERM_PROGRAM}${_figxit_sep}${HERDR_PANE_ID}${_figxit_sep}${HERDR_SOCKET_PATH}${_figxit_sep}${HERDR_BIN_PATH}${_figxit_sep}1"
+  _figxit_aliases 1
 }
 
 _figxit_apply() {

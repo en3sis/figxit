@@ -73,6 +73,7 @@ export function splitTyped(typed: string): { text: string; key: string } {
 
 export class Bridge {
   hello = "";
+  aliases = "";
   private plain = false;
   private typing = false;
   private reports = true;
@@ -93,6 +94,9 @@ export class Bridge {
       case "H":
         this.hello = line;
         this.plain = !(f[2] && f[3]) || f[9] === "1";
+        break;
+      case "U":
+        this.aliases = line;
         break;
       case "E":
         this.typing = true;
@@ -428,7 +432,7 @@ export async function bridge(args: string[]) {
           error() {},
         },
       });
-      if (core.hello) socket.write(core.hello + "\n");
+      for (const kept of [core.hello, core.aliases]) if (kept) socket.write(kept + "\n");
       if (held) socket.write(held + "\n");
     } catch {
       retryAt = Date.now() + RETRY_MS;
