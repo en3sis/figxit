@@ -45,7 +45,7 @@ const branchCache = new Map<string, { at: number; value: Candidate[] }>();
 function cached(path: string, build: (text: string) => Candidate[]): Candidate[] {
   try {
     const stat = statSync(path);
-    if (stat.size > MAX_FILE) return [];
+    if (!stat.isFile() || stat.size > MAX_FILE) return [];
     const hit = fileCache.get(path);
     if (hit && hit.mtime === stat.mtimeMs) return hit.value;
     const value = build(readFileSync(path, "utf8"));
@@ -104,7 +104,7 @@ export function parseMakefile(text: string, read: (name: string) => string | nul
 function stamp(path: string): number {
   try {
     const stat = statSync(path);
-    return stat.size > MAX_FILE ? -2 : stat.mtimeMs;
+    return !stat.isFile() || stat.size > MAX_FILE ? -2 : stat.mtimeMs;
   } catch {
     return -1;
   }

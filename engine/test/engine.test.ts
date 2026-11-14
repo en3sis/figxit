@@ -110,6 +110,17 @@ describe("Makefile and package.json", () => {
     expect(makeTargets(path).map((t) => t.label)).toEqual(["dev", "release", "r2", "stats"]);
   });
 
+  test("does not read a Makefile or package.json that is not a regular file", () => {
+    const dir = mkdtempSync(join(tmpdir(), "figxit-fifo-"));
+    Bun.spawnSync(["mkfifo", join(dir, "Makefile"), join(dir, "package.json")]);
+    const sources = join(import.meta.dir, "../src/sources");
+    for (const words of [["make"], ["npm", "run"]]) {
+      const code = `import { projectCandidates } from ${JSON.stringify(sources)}; console.log(JSON.stringify(projectCandidates(${JSON.stringify(words)}, "", ${JSON.stringify(dir)})))`;
+      const read = Bun.spawnSync([process.execPath, "-e", code], { timeout: 5000 });
+      expect({ words, out: read.stdout.toString().trim() }).toEqual({ words, out: '{"candidates":[],"authoritative":true}' });
+    }
+  }, 15000);
+
   test("adds the ##@ section to the help text", () => {
     const targets = parseMakefile("##@ Build\nbuild: ## Build the project\ninstall:\n##@ Tests\ntest-e2e: deps ## Run the e2e tests\n");
     expect(targets.map((t) => t.detail)).toEqual(["Build · Build the project", "Build", "Tests · Run the e2e tests"]);
