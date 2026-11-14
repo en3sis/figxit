@@ -13,6 +13,8 @@ _figxit_bind() {
     key=${line%% *}
     ours=$_figxit_keys[$key]
     [[ -n $ours ]] || continue
+    # bindkey -s strings have no widget to fall back to
+    [[ ${line#* } == \"* ]] && continue
     widget=${line##* }
     [[ $widget == "$ours" ]] && continue
     [[ -n $_figxit_base[$ours] ]] || _figxit_base[$ours]=$widget

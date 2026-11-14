@@ -341,6 +341,20 @@ try {
     const menuLine = screen().split("\n").find((line) => line.startsWith(">")) ?? "";
     check("Enter in zsh's completion menu picks the entry and does not run the line", /^> +wc \S+ \S+ ?$/.test(menuLine) && !screen().includes("total"), screen());
     await keys("C-u");
+
+    await keys(` _fx_sudo() { LBUFFER="sudo $LBUFFER" }; zle -N _fx_sudo; bindkey '\\e\\e' _fx_sudo`);
+    await keys("Enter");
+    await keys("echo esc-esc");
+    await keys("Escape", "Escape");
+    check("Esc Esc runs the shell's own Esc Esc binding", /> +sudo echo esc-esc$/.test(screen().split("\n").at(-1) ?? ""), screen());
+    await keys("C-u");
+
+    await keys(` bindkey -s '\\e\\e' ' macro'`);
+    await keys("Enter");
+    await keys("echo esc-esc");
+    await keys("Escape", "Escape");
+    check("an Esc Esc string bound with bindkey -s still runs", /> +echo esc-esc macro$/.test(screen().split("\n").at(-1) ?? ""), screen());
+    await keys("C-u");
   }
 
   if (name !== "fish") {

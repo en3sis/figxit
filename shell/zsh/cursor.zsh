@@ -56,7 +56,7 @@ _figxit_report() {
   else
     got=${got#($'\e[?'|)[0-9\;]#c}
   fi
-  [[ -n $done ]] || got=${got%%$'\e'(\[[0-9\;\?]#|)}
+  [[ -n $done ]] || got=${got%%$'\e['[0-9\;\?]#}
   if [[ $got == (#b)(*)$'\e['(<->)';'(<->)R(*) ]]; then
     row=$match[2] col=$match[3] got=$match[1]$match[4]
   fi
