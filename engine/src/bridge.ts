@@ -2,6 +2,7 @@ import { appendFileSync, constants, existsSync, fstatSync, ftruncateSync, mkdirS
 import { dirname, join } from "node:path";
 import type { Socket } from "bun";
 import { dlopen, FFIType, ptr } from "bun:ffi";
+import { launchApp } from "./launch";
 import { ENGINE_SOCK } from "./paths";
 
 const SEP = "\x1f";
@@ -202,10 +203,10 @@ function launch() {
   if (existsSync(join(dirname(ENGINE_SOCK), "stopped"))) return;
   const quiet = { stdin: "ignore", stdout: "ignore", stderr: "ignore" } as const;
   const home = process.env.FIGXIT_HOME;
-  if (process.env.FIGXIT_APP) Bun.spawn(["open", "-g", process.env.FIGXIT_APP], quiet);
+  if (process.env.FIGXIT_APP) void launchApp(process.env.FIGXIT_APP);
   else if (!process.env.FIGXIT_AUTOSTART) return;
   else if (process.env.FIGXIT_ENGINE) Bun.spawn(["sh", "-c", `${process.env.FIGXIT_ENGINE} >/dev/null 2>&1 &`], quiet);
-  else if (home && existsSync(join(home, "dist/Figxit.app"))) Bun.spawn(["open", "-g", join(home, "dist/Figxit.app")], quiet);
+  else if (home && existsSync(join(home, "dist/Figxit.app"))) void launchApp(join(home, "dist/Figxit.app"));
 }
 
 function terminal() {

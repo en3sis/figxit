@@ -2,6 +2,7 @@ import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync
 import { homedir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { version } from "../package.json";
+import { launchApp } from "./launch";
 import { appPath, atuinDb, atuinPaths, bundlePath, ENGINE_SOCK, HELPER_SOCK, specsDir } from "./paths";
 
 const HELP = `figxit ${version}
@@ -57,6 +58,11 @@ async function accessibility(): Promise<boolean | null> {
 }
 
 function accessDetail(allowed: boolean, splitSeen: boolean): string {
+  if (process.platform !== "darwin") {
+    return allowed
+      ? 'AT-SPI is on, the popup works in editor terminals that show their text area to it (VS Code: "force-renderer-accessibility": true in ~/.vscode/argv.json)'
+      : "AT-SPI is off, the popup stays hidden in editor terminals, optional";
+  }
   if (allowed) return "allowed, the popup works in split panes (Cmd+D) and editor terminals";
   const hidden = "not allowed, the popup stays hidden in split panes (Cmd+D) and editor terminals";
   return splitSeen ? `${hidden}. One was used: open Figxit Setup and click Allow… on Panes and editors` : `${hidden}, optional`;
@@ -189,7 +195,7 @@ async function start(): Promise<number> {
     console.error("figxit start: Figxit.app was not found");
     return 1;
   }
-  Bun.spawnSync(["open", "-g", app]);
+  await launchApp(app);
   for (let attempt = 0; attempt < 30; attempt++) {
     await Bun.sleep(100);
     if (await reachable(HELPER_SOCK)) {
@@ -215,7 +221,7 @@ async function open(): Promise<number> {
     console.error("figxit open: Figxit.app was not found");
     return 1;
   }
-  return Bun.spawnSync(["open", app, "--args", "--show-menu-bar"]).exitCode;
+  return launchApp(app, { background: false, args: ["--show-menu-bar"] });
 }
 
 async function stop(): Promise<number> {
