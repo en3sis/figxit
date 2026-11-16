@@ -28,10 +28,13 @@ for (let i = 0; i < 60 && later === first; i++) {
 console.log(JSON.stringify({ az, first, later }));
 `,
   );
-  const run = Bun.spawn(["bun", join(work, "run.ts")], {
-    env: { ...process.env, PATH: `${work}:${process.env.PATH}` },
-    stdout: "pipe",
-  });
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    PATH: `${work}:${process.env.PATH}`,
+    FIGXIT_USER_SPECS: join(work, "no-user-specs"),
+  };
+  delete env.FIGXIT_SPECS;
+  const run = Bun.spawn(["bun", join(work, "run.ts")], { env, stdout: "pipe" });
   result = JSON.parse(await new Response(run.stdout).text());
 });
 
