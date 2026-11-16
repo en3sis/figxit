@@ -127,6 +127,10 @@ New versions install from the menu bar icon. If something looks off, run `figxit
 
 To hide the menu bar icon, turn off **Show in menu bar** in Settings. Run `figxit open` to show it again and open Settings.
 
+### Linux (experimental)
+
+On KDE Plasma 6 with Wayland, a helper written with Qt draws the list. There is no download for it yet: build and install it from source with `helper-linux/install.sh`, see [helper-linux/README.md](helper-linux/README.md). Tested on Kubuntu 26.04 with bash, in Konsole and in the VS Code terminal.
+
 ## Keys
 
 | Key | What it does |
@@ -207,13 +211,13 @@ flowchart LR
 
 - **Shell script** (`shell/`): sends the line to the engine after each key, without waiting. It waits only when you press Tab or Enter with the list open.
 - **Engine** (`engine/`): keeps the specs and your history in memory, builds the list, and ranks it. Values that need a command, like git branches, arrive a moment later, so the first rows are never slow.
-- **App** (`helper/`): a menu bar app that draws the list under the cursor without taking focus, and restarts the engine if it stops.
+- **App** (`helper/`): a menu bar app that draws the list under the cursor without taking focus, and restarts the engine if it stops. On Linux, `helper-linux/` does the same with Qt.
 
 Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/src/figxit/`.
 
 ## Limits
 
-- macOS only.
+- macOS, and KDE Plasma on Wayland on Linux.
 - Without Accessibility, the list stays hidden in split panes of the terminal app and in editor terminals.
 - The terminal in Zed needs the experimental Zed terminal setting.
 - fish: the list is off in vi mode.

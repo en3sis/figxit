@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/">
+    <file alias="kwin-locator.js">locator/kwin-locator.js</file>
+  </qresource>
+</RCC>
