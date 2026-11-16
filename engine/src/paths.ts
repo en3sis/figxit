@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, realpathSync, type Stats } from "node:fs";
-import { homedir } from "node:os";
+import { homedir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 
 const STATE = join(homedir(), ".local/state/figxit");
@@ -44,7 +44,33 @@ export function userAliasesFile(): string {
 
 export function trusted(stat: Stats): boolean {
   const uid = process.getuid?.();
-  return (uid === undefined || stat.uid === uid || stat.uid === 0) && (stat.mode & 0o022) === 0;
+  if (uid !== undefined && stat.uid !== uid && stat.uid !== 0) return false;
+  if (stat.mode & 0o002) return false;
+  return (stat.mode & 0o020) === 0 || ownGroup(stat.gid);
+}
+
+const ownGroups = new Map<number, boolean>();
+
+function ownGroup(gid: number): boolean {
+  let own = ownGroups.get(gid);
+  if (own === undefined) {
+    try {
+      own = privateGroup(gid, userInfo(), readFileSync("/etc/group", "utf8"), readFileSync("/etc/passwd", "utf8"));
+    } catch {
+      own = false;
+    }
+    ownGroups.set(gid, own);
+  }
+  return own;
+}
+
+export function privateGroup(gid: number, user: { username: string; gid: number }, group: string, passwd: string): boolean {
+  if (gid !== user.gid) return false;
+  const rows = (text: string) => text.split("\n").map((line) => line.split(":"));
+  const entry = rows(group).find((fields) => fields[2] === String(gid));
+  if (entry?.[0] !== user.username) return false;
+  if ((entry[3] ?? "").split(",").some((name) => name && name !== user.username)) return false;
+  return !rows(passwd).some((fields) => fields[3] === String(gid) && fields[0] !== user.username);
 }
 
 export function specsDir(): string | null {

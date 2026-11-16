@@ -3,13 +3,13 @@ process.env.FIGXIT_USER_SPECS = "/nonexistent/figxit-user-specs";
 process.env.FIGXIT_USER_ALIASES = "/nonexistent/figxit-user-aliases";
 
 import { describe, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir, userInfo } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { ICONS } from "../src/brands";
 import { History } from "../src/history";
-import { atuinDb } from "../src/paths";
+import { atuinDb, privateGroup } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
@@ -1204,15 +1204,47 @@ describe("user specs in ~/.config/figxit/specs", () => {
     });
   });
 
-  test("a broken or group-writable file falls back to the bundled spec", async () => {
+  test("a broken or world-writable file falls back to the bundled spec", async () => {
     await withUserSpecs(async (dir) => {
       registerSpec("tool-e", { name: "tool-e", subcommands: [{ name: "bundled" }] });
       registerSpec("tool-f", { name: "tool-f", subcommands: [{ name: "bundled" }] });
       writeFileSync(join(dir, "tool-e.js"), "export default {{ not javascript");
       writeFileSync(join(dir, "tool-f.js"), spec('{ name: "tool-f", subcommands: [{ name: "planted" }] }'));
-      chmodSync(join(dir, "tool-f.js"), 0o664);
+      chmodSync(join(dir, "tool-f.js"), 0o666);
       expect(await subcommands("tool-e")).toEqual(["bundled"]);
       expect(await subcommands("tool-f")).toEqual(["bundled"]);
     });
+  });
+
+  test("a group-writable file loads only when its group is the user's own", async () => {
+    await withUserSpecs(async (dir) => {
+      registerSpec("tool-g", { name: "tool-g", subcommands: [{ name: "bundled" }] });
+      const file = join(dir, "tool-g.js");
+      writeFileSync(file, spec('{ name: "tool-g", subcommands: [{ name: "planted" }] }'));
+      chmodSync(file, 0o664);
+      const text = (path: string) => {
+        try {
+          return readFileSync(path, "utf8");
+        } catch {
+          return "";
+        }
+      };
+      const own = privateGroup(statSync(file).gid, userInfo(), text("/etc/group"), text("/etc/passwd"));
+      if (process.platform === "darwin") expect(own).toBe(false);
+      expect(await subcommands("tool-g")).toEqual([own ? "planted" : "bundled"]);
+    });
+  });
+
+  test("a group-writable file is trusted only when the group is the user's own", () => {
+    const me = { username: "me", gid: 1000 };
+    const passwd = "root:x:0:0::/root:/bin/bash\nme:x:1000:1000::/home/me:/bin/bash\n";
+    expect(privateGroup(1000, me, "root:x:0:\nme:x:1000:\n", passwd)).toBe(true);
+    expect(privateGroup(1000, me, "me:x:1000:me\n", passwd)).toBe(true);
+    expect(privateGroup(1000, me, "me:x:1000:guest\n", passwd)).toBe(false);
+    expect(privateGroup(1000, me, "me:x:1000:\n", `${passwd}guest:x:1001:1000::/home/guest:/bin/sh\n`)).toBe(false);
+    expect(privateGroup(1000, me, "dev:x:1000:\n", passwd)).toBe(false);
+    expect(privateGroup(1000, me, "", passwd)).toBe(false);
+    expect(privateGroup(100, me, "users:x:100:\n", passwd)).toBe(false);
+    expect(privateGroup(20, { username: "me", gid: 20 }, "staff:*:20:root\n", "")).toBe(false);
   });
 });
