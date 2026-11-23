@@ -70,7 +70,6 @@ figxit-esc() {
 
 figxit-esc-esc() {
   local c next=
-  # An Esc right before a terminal reply reads as Esc Esc
   read -s -k 1 -t 0 c && next=$c
   [[ $next == '[' ]] && read -s -k 1 -t 0 c && next+=$c
   [[ $next == '[0' ]] && read -s -k 1 -t 0 c && next+=$c
@@ -82,6 +81,7 @@ figxit-esc-esc() {
     zle figxit-report-end
   else
     [[ -n $next ]] && zle -U -- "$next"
+    _figxit_held=0
     _figxit_fallback figxit-esc-esc undefined-key
   fi
 }
