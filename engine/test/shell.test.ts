@@ -27,7 +27,7 @@ const fish = Bun.which("fish");
 const bash = ["/opt/homebrew/bin/bash", "/usr/local/bin/bash", Bun.which("bash") ?? ""].find((path) => {
   if (!path) return false;
   try {
-    return Number(/version (\d+)/.exec(Bun.spawnSync([path, "--version"]).stdout.toString())?.[1]) >= 5;
+    return Number(Bun.spawnSync([path, "-c", "echo ${BASH_VERSINFO[0]}"]).stdout.toString()) >= 5;
   } catch {
     return false;
   }

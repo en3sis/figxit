@@ -140,13 +140,13 @@ try {
   await keys("C-u");
   await keys("make dep");
   await keys("Enter");
-  check("Enter inserts the highlighted target and runs the line", screen().includes("for `deploy'"), screen());
+  check("Enter inserts the highlighted target and runs the line", /for [`']deploy'/.test(screen()), screen());
   writeFileSync(join(work, "enter-inserts"), "");
   await keys("make bu");
   await keys("Enter");
-  check("with the setting off, Enter inserts the highlighted target and does not run", (screen().split("\n").at(-1) ?? "").includes("make build") && !screen().includes("for `build'"), screen());
+  check("with the setting off, Enter inserts the highlighted target and does not run", (screen().split("\n").at(-1) ?? "").includes("make build") && !/for [`']build'/.test(screen()), screen());
   await keys("Enter");
-  check("a second Enter runs the line", screen().includes("for `build'"), screen());
+  check("a second Enter runs the line", /for [`']build'/.test(screen()), screen());
   rmSync(join(work, "enter-inserts"));
 
   await keys("make build");
