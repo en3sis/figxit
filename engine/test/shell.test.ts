@@ -240,11 +240,8 @@ describe("zsh cursor query", () => {
       `source ${root}/shell/zsh/keys.zsh`,
       "_figxit_connect() { return 0 }",
       "_figxit_bind() { }",
-      // figxit's own key bindings, with stand-ins for a plain Esc and for an Esc Esc binding like the sudo plugin's
       "if [[ -n $FX_KEYS ]]; then",
-      `  source ${root}/shell/zsh/keys.zsh`,
       `  source ${root}/shell/zsh/bind.zsh`,
-      "  typeset -gA _figxit_orig _figxit_base",
       /^typeset -gA _figxit_keys=\([\s\S]*?^\)$/m.exec(figxit)![0],
       ...figxit.match(/^zle -N .*$/gm)!,
       "  _fx_esc() { print -r -- ESC >> $FX_OUT }",
