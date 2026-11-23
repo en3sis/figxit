@@ -29,14 +29,14 @@ const launch: Record<string, string[]> = {
 if (!launch[name]) throw new Error(`unknown shell ${name}`);
 const shell = plain ? ["env", "-u", "TMUX", "-u", "TMUX_PANE", ...launch[name]] : launch[name];
 const rc = real ? `source $HOME/.zshrc` : `PS1='> '`;
-writeFileSync(join(work, ".zshrc"), `${rc}\nsource ${root}/shell/zsh/figxit.zsh\n`);
+writeFileSync(join(work, ".zshrc"), `${rc}\nalias m=make\nsource ${root}/shell/zsh/figxit.zsh\n`);
 writeFileSync(join(work, "menu.zsh"), "zmodload zsh/complist\nautoload -Uz compinit && compinit -D -u\nzstyle ':completion:*' menu select\n");
 mkdirSync(join(work, "config/fish"), { recursive: true });
 writeFileSync(
   join(work, "config/fish/config.fish"),
-  `set -g fish_greeting\nset -g fish_autosuggestion_enabled 0\nfunction fish_prompt; echo -n '> '; end\nsource ${root}/shell/fish/figxit.fish\n`,
+  `set -g fish_greeting\nset -g fish_autosuggestion_enabled 0\nfunction fish_prompt; echo -n '> '; end\nabbr -a -- m make\nsource ${root}/shell/fish/figxit.fish\n`,
 );
-writeFileSync(join(work, ".bashrc"), `HISTFILE=${work}/history\nPS1='> '\nsource ${root}/shell/bash/figxit.bash\n`);
+writeFileSync(join(work, ".bashrc"), `HISTFILE=${work}/history\nPS1='> '\nalias m=make\nsource ${root}/shell/bash/figxit.bash\n`);
 
 let pending = "";
 const helperClients = new Set<any>();
@@ -65,7 +65,7 @@ const env: Record<string, string | undefined> = {
   ...process.env,
   LC_ALL: "en_US.UTF-8",
   ZDOTDIR: work,
-  ...(real ? {} : { FIGXIT_ATUIN_DB: join(work, "none.db") }),
+  ...(real ? {} : { FIGXIT_ATUIN_DB: join(work, "none.db"), FIGXIT_USER_ALIASES: join(work, "user-aliases") }),
   FIGXIT_AUTOSTART: "1",
   FIGXIT_SOCK: engineSock,
   FIGXIT_HELPER_SOCK: helperSock,
@@ -208,6 +208,11 @@ try {
   await keys("Tab");
   await keys("X");
   check("an option is inserted with a space", screen().includes("docker run --name X"), screen());
+  await keys("C-u");
+
+  await keys("m ");
+  names = lastShow()?.items.map((i: any) => i.label) ?? [];
+  check("an alias lists what its command lists", messages.at(-1)?.cmd === "show" && names.slice().sort().join() === "admin-url,build,deploy,dev", names);
   await keys("C-u");
 
   if (real) {
@@ -361,6 +366,15 @@ try {
     await keys("Enter");
     const menuLine = screen().split("\n").find((line) => line.startsWith(">")) ?? "";
     check("Enter in zsh's completion menu picks the entry and does not run the line", /^> +wc \S+ \S+ ?$/.test(menuLine) && !screen().includes("total"), screen());
+    await keys("C-u");
+  }
+
+  if (name !== "fish") {
+    await keys(" alias mk=make");
+    await keys("Enter");
+    await keys("mk ");
+    names = lastShow()?.items.map((i: any) => i.label) ?? [];
+    check("an alias made in the open shell lists what its command lists", messages.at(-1)?.cmd === "show" && names.slice().sort().join() === "admin-url,build,deploy,dev", names);
     await keys("C-u");
   }
 

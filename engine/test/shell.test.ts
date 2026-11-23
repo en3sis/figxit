@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Socket } from "bun";
+import { parseAliases } from "../src/aliases";
 
 const root = join(import.meta.dir, "../..");
 const work = mkdtempSync(join(tmpdir(), "figxit-shell-"));
@@ -22,6 +23,7 @@ function result(out: string): { sent: string; left: string } {
   return { sent: /SENT ([^\r\n]*)/.exec(out)?.[1] ?? "", left: /LEFT \[([^\]]*)\]/.exec(out)?.[1] ?? "" };
 }
 
+const fish = Bun.which("fish");
 const bash = ["/opt/homebrew/bin/bash", "/usr/local/bin/bash", Bun.which("bash") ?? ""].find((path) => {
   if (!path) return false;
   try {
@@ -1026,7 +1028,7 @@ describe("zsh with an engine that stops reading", () => {
       expect(await until(() => /\nL\nE\x1f12\x1f[^\x1f\n]*\x1fecho pending\x1f120 35\n$/.test(shell.received()))).toBe(true);
       await shell.type("x");
       expect(await until(() => /\nE\x1f13\x1f[^\x1f\n]*\x1fecho pendingx\x1f120 35\n$/.test(shell.received()))).toBe(true);
-      expect(shell.lines().filter((l) => !/^([HLXN]|E(\x1f[^\x1f]*){4})(\x1f|$)/.test(l))).toEqual([]);
+      expect(shell.lines().filter((l) => !/^([HLXNU]|E(\x1f[^\x1f]*){4})(\x1f|$)/.test(l))).toEqual([]);
     } finally {
       shell.stop();
     }
@@ -1118,5 +1120,93 @@ describe.skipIf(!bash)("bash reply reader", () => {
 
   test("sends no position without a cursor reply", () => {
     expect(read(`${ESC}[?62cxy`)).toEqual({ sent: "c", left: "xy" });
+  });
+});
+
+const ALIASES = new Map([
+  ["k", "kubectl"],
+  ["ll", "ls -la"],
+  ["q", "echo 'hi'"],
+]);
+
+function aliasRun(command: string[], script: (sock: string) => string[], folder = true) {
+  const dir = mkdtempSync(join(work, "aliases-"));
+  if (folder) mkdirSync(join(dir, "aliases"));
+  const run = Bun.spawnSync([...command, script(join(dir, "e.sock")).join("\n")]);
+  const files = folder ? readdirSync(join(dir, "aliases")) : [];
+  return {
+    sent: run.stdout.toString().split("\n").filter(Boolean),
+    errors: run.stderr.toString(),
+    aliases: files.length === 1 ? parseAliases(readFileSync(join(dir, "aliases", files[0]!), "utf8")) : null,
+  };
+}
+
+const zshAliases = (aliases: string, calls: string, fails = 0) => (sock: string) => [
+  `_figxit_fd=1 _figxit_sock=${sock} _figxit_alias_state= fails=${fails}`,
+  '_figxit_send() { (( fails-- > 0 )) && return 1; print -r -- "$1" }',
+  `unalias -m '*'; ${aliases}`,
+  body("shell/zsh/connect.zsh", "_figxit_aliases"),
+  calls,
+];
+
+describe("zsh alias list", () => {
+  test("writes the aliases to the shell's alias file, and tells the engine only when one changes", () => {
+    const got = aliasRun(
+      ["zsh", "-f", "-c"],
+      zshAliases(`alias k=kubectl ll='ls -l' q="echo 'hi'" bad=$'a\\nb'`, "_figxit_aliases; _figxit_aliases; alias ll='ls -la'; _figxit_aliases"),
+    );
+    expect(got.sent).toEqual(["U", "U"]);
+    expect(got.aliases).toEqual(ALIASES);
+  });
+
+  test("tells the engine again at the next prompt when a send fails", () => {
+    const got = aliasRun(["zsh", "-f", "-c"], zshAliases("alias k=kubectl", "_figxit_aliases; _figxit_aliases; _figxit_aliases", 1));
+    expect(got.sent).toEqual(["U"]);
+  });
+
+  test("prints no error before the engine has made the alias folder", () => {
+    const got = aliasRun(["zsh", "-f", "-c"], zshAliases("alias k=kubectl", "_figxit_aliases"), false);
+    expect({ sent: got.sent, errors: got.errors }).toEqual({ sent: [], errors: "" });
+  });
+});
+
+describe.skipIf(!bash)("bash alias list", () => {
+  const bashAliases = (calls: string, fails = 0) => (sock: string) => [
+    `_figxit_out=1 _figxit_sock=${sock} _figxit_alias_state= fails=${fails}`,
+    "_figxit_send() { (( fails-- > 0 )) && return 1; printf '%s\\n' \"$1\"; }",
+    `alias k=kubectl ll='ls -l' q="echo 'hi'" bad=$'a\\nb'`,
+    body("shell/bash/connect.bash", "_figxit_aliases"),
+    calls,
+  ];
+
+  test("writes the aliases to the shell's alias file, and tells the engine only when one changes", () => {
+    const got = aliasRun([bash!, "--norc", "-c"], bashAliases("_figxit_aliases; _figxit_aliases; alias ll='ls -la'; _figxit_aliases"));
+    expect(got.sent).toEqual(["U", "U"]);
+    expect(got.aliases).toEqual(ALIASES);
+  });
+
+  test("tells the engine again at the next prompt when a send fails", () => {
+    const got = aliasRun([bash!, "--norc", "-c"], bashAliases("_figxit_aliases; _figxit_aliases; _figxit_aliases", 1));
+    expect(got.sent).toEqual(["U"]);
+  });
+});
+
+describe.skipIf(!fish)("fish abbreviation list", () => {
+  test("writes the abbreviations that expand a command, and tells the engine only when one changes", () => {
+    const got = aliasRun([fish!, "--no-config", "-c"], (sock) => [
+      `set -g _figxit_pid 1; set -g _figxit_lost 0; set -g _figxit_sock ${sock}; set -g _figxit_alias_state`,
+      "function _figxit_send; printf '%s\\n' $argv[1]; end",
+      "abbr -a -- k kubectl; abbr -a -- gco 'git checkout'; abbr -a --position anywhere -- L '| less'",
+      readFileSync(join(root, "shell/fish/connect.fish"), "utf8").match(/^function _figxit_aliases\n[\s\S]*?\nend$/m)![0],
+      "_figxit_aliases; _figxit_aliases; abbr -a -- d docker; _figxit_aliases",
+    ]);
+    expect(got.sent).toEqual(["U", "U"]);
+    expect(got.aliases).toEqual(
+      new Map([
+        ["k", "kubectl"],
+        ["gco", "git checkout"],
+        ["d", "docker"],
+      ]),
+    );
   });
 });

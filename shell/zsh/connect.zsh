@@ -28,6 +28,19 @@ _figxit_start() {
   fi
 }
 
+_figxit_aliases() {
+  [[ -n $_figxit_fd ]] || return 0
+  local -a items
+  local k v file=${_figxit_sock:h}/aliases/$$
+  for k v in "${(@kv)aliases}"; do
+    [[ $k$v == *$'\n'* ]] || items+=("$k=$v")
+  done
+  local list=${(pj:\n:)items}
+  [[ $list == "$_figxit_alias_state" || ! -d ${file:h} ]] && return 0
+  { print -r -- "$list" >| $file } 2>/dev/null || return 0
+  _figxit_send U && _figxit_alias_state=$list
+}
+
 _figxit_connect() {
   [[ -n $_figxit_fd ]] && return 0
   (( EPOCHSECONDS < _figxit_retry )) && return 1

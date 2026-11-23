@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, type Stats } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -6,6 +6,7 @@ const STATE = join(homedir(), ".local/state/figxit");
 
 export const ENGINE_SOCK = process.env.FIGXIT_SOCK ?? join(STATE, "engine.sock");
 export const HELPER_SOCK = process.env.FIGXIT_HELPER_SOCK ?? join(STATE, "helper.sock");
+export const SHELL_ALIASES = join(dirname(ENGINE_SOCK), "aliases");
 
 export function executable(): string {
   try {
@@ -29,8 +30,21 @@ export function appPath(): string | null {
   return candidates.find((path) => path && existsSync(path)) ?? null;
 }
 
+function configDir(): string {
+  return join(absolute(process.env.XDG_CONFIG_HOME) ?? join(homedir(), ".config"), "figxit");
+}
+
 export function userSpecsDir(): string {
-  return process.env.FIGXIT_USER_SPECS ?? join(absolute(process.env.XDG_CONFIG_HOME) ?? join(homedir(), ".config"), "figxit/specs");
+  return process.env.FIGXIT_USER_SPECS ?? join(configDir(), "specs");
+}
+
+export function userAliasesFile(): string {
+  return process.env.FIGXIT_USER_ALIASES ?? join(configDir(), "aliases");
+}
+
+export function trusted(stat: Stats): boolean {
+  const uid = process.getuid?.();
+  return (uid === undefined || stat.uid === uid || stat.uid === 0) && (stat.mode & 0o022) === 0;
 }
 
 export function specsDir(): string | null {

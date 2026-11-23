@@ -18,8 +18,9 @@ if (( BASH_VERSINFO[0] < 5 )); then
 fi
 
 _figxit_sep=$'\x1f'
+_figxit_sock=${FIGXIT_SOCK:-$HOME/.local/state/figxit/engine.sock}
 _figxit_out= _figxit_in= _figxit_pid= _figxit_last= _figxit_cell= _figxit_pushed=
-_figxit_bound= _figxit_visible=0 _figxit_retry=0 _figxit_trap=1 _figxit_recall=0
+_figxit_bound= _figxit_alias_state= _figxit_visible=0 _figxit_retry=0 _figxit_trap=1 _figxit_recall=0
 _figxit_run=()
 declare -A _figxit_pass _figxit_route _figxit_keymap
 

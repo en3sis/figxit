@@ -35,6 +35,16 @@ function _figxit_open
     _figxit_send "H$_figxit_sep$fish_pid$_figxit_sep"(string split -m1 , -- "$TMUX")[1]"$_figxit_sep$TMUX_PANE$_figxit_sep"(string join : -- $PATH)"$_figxit_sep$TERM_PROGRAM$_figxit_sep$HERDR_PANE_ID$_figxit_sep$HERDR_SOCKET_PATH$_figxit_sep$HERDR_BIN_PATH"
 end
 
+function _figxit_aliases
+    test -n "$_figxit_pid" -a $_figxit_lost -eq 0; or return 0
+    set -l list (abbr --show 2>/dev/null | string collect)
+    test "$list" = "$_figxit_alias_state"; and return 0
+    set -l dir (path dirname -- $_figxit_sock)/aliases
+    test -d $dir; or return 0
+    printf '%s\n' $list >$dir/$fish_pid 2>/dev/null; or return 0
+    _figxit_send U; and set -g _figxit_alias_state $list
+end
+
 function _figxit_wait
     set -l turn 0
     set -l line
