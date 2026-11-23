@@ -1,4 +1,4 @@
-import { expandCommandWords } from "./aliases";
+import { expandCommandWords, type Aliases } from "./aliases";
 import { ICONS, type Icon } from "./brands";
 import { escapePath, fileCandidates, lookup, queryHead, type GenContext, type Lookup } from "./generators";
 import type { History } from "./history";
@@ -67,7 +67,7 @@ export async function suggest(
   cwd: string,
   history: History,
   now = Date.now(),
-  aliases?: Map<string, string>,
+  aliases?: Aliases,
 ): Promise<Result> {
   const base = await inside(await complete(buffer, cursor, cwd, history, now, aliases), buffer, cursor, cwd, history, now, aliases);
   const head = buffer.slice(0, cursor);
@@ -99,7 +99,7 @@ async function inside(
   cwd: string,
   history: History,
   now: number,
-  aliases?: Map<string, string>,
+  aliases?: Aliases,
 ): Promise<Result> {
   const named = (list: Suggestion | null): number => {
     if (!list) return -1;
@@ -126,13 +126,17 @@ async function inside(
   return { now: first, more: pending ? merge(base.now, true) : null };
 }
 
+function specOf(command: string | undefined): Promise<Spec | null> {
+  return !command || command.includes("/") ? Promise.resolve(null) : loadSpec(command);
+}
+
 async function complete(
   buffer: string,
   cursor: number,
   cwd: string,
   history: History,
   now: number,
-  aliases?: Map<string, string>,
+  aliases?: Aliases,
 ): Promise<Result> {
   const after = buffer[cursor];
   if (after !== undefined && after !== " " && after !== "\n") return EMPTY;
@@ -145,9 +149,12 @@ async function complete(
   if (depth === 0 && prefix === "") return EMPTY;
   if (UNSAFE.test(prefix)) return EMPTY;
 
-  const effectiveWords = expandCommandWords(words, aliases);
+  const expanded = expandCommandWords(words, aliases);
+  const expandedSpec = await specOf(expanded[0]);
+  const typedSpec = expandedSpec || expanded === words ? null : await specOf(words[0]);
+  const effectiveWords = typedSpec ? words : expanded;
   const command = effectiveWords[0];
-  const spec = command && !command.includes("/") ? await loadSpec(command) : null;
+  const spec = expandedSpec ?? typedSpec;
   const project = projectCandidates(effectiveWords, prefix, cwd, spec !== null);
   const position = spec ? await locate(spec, effectiveWords, cwd) : null;
   const generated = list<Spec>(position?.arg?.generators).some((generator) => !generator.template);

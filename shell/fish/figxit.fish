@@ -24,6 +24,7 @@ set -g _figxit_home $FIGXIT_HOME
 test -n "$_figxit_home"; or set _figxit_home (path resolve -- (status dirname)/../..)
 set -g _figxit_pid
 set -g _figxit_last
+set -g _figxit_alias_state
 set -g _figxit_painted 0
 set -g _figxit_reply
 set -g _figxit_id 0

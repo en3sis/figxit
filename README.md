@@ -45,7 +45,7 @@ Figxit uses the open source Fig specs for 700+ tools. Type a command and a space
   <img src="assets/git.png" width="640" alt="Terminal window with git ch typed and the list of matching git subcommands">
 </picture>
 
-Specs also fill in live values: git branches after `git checkout `, hosts after `ssh `, files and folders where a command takes a path. Your git and gh aliases work too: `git co ` completes like `git checkout `. So do your shell aliases and fish abbreviations: with `alias k=kubectl`, `k get ` completes like `kubectl get `. The shell sends its alias list when it connects and again at the prompt when the list changes.
+Specs also fill in live values: git branches after `git checkout `, hosts after `ssh `, files and folders where a command takes a path. Your git and gh aliases work too: `git co ` completes like `git checkout `. So do your shell aliases and fish abbreviations: with `alias k=kubectl`, `k get ` completes like `kubectl get `. For a shell function or anything else your shell doesn't list as an alias, add a line like `k=kubectl` to `~/.config/figxit/aliases`. The file takes the lines `alias` prints, its lines win over your shell's aliases, and edits apply right away.
 
 ### Makefile targets and scripts
 

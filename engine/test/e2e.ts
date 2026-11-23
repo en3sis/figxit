@@ -65,7 +65,7 @@ const env: Record<string, string | undefined> = {
   ...process.env,
   LC_ALL: "en_US.UTF-8",
   ZDOTDIR: work,
-  ...(real ? {} : { FIGXIT_ATUIN_DB: join(work, "none.db") }),
+  ...(real ? {} : { FIGXIT_ATUIN_DB: join(work, "none.db"), FIGXIT_USER_ALIASES: join(work, "user-aliases") }),
   FIGXIT_AUTOSTART: "1",
   FIGXIT_SOCK: engineSock,
   FIGXIT_HELPER_SOCK: helperSock,
@@ -366,6 +366,15 @@ try {
     await keys("Enter");
     const menuLine = screen().split("\n").find((line) => line.startsWith(">")) ?? "";
     check("Enter in zsh's completion menu picks the entry and does not run the line", /^> +wc \S+ \S+ ?$/.test(menuLine) && !screen().includes("total"), screen());
+    await keys("C-u");
+  }
+
+  if (name !== "fish") {
+    await keys(" alias mk=make");
+    await keys("Enter");
+    await keys("mk ");
+    names = lastShow()?.items.map((i: any) => i.label) ?? [];
+    check("an alias made in the open shell lists what its command lists", messages.at(-1)?.cmd === "show" && names.slice().sort().join() === "admin-url,build,deploy,dev", names);
     await keys("C-u");
   }
 

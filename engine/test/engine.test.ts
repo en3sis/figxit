@@ -1,5 +1,6 @@
 process.env.FIGXIT_SPECS = "off";
 process.env.FIGXIT_USER_SPECS = "/nonexistent/figxit-user-specs";
+process.env.FIGXIT_USER_ALIASES = "/nonexistent/figxit-user-aliases";
 
 import { describe, expect, test } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
@@ -12,7 +13,7 @@ import { atuinDb } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
-import { expandCommandWords, parseAliases } from "../src/aliases";
+import { aliasesFor, expandCommandWords, parseAliasFile, parseAliases, type Aliases } from "../src/aliases";
 import { loadSpec, registerSpec } from "../src/specs";
 import { commandWords, scan } from "../src/tokenize";
 import { verbOf } from "../src/verbs";
@@ -26,7 +27,7 @@ function project(files: Record<string, string>): string {
   return dir;
 }
 
-async function suggest(buffer: string, cursor: number, cwd: string, history: History, now: number, aliases?: Map<string, string>) {
+async function suggest(buffer: string, cursor: number, cwd: string, history: History, now: number, aliases?: Aliases) {
   const result = await suggestAsync(buffer, cursor, cwd, history, now, aliases);
   return result.more ? await result.more : result.now;
 }
@@ -520,7 +521,7 @@ describe("kubectl patch", () => {
 });
 
 describe("shell command aliases", () => {
-  test("zsh and bash send name=value, fish sends abbr --show lines", () => {
+  test("reads the alias file a shell writes: name=value lines, and abbr lines from fish", () => {
     const text = [
       "k=kubectl",
       "ll=ls -l",
@@ -532,7 +533,7 @@ describe("shell command aliases", () => {
       "abbr -a -- d docker",
       "abbr -a --position anywhere -- L '| less'",
       "abbr -a --function last_history_item -- !!",
-    ].join("\x1e");
+    ].join("\n");
     expect(parseAliases(text)).toEqual(
       new Map([
         ["k", "kubectl"],
@@ -545,6 +546,54 @@ describe("shell command aliases", () => {
         ["d", "docker"],
       ]),
     );
+  });
+
+  test("reads the user alias file in the forms alias prints in zsh, bash and fish", () => {
+    const text = [
+      "# work",
+      "k=kubectl",
+      "ll='ls -l'",
+      "  alias gs='git status'",
+      "alias q='echo '\\''hi'\\'''",
+      "alias ff 'fzf --preview cat'",
+      "abbr -a -- gco 'git checkout'",
+      "kd=kubectl -n dev",
+      "alias -g G='| grep'",
+      "not an alias",
+    ].join("\n");
+    expect(parseAliasFile(text)).toEqual(
+      new Map([
+        ["k", "kubectl"],
+        ["ll", "ls -l"],
+        ["gs", "git status"],
+        ["q", "echo 'hi'"],
+        ["ff", "fzf --preview cat"],
+        ["gco", "git checkout"],
+        ["kd", "kubectl -n dev"],
+      ]),
+    );
+  });
+
+  test("the user alias file wins over the shell's aliases, and edits apply right away", () => {
+    const dir = mkdtempSync(join(tmpdir(), "figxit-aliases-"));
+    const file = join(dir, "aliases");
+    const saved = process.env.FIGXIT_USER_ALIASES;
+    process.env.FIGXIT_USER_ALIASES = file;
+    try {
+      const shell = new Map([
+        ["k", "kubectl"],
+        ["g", "git"],
+      ]);
+      writeFileSync(file, "k=kubecolor\n");
+      expect([aliasesFor(shell).get("k"), aliasesFor(shell).get("g")]).toEqual(["kubecolor", "git"]);
+      writeFileSync(file, "k=kubectl -n dev\n");
+      expect(aliasesFor(shell).get("k")).toBe("kubectl -n dev");
+      chmodSync(file, 0o666);
+      expect(aliasesFor(shell).get("k")).toBe("kubectl");
+    } finally {
+      process.env.FIGXIT_USER_ALIASES = saved;
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("an alias expands to the words it stands for, through other aliases", () => {
@@ -583,10 +632,12 @@ describe("shell command aliases", () => {
     expect(labels).toContain("deployments");
   });
 
-  test("an alias of make lists the targets of the Makefile", async () => {
-    const cwd = project({ Makefile: "build:\ndeploy:\n" });
-    const labels = (await suggest("m ", 2, cwd, historyOf([]), NOW, new Map([["m", "make"]])))?.items.map((i) => i.label);
-    expect(labels).toEqual(["build", "deploy"]);
+  test("an alias to a wrapper with no spec still completes like the name typed", async () => {
+    registerSpec("fxtool", { name: "fxtool", subcommands: [{ name: "start" }, { name: "stop" }] });
+    const aliases = new Map([["fxtool", "~/bin/fxtool-wrapper --verbose"]]);
+    const labels = (await suggest("fxtool ", 7, "/", historyOf([]), NOW, aliases))?.items.map((i) => i.label) ?? [];
+    expect(labels).toContain("start");
+    expect(labels).toContain("stop");
   });
 });
 
