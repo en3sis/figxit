@@ -1310,6 +1310,17 @@ describe("user specs in ~/.config/figxit/specs", () => {
     expect(trustedPath(join(specs, "tool.js"), home)).toBeNull();
   });
 
+  test("a link the OS can't follow is not followed either", () => {
+    const specs = mkdtempSync(join(tmpdir(), "figxit-notdir-"));
+    writeFileSync(join(specs, "plain.js"), "");
+    symlinkSync("plain.js", join(specs, "linked.js"));
+    symlinkSync("plain.js/", join(specs, "slash.js"));
+    symlinkSync("plain.js/../plain.js", join(specs, "dots.js"));
+    expect(trustedPath(join(specs, "linked.js"), specs)).toBe(realpathSync(join(specs, "plain.js")));
+    expect(trustedPath(join(specs, "slash.js"), specs)).toBeNull();
+    expect(trustedPath(join(specs, "dots.js"), specs)).toBeNull();
+  });
+
   test.skipIf(!ownGroup(userInfo().gid))("a group-writable file in the user's own group loads", async () => {
     await withUserSpecs(async (dir) => {
       registerSpec("tool-g", { name: "tool-g", subcommands: [{ name: "bundled" }] });

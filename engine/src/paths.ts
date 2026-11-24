@@ -99,7 +99,7 @@ export function trustedPath(file: string, home = homedir()): string | null {
       parts.push(...target.split("/").reverse());
       if (target.startsWith("/")) path = "/";
     }
-    return path;
+    return realpathSync(file) === path ? path : null;
   } catch {
     return null;
   }
