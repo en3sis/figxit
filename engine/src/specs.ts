@@ -85,7 +85,7 @@ function userSpec(name: string): { file: string; stamp: string } | null {
   const file = join(dir, `${name}.js`);
   try {
     const stat = statSync(file);
-    if (!stat.isFile() || !trusted(stat) || !trustedFolders(file)) return null;
+    if (!stat.isFile() || !trusted(stat, file) || !trustedFolders(file)) return null;
     return { file, stamp: `${stat.mtimeMs}:${stat.size}` };
   } catch {
     return null;

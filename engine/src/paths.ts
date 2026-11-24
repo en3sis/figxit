@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync, type Stats } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { dlopen, FFIType, ptr } from "bun:ffi";
 
 const STATE = join(homedir(), ".local/state/figxit");
 
@@ -42,11 +43,26 @@ export function userAliasesFile(): string {
   return process.env.FIGXIT_USER_ALIASES ?? join(configDir(), "aliases");
 }
 
-export function trusted(stat: Stats): boolean {
+export function trusted(stat: Stats, path: string): boolean {
   const uid = process.getuid?.();
   if (uid !== undefined && stat.uid !== uid && stat.uid !== 0) return false;
   if (stat.mode & 0o002) return false;
-  return (stat.mode & 0o020) === 0 || ownGroup(stat.gid);
+  return (stat.mode & 0o020) === 0 || (ownGroup(stat.gid) && !accessAcl(path));
+}
+
+const ACL = Buffer.from("system.posix_acl_access\0");
+let getxattr: ((path: unknown, name: unknown, value: unknown, size: number) => number) | null | undefined;
+
+function accessAcl(path: string): boolean {
+  if (getxattr === undefined) {
+    try {
+      const kinds = { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.u64], returns: FFIType.i64_fast } as const;
+      getxattr = process.platform === "linux" ? dlopen("libc.so.6", { getxattr: kinds }).symbols.getxattr : null;
+    } catch {
+      getxattr = null;
+    }
+  }
+  return !getxattr || getxattr(ptr(Buffer.from(`${path}\0`)), ptr(ACL), null, 0) >= 0;
 }
 
 export function trustedFolders(file: string, home = homedir()): boolean {
@@ -64,7 +80,7 @@ function reachable(path: string, given: Set<string>, links: number): boolean {
   if (!reachable(parent, given, links)) return false;
   if (!given.has(parent)) {
     const folder = statSync(parent);
-    if (!trusted(folder) && !(folder.uid === 0 && (folder.mode & 0o1000) !== 0)) return false;
+    if (!trusted(folder, parent) && !(folder.uid === 0 && (folder.mode & 0o1000) !== 0)) return false;
   }
   if (!lstatSync(path).isSymbolicLink()) return true;
   return links < 40 && reachable(resolve(realpathSync(parent), readlinkSync(path)), given, links + 1);

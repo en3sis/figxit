@@ -3,13 +3,13 @@ process.env.FIGXIT_USER_SPECS = "/nonexistent/figxit-user-specs";
 process.env.FIGXIT_USER_ALIASES = "/nonexistent/figxit-user-aliases";
 
 import { describe, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir, userInfo } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { ICONS } from "../src/brands";
 import { History } from "../src/history";
-import { atuinDb, ownGroup, privateGroup, trustedFolders } from "../src/paths";
+import { atuinDb, ownGroup, privateGroup, trusted, trustedFolders } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
@@ -1304,6 +1304,24 @@ describe("user specs in ~/.config/figxit/specs", () => {
       chmodSync(file, 0o664);
       expect(await subcommands("tool-g")).toEqual(["planted"]);
     });
+  });
+
+  const setfacl = Bun.which("setfacl");
+  test.skipIf(!setfacl || !ownGroup(userInfo().gid))("a file in the user's own group that an ACL lets someone else write is not trusted", () => {
+    const dir = mkdtempSync(join(tmpdir(), "figxit-acl-"));
+    const other = `u:${userInfo().uid + 1}:rw`;
+    const file = join(dir, "spec.js");
+    writeFileSync(file, "");
+    chmodSync(file, 0o664);
+    expect(trusted(statSync(file), file)).toBe(true);
+    expect(Bun.spawnSync([setfacl!, "-m", other, file]).exitCode).toBe(0);
+    expect(trusted(statSync(file), file)).toBe(false);
+    const folder = join(dir, "inherits");
+    mkdirSync(folder, { mode: 0o755 });
+    expect(Bun.spawnSync([setfacl!, "-d", "-m", other, folder]).exitCode).toBe(0);
+    const inherited = join(folder, "spec.js");
+    writeFileSync(inherited, "");
+    expect(trusted(statSync(inherited), inherited)).toBe(false);
   });
 
   test("a group-writable file is trusted only when the group is the user's own", () => {
