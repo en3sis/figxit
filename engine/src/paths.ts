@@ -65,25 +65,37 @@ function accessAcl(path: string): boolean {
   return !getxattr || getxattr(ptr(Buffer.from(`${path}\0`)), ptr(ACL), null, 0) >= 0;
 }
 
-export function trustedFolders(file: string, home = homedir()): boolean {
-  const given = new Set([...lineage(resolve(home)), ...lineage(real(home))]);
+export function trustedPath(file: string, home = homedir()): string | null {
+  const given = new Set(lineage(real(home)));
+  const parts = resolve(file).split("/").reverse();
+  let path = "/";
+  let links = 0;
   try {
-    return reachable(resolve(file), given, 0);
+    while (parts.length > 0) {
+      const part = parts.pop();
+      if (!part || part === ".") continue;
+      if (part === "..") {
+        path = dirname(path);
+        continue;
+      }
+      if (!given.has(path)) {
+        const folder = statSync(path);
+        if (!trusted(folder, path) && !(folder.uid === 0 && (folder.mode & 0o1000) !== 0)) return null;
+      }
+      const next = join(path, part);
+      if (!lstatSync(next).isSymbolicLink()) {
+        path = next;
+        continue;
+      }
+      if (++links > 40) return null;
+      const target = readlinkSync(next);
+      parts.push(...target.split("/").reverse());
+      if (target.startsWith("/")) path = "/";
+    }
+    return path;
   } catch {
-    return false;
+    return null;
   }
-}
-
-function reachable(path: string, given: Set<string>, links: number): boolean {
-  if (given.has(path)) return true;
-  const parent = dirname(path);
-  if (!reachable(parent, given, links)) return false;
-  if (!given.has(parent)) {
-    const folder = statSync(parent);
-    if (!trusted(folder, parent) && !(folder.uid === 0 && (folder.mode & 0o1000) !== 0)) return false;
-  }
-  if (!lstatSync(path).isSymbolicLink()) return true;
-  return links < 40 && reachable(resolve(realpathSync(parent), readlinkSync(path)), given, links + 1);
 }
 
 function lineage(path: string): string[] {

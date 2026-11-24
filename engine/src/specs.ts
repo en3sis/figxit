@@ -4,7 +4,7 @@ import { brandIcon, ICONS, type Icon } from "./brands";
 import { expandAlias } from "./generators";
 import { FIGXIT_ICONS, FIGXIT_SPECS, PATCHES } from "./figxit";
 import { extraRoot, extraSource } from "./extras";
-import { specsDir, trusted, trustedFolders, userSpecsDir } from "./paths";
+import { specsDir, trusted, trustedPath, userSpecsDir } from "./paths";
 import { loadVersioned } from "./versioned";
 import type { Candidate } from "./sources";
 
@@ -82,10 +82,11 @@ async function versionedSpec(name: string, dir: string): Promise<Spec | null> {
 function userSpec(name: string): { file: string; stamp: string } | null {
   if (name.split("/").some((part) => /^\.+$/.test(part))) return null;
   const dir = userSpecsDir();
-  const file = join(dir, `${name}.js`);
+  const file = trustedPath(join(dir, `${name}.js`));
+  if (!file) return null;
   try {
     const stat = statSync(file);
-    if (!stat.isFile() || !trusted(stat, file) || !trustedFolders(file)) return null;
+    if (!stat.isFile() || !trusted(stat, file)) return null;
     return { file, stamp: `${stat.mtimeMs}:${stat.size}` };
   } catch {
     return null;

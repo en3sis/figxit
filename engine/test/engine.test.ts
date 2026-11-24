@@ -3,13 +3,13 @@ process.env.FIGXIT_USER_SPECS = "/nonexistent/figxit-user-specs";
 process.env.FIGXIT_USER_ALIASES = "/nonexistent/figxit-user-aliases";
 
 import { describe, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir, userInfo } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { ICONS } from "../src/brands";
 import { History } from "../src/history";
-import { atuinDb, ownGroup, privateGroup, trusted, trustedFolders } from "../src/paths";
+import { atuinDb, ownGroup, privateGroup, trusted, trustedPath } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
@@ -1233,10 +1233,10 @@ describe("user specs in ~/.config/figxit/specs", () => {
     for (const folder of folders) mkdirSync(join(home, folder), { mode: 0o755 });
     const file = join(home, ".config/figxit/specs/tool/plugin.js");
     writeFileSync(file, "");
-    expect(trustedFolders(file, home)).toBe(true);
+    expect(trustedPath(file, home)).toBe(realpathSync(file));
     for (const folder of folders) {
       chmodSync(join(home, folder), 0o777);
-      expect(trustedFolders(file, home)).toBe(false);
+      expect(trustedPath(file, home)).toBeNull();
       chmodSync(join(home, folder), 0o755);
     }
   });
@@ -1249,9 +1249,9 @@ describe("user specs in ~/.config/figxit/specs", () => {
     mkdirSync(specs, { recursive: true, mode: 0o755 });
     const file = join(specs, "tool.js");
     writeFileSync(file, "");
-    expect(trustedFolders(file, home)).toBe(true);
+    expect(trustedPath(file, home)).toBe(realpathSync(file));
     chmodSync(join(base, "config"), 0o777);
-    expect(trustedFolders(file, home)).toBe(false);
+    expect(trustedPath(file, home)).toBeNull();
   });
 
   test("the folders a symlinked spec really lives in are checked too", () => {
@@ -1263,16 +1263,16 @@ describe("user specs in ~/.config/figxit/specs", () => {
     symlinkSync(join(shared, "figxit"), join(home, ".config/figxit"));
     const file = join(home, ".config/figxit/specs/tool.js");
     writeFileSync(file, "");
-    expect(trustedFolders(file, home)).toBe(true);
+    expect(trustedPath(file, home)).toBe(realpathSync(file));
     chmodSync(shared, 0o777);
-    expect(trustedFolders(file, home)).toBe(false);
+    expect(trustedPath(file, home)).toBeNull();
     chmodSync(shared, 0o755);
     const open = join(base, "open");
     mkdirSync(open);
     chmodSync(open, 0o777);
     writeFileSync(join(open, "linked.js"), "");
     symlinkSync(join(open, "linked.js"), join(home, ".config/figxit/specs/linked.js"));
-    expect(trustedFolders(join(home, ".config/figxit/specs/linked.js"), home)).toBe(false);
+    expect(trustedPath(join(home, ".config/figxit/specs/linked.js"), home)).toBeNull();
   });
 
   test("every link on the way to a spec is followed, and the folder each link sits in is checked", () => {
@@ -1282,18 +1282,32 @@ describe("user specs in ~/.config/figxit/specs", () => {
     symlinkSync(join(home, "x/y"), join(home, ".config/figxit"));
     const file = join(home, ".config/figxit/specs/tool.js");
     writeFileSync(file, "");
-    expect(trustedFolders(file, home)).toBe(true);
+    expect(trustedPath(file, home)).toBe(realpathSync(file));
     chmodSync(join(home, "x"), 0o777);
-    expect(trustedFolders(file, home)).toBe(false);
+    expect(trustedPath(file, home)).toBeNull();
     chmodSync(join(home, "x"), 0o755);
     for (const folder of [".config/r", "p/r"]) writeFileSync(join(home, folder, "up.js"), "");
     symlinkSync("../../r/up.js", join(home, "p/q/specs/up.js"));
-    expect(trustedFolders(join(home, ".config/figxit/specs/up.js"), home)).toBe(true);
+    expect(trustedPath(join(home, ".config/figxit/specs/up.js"), home)).toBe(realpathSync(join(home, ".config/figxit/specs/up.js")));
     chmodSync(join(home, "p/r"), 0o777);
-    expect(trustedFolders(join(home, ".config/figxit/specs/up.js"), home)).toBe(false);
+    expect(trustedPath(join(home, ".config/figxit/specs/up.js"), home)).toBeNull();
     symlinkSync("loop-b.js", join(home, "p/q/specs/loop-a.js"));
     symlinkSync("loop-a.js", join(home, "p/q/specs/loop-b.js"));
-    expect(trustedFolders(join(home, ".config/figxit/specs/loop-a.js"), home)).toBe(false);
+    expect(trustedPath(join(home, ".config/figxit/specs/loop-a.js"), home)).toBeNull();
+  });
+
+  test("a .. in a link target climbs from where the link before it leads, as the OS does", () => {
+    const home = mkdtempSync(join(tmpdir(), "figxit-dots-"));
+    const specs = join(home, ".config/figxit/specs");
+    mkdirSync(specs, { recursive: true, mode: 0o755 });
+    mkdirSync(join(home, "open/deep"), { recursive: true, mode: 0o755 });
+    writeFileSync(join(specs, "tool-real.js"), "");
+    writeFileSync(join(home, "open/tool-real.js"), "");
+    symlinkSync(join(home, "open/deep"), join(specs, "deep"));
+    symlinkSync("deep/../tool-real.js", join(specs, "tool.js"));
+    expect(trustedPath(join(specs, "tool.js"), home)).toBe(realpathSync(join(home, "open/tool-real.js")));
+    chmodSync(join(home, "open"), 0o777);
+    expect(trustedPath(join(specs, "tool.js"), home)).toBeNull();
   });
 
   test.skipIf(!ownGroup(userInfo().gid))("a group-writable file in the user's own group loads", async () => {
