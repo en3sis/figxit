@@ -67,9 +67,12 @@ function ownGroup(gid: number): boolean {
 export function privateGroup(gid: number, user: { username: string; gid: number }, group: string, passwd: string): boolean {
   if (gid !== user.gid) return false;
   const rows = (text: string) => text.split("\n").map((line) => line.split(":"));
-  const entry = rows(group).find((fields) => fields[2] === String(gid));
-  if (entry?.[0] !== user.username) return false;
-  if ((entry[3] ?? "").split(",").some((name) => name && name !== user.username)) return false;
+  const entries = rows(group).filter((fields) => fields[2] === String(gid));
+  if (entries.length === 0) return false;
+  for (const [name, , , members = ""] of entries) {
+    if (name !== user.username) return false;
+    if (members.split(",").some((member) => member && member !== user.username)) return false;
+  }
   return !rows(passwd).some((fields) => fields[3] === String(gid) && fields[0] !== user.username);
 }
 

@@ -1242,6 +1242,7 @@ describe("user specs in ~/.config/figxit/specs", () => {
     expect(privateGroup(1000, me, "me:x:1000:me\n", passwd)).toBe(true);
     expect(privateGroup(1000, me, "me:x:1000:guest\n", passwd)).toBe(false);
     expect(privateGroup(1000, me, "me:x:1000:\n", `${passwd}guest:x:1001:1000::/home/guest:/bin/sh\n`)).toBe(false);
+    expect(privateGroup(1000, me, "me:x:1000:\nshared:x:1000:alice\n", passwd)).toBe(false);
     expect(privateGroup(1000, me, "dev:x:1000:\n", passwd)).toBe(false);
     expect(privateGroup(1000, me, "", passwd)).toBe(false);
     expect(privateGroup(100, me, "users:x:100:\n", passwd)).toBe(false);
