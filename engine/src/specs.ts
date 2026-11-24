@@ -1,5 +1,5 @@
 import { statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { brandIcon, ICONS, type Icon } from "./brands";
 import { expandAlias } from "./generators";
 import { FIGXIT_ICONS, FIGXIT_SPECS, PATCHES } from "./figxit";
@@ -85,7 +85,7 @@ function userSpec(name: string): { file: string; stamp: string } | null {
   const file = join(dir, `${name}.js`);
   try {
     const stat = statSync(file);
-    if (!stat.isFile() || !trusted(stat) || !trustedFolders(dirname(file), dir)) return null;
+    if (!stat.isFile() || !trusted(stat) || !trustedFolders(file)) return null;
     return { file, stamp: `${stat.mtimeMs}:${stat.size}` };
   } catch {
     return null;

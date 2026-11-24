@@ -49,18 +49,23 @@ export function trusted(stat: Stats): boolean {
   return (stat.mode & 0o020) === 0 || ownGroup(stat.gid);
 }
 
-export function trustedFolders(folder: string, root: string, home = homedir()): boolean {
-  const top = resolve(root);
-  const stop = top.startsWith(`${resolve(home)}/`) ? resolve(home) : dirname(top);
+export function trustedFolders(file: string, home = homedir()): boolean {
   try {
-    for (let path = resolve(folder); path !== stop; path = dirname(path)) {
-      if (!trusted(statSync(path))) return false;
-      if (path === dirname(path)) break;
-    }
-    return true;
+    const written = dirname(resolve(file));
+    const real = dirname(realpathSync(file));
+    return foldersUpTo(written, resolve(home)) && (real === written || foldersUpTo(real, realpathSync(home)));
   } catch {
     return false;
   }
+}
+
+function foldersUpTo(folder: string, home: string): boolean {
+  for (let path = folder; path !== home; path = dirname(path)) {
+    const stat = statSync(path);
+    if (!trusted(stat) && !(stat.uid === 0 && (stat.mode & 0o1000) !== 0)) return false;
+    if (path === dirname(path)) break;
+  }
+  return true;
 }
 
 let ownGroups = { stamp: "", gids: new Map<number, boolean>() };
