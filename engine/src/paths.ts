@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync, type Stats } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
@@ -50,22 +50,38 @@ export function trusted(stat: Stats): boolean {
 }
 
 export function trustedFolders(file: string, home = homedir()): boolean {
+  const given = new Set([...lineage(resolve(home)), ...lineage(real(home))]);
   try {
-    const written = dirname(resolve(file));
-    const real = dirname(realpathSync(file));
-    return foldersUpTo(written, resolve(home)) && (real === written || foldersUpTo(real, realpathSync(home)));
+    return reachable(resolve(file), given, 0);
   } catch {
     return false;
   }
 }
 
-function foldersUpTo(folder: string, home: string): boolean {
-  for (let path = folder; path !== home; path = dirname(path)) {
-    const stat = statSync(path);
-    if (!trusted(stat) && !(stat.uid === 0 && (stat.mode & 0o1000) !== 0)) return false;
-    if (path === dirname(path)) break;
+function reachable(path: string, given: Set<string>, links: number): boolean {
+  if (given.has(path)) return true;
+  const parent = dirname(path);
+  if (!reachable(parent, given, links)) return false;
+  if (!given.has(parent)) {
+    const folder = statSync(parent);
+    if (!trusted(folder) && !(folder.uid === 0 && (folder.mode & 0o1000) !== 0)) return false;
   }
-  return true;
+  if (!lstatSync(path).isSymbolicLink()) return true;
+  return links < 40 && reachable(resolve(realpathSync(parent), readlinkSync(path)), given, links + 1);
+}
+
+function lineage(path: string): string[] {
+  const paths = [path];
+  while (dirname(path) !== path) paths.push((path = dirname(path)));
+  return paths;
+}
+
+function real(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
 }
 
 let ownGroups = { stamp: "", gids: new Map<number, boolean>() };

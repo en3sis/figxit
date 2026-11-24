@@ -1241,7 +1241,7 @@ describe("user specs in ~/.config/figxit/specs", () => {
     }
   });
 
-  test("outside $HOME, every folder up to / is checked", () => {
+  test("outside $HOME, the folders above the spec are checked up to the ones that lead to $HOME", () => {
     const base = mkdtempSync(join(tmpdir(), "figxit-outside-"));
     const home = join(base, "home");
     const specs = join(base, "config/figxit/specs");
@@ -1273,6 +1273,27 @@ describe("user specs in ~/.config/figxit/specs", () => {
     writeFileSync(join(open, "linked.js"), "");
     symlinkSync(join(open, "linked.js"), join(home, ".config/figxit/specs/linked.js"));
     expect(trustedFolders(join(home, ".config/figxit/specs/linked.js"), home)).toBe(false);
+  });
+
+  test("every link on the way to a spec is followed, and the folder each link sits in is checked", () => {
+    const home = mkdtempSync(join(tmpdir(), "figxit-hops-"));
+    for (const folder of [".config/r", "x", "p/q/specs", "p/r"]) mkdirSync(join(home, folder), { recursive: true, mode: 0o755 });
+    symlinkSync(join(home, "p/q"), join(home, "x/y"));
+    symlinkSync(join(home, "x/y"), join(home, ".config/figxit"));
+    const file = join(home, ".config/figxit/specs/tool.js");
+    writeFileSync(file, "");
+    expect(trustedFolders(file, home)).toBe(true);
+    chmodSync(join(home, "x"), 0o777);
+    expect(trustedFolders(file, home)).toBe(false);
+    chmodSync(join(home, "x"), 0o755);
+    for (const folder of [".config/r", "p/r"]) writeFileSync(join(home, folder, "up.js"), "");
+    symlinkSync("../../r/up.js", join(home, "p/q/specs/up.js"));
+    expect(trustedFolders(join(home, ".config/figxit/specs/up.js"), home)).toBe(true);
+    chmodSync(join(home, "p/r"), 0o777);
+    expect(trustedFolders(join(home, ".config/figxit/specs/up.js"), home)).toBe(false);
+    symlinkSync("loop-b.js", join(home, "p/q/specs/loop-a.js"));
+    symlinkSync("loop-a.js", join(home, "p/q/specs/loop-b.js"));
+    expect(trustedFolders(join(home, ".config/figxit/specs/loop-a.js"), home)).toBe(false);
   });
 
   test.skipIf(!ownGroup(userInfo().gid))("a group-writable file in the user's own group loads", async () => {
