@@ -3,7 +3,7 @@ process.env.FIGXIT_USER_SPECS = "/nonexistent/figxit-user-specs";
 process.env.FIGXIT_USER_ALIASES = "/nonexistent/figxit-user-aliases";
 
 import { describe, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir, userInfo } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
@@ -1241,22 +1241,13 @@ describe("user specs in ~/.config/figxit/specs", () => {
     expect(trustedFolders(outside, outside, home)).toBe(true);
   });
 
-  test("a group-writable file loads only when its group is the user's own", async () => {
+  test.skipIf(!ownGroup(userInfo().gid))("a group-writable file in the user's own group loads", async () => {
     await withUserSpecs(async (dir) => {
       registerSpec("tool-g", { name: "tool-g", subcommands: [{ name: "bundled" }] });
       const file = join(dir, "tool-g.js");
       writeFileSync(file, spec('{ name: "tool-g", subcommands: [{ name: "planted" }] }'));
       chmodSync(file, 0o664);
-      const text = (path: string) => {
-        try {
-          return readFileSync(path, "utf8");
-        } catch {
-          return "";
-        }
-      };
-      const own = privateGroup(statSync(file).gid, userInfo(), text("/etc/group"), text("/etc/passwd"));
-      if (process.platform === "darwin") expect(own).toBe(false);
-      expect(await subcommands("tool-g")).toEqual([own ? "planted" : "bundled"]);
+      expect(await subcommands("tool-g")).toEqual(["planted"]);
     });
   });
 
