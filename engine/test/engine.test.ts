@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { ICONS } from "../src/brands";
 import { History } from "../src/history";
-import { atuinDb, ownGroup, privateGroup } from "../src/paths";
+import { atuinDb, ownGroup, privateGroup, trustedFolders } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
@@ -1214,6 +1214,31 @@ describe("user specs in ~/.config/figxit/specs", () => {
       expect(await subcommands("tool-e")).toEqual(["bundled"]);
       expect(await subcommands("tool-f")).toEqual(["bundled"]);
     });
+  });
+
+  test("a spec in a folder others can write falls back to the bundled spec", async () => {
+    await withUserSpecs(async (dir) => {
+      mkdirSync(join(dir, "tool-h"));
+      registerSpec("tool-h/plugin", { name: "plugin", subcommands: [{ name: "bundled" }] });
+      writeFileSync(join(dir, "tool-h/plugin.js"), spec('{ name: "plugin", subcommands: [{ name: "planted" }] }'));
+      expect(await subcommands("tool-h/plugin")).toEqual(["planted"]);
+      chmodSync(join(dir, "tool-h"), 0o777);
+      expect(await subcommands("tool-h/plugin")).toEqual(["bundled"]);
+    });
+  });
+
+  test("every folder between a spec and $HOME is checked", () => {
+    const home = mkdtempSync(join(tmpdir(), "figxit-home-"));
+    const specs = join(home, ".config/figxit/specs");
+    mkdirSync(join(specs, "tool"), { recursive: true });
+    expect(trustedFolders(join(specs, "tool"), specs, home)).toBe(true);
+    for (const folder of [".config", ".config/figxit", ".config/figxit/specs", ".config/figxit/specs/tool"]) {
+      chmodSync(join(home, folder), 0o777);
+      expect(trustedFolders(join(specs, "tool"), specs, home)).toBe(false);
+      chmodSync(join(home, folder), 0o755);
+    }
+    const outside = mkdtempSync(join(tmpdir(), "figxit-specs-"));
+    expect(trustedFolders(outside, outside, home)).toBe(true);
   });
 
   test("a group-writable file loads only when its group is the user's own", async () => {

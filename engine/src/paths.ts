@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
 import { homedir, userInfo } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const STATE = join(homedir(), ".local/state/figxit");
 
@@ -47,6 +47,20 @@ export function trusted(stat: Stats): boolean {
   if (uid !== undefined && stat.uid !== uid && stat.uid !== 0) return false;
   if (stat.mode & 0o002) return false;
   return (stat.mode & 0o020) === 0 || ownGroup(stat.gid);
+}
+
+export function trustedFolders(folder: string, root: string, home = homedir()): boolean {
+  const top = resolve(root);
+  const stop = top.startsWith(`${resolve(home)}/`) ? resolve(home) : dirname(top);
+  try {
+    for (let path = resolve(folder); path !== stop; path = dirname(path)) {
+      if (!trusted(statSync(path))) return false;
+      if (path === dirname(path)) break;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 let ownGroups = { stamp: "", gids: new Map<number, boolean>() };
