@@ -72,7 +72,7 @@ let ownGroups = { stamp: "", gids: new Map<number, boolean>() };
 
 function fileStamp(path: string): string {
   const stat = statSync(path);
-  return `${path}:${stat.mtimeMs}:${stat.size}`;
+  return `${path}:${stat.ino}:${stat.ctimeMs}:${stat.mtimeMs}:${stat.size}`;
 }
 
 export function ownGroup(gid: number, group = "/etc/group", passwd = "/etc/passwd"): boolean {

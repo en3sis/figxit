@@ -3,7 +3,7 @@ process.env.FIGXIT_USER_SPECS = "/nonexistent/figxit-user-specs";
 process.env.FIGXIT_USER_ALIASES = "/nonexistent/figxit-user-aliases";
 
 import { describe, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir, userInfo } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
@@ -1308,14 +1308,31 @@ describe("user specs in ~/.config/figxit/specs", () => {
     const passwd = join(dir, "passwd");
     writeFileSync(group, `${username}:x:${gid}:\n`);
     writeFileSync(passwd, `${username}:x:${uid}:${gid}::/home/${username}:/bin/sh\n`);
+    utimesSync(group, new Date(NOW), new Date(NOW));
     expect(ownGroup(gid, group, passwd)).toBe(true);
     writeFileSync(group, `${username}:x:${gid}:guest\n`);
-    utimesSync(group, new Date(NOW), new Date(NOW));
+    utimesSync(group, new Date(NOW + DAY), new Date(NOW + DAY));
     expect(ownGroup(gid, group, passwd)).toBe(false);
     writeFileSync(group, `${username}:x:${gid}:\n`);
+    utimesSync(group, new Date(NOW), new Date(NOW));
+    expect(ownGroup(gid, group, passwd)).toBe(true);
     writeFileSync(passwd, `${username}:x:${uid}:${gid}::/home/${username}:/bin/sh\nguest:x:${uid + 1}:${gid}::/:/bin/sh\n`);
-    utimesSync(group, new Date(NOW + DAY), new Date(NOW + DAY));
-    utimesSync(passwd, new Date(NOW + DAY), new Date(NOW + DAY));
+    expect(ownGroup(gid, group, passwd)).toBe(false);
+  });
+
+  test("a /etc/group replaced by one of the same size and mtime is read again", () => {
+    const dir = mkdtempSync(join(tmpdir(), "figxit-accounts-"));
+    const { username, uid, gid } = userInfo();
+    const group = join(dir, "group");
+    const passwd = join(dir, "passwd");
+    const next = join(dir, "group.next");
+    writeFileSync(group, `${username}:x:${gid}:${username}\n`);
+    writeFileSync(passwd, `${username}:x:${uid}:${gid}::/home/${username}:/bin/sh\n`);
+    utimesSync(group, new Date(NOW), new Date(NOW));
+    expect(ownGroup(gid, group, passwd)).toBe(true);
+    writeFileSync(next, `${username}:x:${gid}:${"g".repeat(username.length)}\n`);
+    utimesSync(next, new Date(NOW), new Date(NOW));
+    renameSync(next, group);
     expect(ownGroup(gid, group, passwd)).toBe(false);
   });
 });
