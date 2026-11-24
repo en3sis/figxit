@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync, type Stats } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync, type Stats } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -49,17 +49,29 @@ export function trusted(stat: Stats): boolean {
   return (stat.mode & 0o020) === 0 || ownGroup(stat.gid);
 }
 
-const ownGroups = new Map<number, boolean>();
+let ownGroups = { stamp: "", gids: new Map<number, boolean>() };
 
-function ownGroup(gid: number): boolean {
-  let own = ownGroups.get(gid);
+function fileStamp(path: string): string {
+  const stat = statSync(path);
+  return `${path}:${stat.mtimeMs}:${stat.size}`;
+}
+
+export function ownGroup(gid: number, group = "/etc/group", passwd = "/etc/passwd"): boolean {
+  let stamp: string;
+  try {
+    stamp = `${fileStamp(group)}\n${fileStamp(passwd)}`;
+  } catch {
+    return false;
+  }
+  if (ownGroups.stamp !== stamp) ownGroups = { stamp, gids: new Map() };
+  let own = ownGroups.gids.get(gid);
   if (own === undefined) {
     try {
-      own = privateGroup(gid, userInfo(), readFileSync("/etc/group", "utf8"), readFileSync("/etc/passwd", "utf8"));
+      own = privateGroup(gid, userInfo(), readFileSync(group, "utf8"), readFileSync(passwd, "utf8"));
     } catch {
       own = false;
     }
-    ownGroups.set(gid, own);
+    ownGroups.gids.set(gid, own);
   }
   return own;
 }

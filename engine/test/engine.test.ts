@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { ICONS } from "../src/brands";
 import { History } from "../src/history";
-import { atuinDb, privateGroup } from "../src/paths";
+import { atuinDb, ownGroup, privateGroup } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
@@ -1247,5 +1247,23 @@ describe("user specs in ~/.config/figxit/specs", () => {
     expect(privateGroup(1000, me, "", passwd)).toBe(false);
     expect(privateGroup(100, me, "users:x:100:\n", passwd)).toBe(false);
     expect(privateGroup(20, { username: "me", gid: 20 }, "staff:*:20:root\n", "")).toBe(false);
+  });
+
+  test("the group is checked again when /etc/group or /etc/passwd changes", () => {
+    const dir = mkdtempSync(join(tmpdir(), "figxit-accounts-"));
+    const { username, uid, gid } = userInfo();
+    const group = join(dir, "group");
+    const passwd = join(dir, "passwd");
+    writeFileSync(group, `${username}:x:${gid}:\n`);
+    writeFileSync(passwd, `${username}:x:${uid}:${gid}::/home/${username}:/bin/sh\n`);
+    expect(ownGroup(gid, group, passwd)).toBe(true);
+    writeFileSync(group, `${username}:x:${gid}:guest\n`);
+    utimesSync(group, new Date(NOW), new Date(NOW));
+    expect(ownGroup(gid, group, passwd)).toBe(false);
+    writeFileSync(group, `${username}:x:${gid}:\n`);
+    writeFileSync(passwd, `${username}:x:${uid}:${gid}::/home/${username}:/bin/sh\nguest:x:${uid + 1}:${gid}::/:/bin/sh\n`);
+    utimesSync(group, new Date(NOW + DAY), new Date(NOW + DAY));
+    utimesSync(passwd, new Date(NOW + DAY), new Date(NOW + DAY));
+    expect(ownGroup(gid, group, passwd)).toBe(false);
   });
 });
