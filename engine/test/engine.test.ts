@@ -1218,9 +1218,9 @@ describe("user specs in ~/.config/figxit/specs", () => {
 
   test("a spec in a folder others can write falls back to the bundled spec", async () => {
     await withUserSpecs(async (dir) => {
-      mkdirSync(join(dir, "tool-h"));
+      mkdirSync(join(dir, "tool-h"), { mode: 0o755 });
       registerSpec("tool-h/plugin", { name: "plugin", subcommands: [{ name: "bundled" }] });
-      writeFileSync(join(dir, "tool-h/plugin.js"), spec('{ name: "plugin", subcommands: [{ name: "planted" }] }'));
+      writeFileSync(join(dir, "tool-h/plugin.js"), spec('{ name: "plugin", subcommands: [{ name: "planted" }] }'), { mode: 0o644 });
       expect(await subcommands("tool-h/plugin")).toEqual(["planted"]);
       chmodSync(join(dir, "tool-h"), 0o777);
       expect(await subcommands("tool-h/plugin")).toEqual(["bundled"]);
