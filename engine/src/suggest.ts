@@ -24,6 +24,7 @@ const MAX_TOKEN = 48;
 const UNSAFE = /['"`$\\*?<>!{}\[\]]/;
 const SHELL = /['"`$\\*?<>!{}\[\];&|()\n]/;
 const BARE = /[\s#]/;
+const OPTION_VALUE = /^(--?[^\s=]+)=/;
 const SECRET =
   /(key|token|secret|passwd|password|pass|pwd|pw|auth|bearer|credential)s?(?![a-z])[\w.-]*[=:]|:\/\/[^\/@\s]+:[^@\s]+@|^(gh[pousr]_|github_pat_|sk-|xox[abprs]-|AKIA|eyJ)|^[A-Za-z0-9+_=-]{32,}$/i;
 const SECRET_FLAG = /^(-[pua]|--?(password|passwd|pass|token|secret|key|apikey|api-key|auth|bearer|user))$/i;
@@ -156,10 +157,16 @@ async function complete(
   const command = effectiveWords[0];
   const spec = expandedSpec ?? typedSpec;
   const project = projectCandidates(effectiveWords, prefix, cwd, spec !== null);
-  const position = spec ? await locate(spec, effectiveWords, cwd) : null;
+  // `--opt=value`: complete the value as the option's argument, then put `--opt=` back in front.
+  const equals = spec ? OPTION_VALUE.exec(prefix) : null;
+  const optionHead = equals?.[0] ?? "";
+  const valuePrefix = prefix.slice(optionHead.length);
+  const valueWords = equals ? [...effectiveWords, equals[1]!] : effectiveWords;
+  let position = spec ? await locate(spec, valueWords, cwd) : null;
+  if (equals) position = position?.optionArg ? { ...position, optionArg: { ...position.optionArg, isOptional: false } } : null;
   const generated = list<Spec>(position?.arg?.generators).some((generator) => !generator.template);
   if (position?.repeated && prefix === "" && !generated) return EMPTY;
-  const emitted: Emitted | null = position ? emit(position, prefix) : null;
+  const emitted: Emitted | null = position ? emit(position, valuePrefix) : null;
   const stats = history.nextTokens(words, cwd, repoRoot(cwd), now);
   const known = depth === 0 && prefix !== "" && !prefix.includes("/") && !keyword(prefix) && (await loadSpec(prefix)) !== null;
   const covered = project.authoritative || spec !== null;
@@ -169,13 +176,13 @@ async function complete(
   const slots: { found: Lookup; head: string; filtered: boolean }[] = [];
   if (emitted && !project.authoritative) {
     if (emitted.templates.size > 0) {
-      files.push(...fileCandidates(prefix, cwd, !emitted.templates.has("filepaths")));
+      files.push(...fileCandidates(valuePrefix, cwd, !emitted.templates.has("filepaths")));
     }
     if (project.candidates.length === 0) {
-      const plain = ![...effectiveWords, prefix].some((word) => SHELL.test(word) || BARE.test(word));
-      const ctx: GenContext = { tokens: [...effectiveWords, prefix], cwd, prefix, plain };
+      const plain = ![...valueWords, valuePrefix].some((word) => SHELL.test(word) || BARE.test(word));
+      const ctx: GenContext = { tokens: [...valueWords, valuePrefix], cwd, prefix: valuePrefix, plain };
       for (const generator of emitted.generators) {
-        slots.push({ found: lookup(generator, ctx, now), head: queryHead(generator, prefix), filtered: generator.filtered === true });
+        slots.push({ found: lookup(generator, ctx, now), head: queryHead(generator, valuePrefix), filtered: generator.filtered === true });
       }
     }
   }
@@ -186,15 +193,16 @@ async function complete(
       if (candidate && !merged.has(candidate.label)) merged.set(candidate.label, { ...candidate });
     };
     const pick = (candidate: Candidate) => add({ ...candidate, pick: true });
+    const pickValue = (candidate: Candidate) => pick(withHead(candidate, optionHead));
     project.candidates.forEach(pick);
-    emitted?.statics.forEach(pick);
+    emitted?.statics.forEach(pickValue);
     for (const { item, head, filtered } of dynamic) {
       const candidate = toCandidate(item as never, brand, "suggestion");
       if (!candidate) continue;
       if (filtered) candidate.matched = true;
       if (candidate.icon === ICONS.folder.icon || candidate.icon === ICONS.file.icon) {
         const dotted = candidate.label.startsWith(".") && !candidate.label.startsWith("../");
-        const typed = prefix.slice(head.length);
+        const typed = valuePrefix.slice(head.length);
         if (dotted && (!typed.startsWith(".") || typed.length < 2)) continue;
         candidate.score = Math.min(candidate.score, 0.65);
         const text = candidate.insert ?? `${candidate.label} `;
@@ -212,9 +220,9 @@ async function complete(
         candidate.label = head + candidate.label;
         candidate.aliases = candidate.aliases?.map((name) => head + name);
       }
-      pick(candidate);
+      pickValue(candidate);
     }
-    files.forEach(pick);
+    files.forEach(pickValue);
 
     const claimed = new Set<string>();
     for (const candidate of merged.values()) {
@@ -300,5 +308,15 @@ async function complete(
           slots.map(async (slot) => tagged(await (slot.found.refresh ?? slot.found.value ?? []), slot)),
         ).then((lists) => assemble(lists.flat()))
       : null,
+  };
+}
+
+function withHead(candidate: Candidate, head: string): Candidate {
+  if (head === "") return candidate;
+  return {
+    ...candidate,
+    label: head + candidate.label,
+    aliases: candidate.aliases?.map((name) => head + name),
+    insert: head + (candidate.insert ?? `${candidate.label} `),
   };
 }
