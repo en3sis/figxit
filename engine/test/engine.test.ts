@@ -1338,6 +1338,16 @@ describe("user specs in ~/.config/figxit/specs", () => {
     expect(trusted(statSync(inherited), inherited)).toBe(false);
   });
 
+  test.skipIf(!ownGroup(userInfo().gid))("a file in the user's own group whose ACL can't be read is not trusted", () => {
+    const file = join(mkdtempSync(join(tmpdir(), "figxit-gone-")), "spec.js");
+    writeFileSync(file, "");
+    chmodSync(file, 0o664);
+    const stat = statSync(file);
+    expect(trusted(stat, file)).toBe(true);
+    rmSync(file);
+    expect(trusted(stat, file)).toBe(false);
+  });
+
   test("a group-writable file is trusted only when the group is the user's own", () => {
     const me = { username: "me", gid: 1000 };
     const passwd = "root:x:0:0::/root:/bin/bash\nme:x:1000:1000::/home/me:/bin/bash\n";

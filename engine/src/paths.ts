@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync, type Stats } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { dlopen, FFIType, ptr } from "bun:ffi";
+import { dlopen, FFIType, ptr, read } from "bun:ffi";
 
 const STATE = join(homedir(), ".local/state/figxit");
 
@@ -51,18 +51,25 @@ export function trusted(stat: Stats, path: string): boolean {
 }
 
 const ACL = Buffer.from("system.posix_acl_access\0");
-let getxattr: ((path: unknown, name: unknown, value: unknown, size: number) => number) | null | undefined;
+const ENODATA = 61;
+let libc: ReturnType<typeof openLibc> | null | undefined;
+
+function openLibc() {
+  const getxattr = { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.u64], returns: FFIType.i64_fast } as const;
+  return dlopen("libc.so.6", { getxattr, __errno_location: { args: [], returns: FFIType.ptr } }).symbols;
+}
 
 function accessAcl(path: string): boolean {
-  if (getxattr === undefined) {
+  if (libc === undefined) {
     try {
-      const kinds = { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.u64], returns: FFIType.i64_fast } as const;
-      getxattr = process.platform === "linux" ? dlopen("libc.so.6", { getxattr: kinds }).symbols.getxattr : null;
+      libc = process.platform === "linux" ? openLibc() : null;
     } catch {
-      getxattr = null;
+      libc = null;
     }
   }
-  return !getxattr || getxattr(ptr(Buffer.from(`${path}\0`)), ptr(ACL), null, 0) >= 0;
+  if (!libc || libc.getxattr(ptr(Buffer.from(`${path}\0`)), ptr(ACL), null, 0) >= 0) return true;
+  const errno = libc.__errno_location();
+  return !errno || read.i32(errno) !== ENODATA;
 }
 
 export function trustedPath(file: string, home = homedir()): string | null {
