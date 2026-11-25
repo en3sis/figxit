@@ -1216,3 +1216,38 @@ describe("user specs in ~/.config/figxit/specs", () => {
     });
   });
 });
+
+describe("option values after =", () => {
+  const labels = async (buffer: string) => (await suggest(buffer, buffer.length, "/a", historyOf([]), NOW))?.items.map((i) => i.label);
+
+  test("--opt= completes the option's values and keeps --opt= in front", async () => {
+    registerSpec("eqtool", {
+      name: "eqtool",
+      options: [
+        { name: ["-c", "--color"], args: { name: "when", suggestions: ["auto", "always", "never"] } },
+        { name: "--quiet" },
+      ],
+    });
+    expect(await labels("eqtool --color=")).toEqual(["--color=always", "--color=auto", "--color=never"]);
+    expect(await labels("eqtool --color=al")).toEqual(["--color=always"]);
+    expect(await labels("eqtool -c=n")).toEqual(["-c=never"]);
+    const item = (await suggest("eqtool --color=al", 17, "/a", historyOf([]), NOW))!;
+    expect(item.items[0]!.insert).toBe("--color=always ");
+    expect(item.remove).toBe("--color=al".length);
+    expect(await labels("eqtool --color ")).toEqual(["always", "auto", "never"]);
+    expect(await labels("eqtool --quiet=")).toBeUndefined();
+  });
+
+  test("bat --style= lists the style components, one comma-separated part at a time", async () => {
+    registerSpec("bat", { name: "bat", options: [{ name: "--style", description: "Display a list of supported themes" }] });
+    const styles = await labels("bat --style=");
+    expect(styles).toContain("--style=numbers");
+    expect(styles).toContain("--style=header-filesize");
+    expect(styles).toHaveLength(12);
+    expect(await labels("bat --style=gr")).toEqual(["--style=grid"]);
+    const listed = await labels("bat --style=numbers,");
+    expect(listed).toContain("--style=numbers,grid");
+    expect(listed).not.toContain("--style=numbers,numbers");
+    expect(await labels("bat --style ")).toContain("numbers");
+  });
+});

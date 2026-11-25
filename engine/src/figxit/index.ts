@@ -1,5 +1,6 @@
 import { ICONS, type Icon } from "../brands";
 import type { Spec } from "../specs";
+import { bat } from "./bat";
 import { figxit } from "./figxit";
 import { gh } from "./gh";
 import { kubectl } from "./kubectl";
@@ -9,4 +10,4 @@ export const FIGXIT_SPECS: Record<string, Spec> = { figxit, z, zi };
 
 export const FIGXIT_ICONS: Record<string, Icon> = { z: ICONS.jump, zi: ICONS.jump };
 
-export const PATCHES: Record<string, (spec: Spec) => Spec> = { gh, kubectl };
+export const PATCHES: Record<string, (spec: Spec) => Spec> = { bat, gh, kubectl };

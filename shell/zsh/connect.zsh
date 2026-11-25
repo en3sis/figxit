@@ -71,7 +71,7 @@ _figxit_drop() {
 }
 
 _figxit_recv() {
-  local line
+  local line _figxit_from=$1
   if [[ -n $2 ]] || ! IFS= read -r -u $1 line; then
     _figxit_drop $1
     return

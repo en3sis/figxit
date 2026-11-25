@@ -218,11 +218,13 @@ describe("zsh reply reader", () => {
 describe("zsh cursor query", () => {
   const dir = join(work, "query");
   const fifo = join(dir, "engine");
+  const other = join(dir, "other");
   const rc = join(dir, "rc.zsh");
   const figxit = readFileSync(join(root, "shell/zsh/figxit.zsh"), "utf8");
   mkdirSync(dir);
   for (const name of ["a1", "a2", "a3"]) writeFileSync(join(dir, name), "");
   Bun.spawnSync(["mkfifo", fifo]);
+  Bun.spawnSync(["mkfifo", other]);
   writeFileSync(
     rc,
     [
@@ -269,6 +271,13 @@ describe("zsh cursor query", () => {
       "zle -N zle-line-pre-redraw _figxit_redraw",
       `exec {fd}<>${fifo}`,
       "zle -F -w $fd _figxit_recv",
+      `exec {other}<>${other}`,
+      '_fx_other() { local line; IFS= read -r -t 0 -u $1 line; print -r -- "OTHER [$line]" >> $FX_OUT }',
+      "_fx_busy() { sleep 0.5 }",
+      "zle -N _fx_other",
+      "zle -N _fx_busy",
+      "zle -F -w $other _fx_other",
+      "bindkey '^[[23~' _fx_busy",
       "print -r -- READY >> $FX_OUT",
       "",
     ].join("\n"),
@@ -316,6 +325,7 @@ describe("zsh cursor query", () => {
         await until(`echo of ${text}`, () => screen.slice(from).includes(text));
       },
       engine: (...lines: string[]) => appendFileSync(fifo, lines.map((line) => `${line}\n`).join("")),
+      other: (line: string) => appendFileSync(other, `${line}\n`),
       async query(seq: number, answer?: (string | number)[]) {
         const asked = queries();
         z.engine(`Q\x1f${seq}`);
@@ -479,6 +489,28 @@ describe("zsh cursor query", () => {
           queries: 2,
           sent: ["SENT C|6|5|12|120|35|20|8|600|960", "SENT C|8|5|12|120|35|20|8|600|960"],
         });
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "another plugin's fd handler runs once when its data comes with a query",
+    async () => {
+      const z = await start();
+      try {
+        await z.query(6);
+        z.type(`${ESC}[23~`);
+        await Bun.sleep(150);
+        z.other("suggestion");
+        z.engine("Q\x1f7");
+        await z.until("query", () => z.queries() > 1);
+        z.type(reply(""));
+        await z.until("answer", () => z.sent().length > 1);
+        await z.line();
+        expect(z.lines().filter((line) => line.startsWith("OTHER "))).toEqual(["OTHER [suggestion]"]);
       } finally {
         await z.close();
       }
