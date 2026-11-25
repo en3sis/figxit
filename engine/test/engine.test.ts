@@ -3,13 +3,13 @@ process.env.FIGXIT_USER_SPECS = "/nonexistent/figxit-user-specs";
 process.env.FIGXIT_USER_ALIASES = "/nonexistent/figxit-user-aliases";
 
 import { describe, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir, userInfo } from "node:os";
 import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { ICONS } from "../src/brands";
 import { History } from "../src/history";
-import { atuinDb } from "../src/paths";
+import { atuinDb, ownGroup, privateGroup, trusted, trustedPath } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
@@ -1204,16 +1204,210 @@ describe("user specs in ~/.config/figxit/specs", () => {
     });
   });
 
-  test("a broken or group-writable file falls back to the bundled spec", async () => {
+  test("a broken or world-writable file falls back to the bundled spec", async () => {
     await withUserSpecs(async (dir) => {
       registerSpec("tool-e", { name: "tool-e", subcommands: [{ name: "bundled" }] });
       registerSpec("tool-f", { name: "tool-f", subcommands: [{ name: "bundled" }] });
       writeFileSync(join(dir, "tool-e.js"), "export default {{ not javascript");
       writeFileSync(join(dir, "tool-f.js"), spec('{ name: "tool-f", subcommands: [{ name: "planted" }] }'));
-      chmodSync(join(dir, "tool-f.js"), 0o664);
+      chmodSync(join(dir, "tool-f.js"), 0o666);
       expect(await subcommands("tool-e")).toEqual(["bundled"]);
       expect(await subcommands("tool-f")).toEqual(["bundled"]);
     });
+  });
+
+  test("a spec in a folder others can write falls back to the bundled spec", async () => {
+    await withUserSpecs(async (dir) => {
+      mkdirSync(join(dir, "tool-h"), { mode: 0o755 });
+      registerSpec("tool-h/plugin", { name: "plugin", subcommands: [{ name: "bundled" }] });
+      writeFileSync(join(dir, "tool-h/plugin.js"), spec('{ name: "plugin", subcommands: [{ name: "planted" }] }'), { mode: 0o644 });
+      expect(await subcommands("tool-h/plugin")).toEqual(["planted"]);
+      chmodSync(join(dir, "tool-h"), 0o777);
+      expect(await subcommands("tool-h/plugin")).toEqual(["bundled"]);
+    });
+  });
+
+  test("every folder between a spec and $HOME is checked", () => {
+    const home = mkdtempSync(join(tmpdir(), "figxit-home-"));
+    const folders = [".config", ".config/figxit", ".config/figxit/specs", ".config/figxit/specs/tool"];
+    for (const folder of folders) mkdirSync(join(home, folder), { mode: 0o755 });
+    const file = join(home, ".config/figxit/specs/tool/plugin.js");
+    writeFileSync(file, "");
+    expect(trustedPath(file, home)).toBe(realpathSync(file));
+    for (const folder of folders) {
+      chmodSync(join(home, folder), 0o777);
+      expect(trustedPath(file, home)).toBeNull();
+      chmodSync(join(home, folder), 0o755);
+    }
+  });
+
+  test("outside $HOME, the folders above the spec are checked up to the ones that lead to $HOME", () => {
+    const base = mkdtempSync(join(tmpdir(), "figxit-outside-"));
+    const home = join(base, "home");
+    const specs = join(base, "config/figxit/specs");
+    mkdirSync(home);
+    mkdirSync(specs, { recursive: true, mode: 0o755 });
+    const file = join(specs, "tool.js");
+    writeFileSync(file, "");
+    expect(trustedPath(file, home)).toBe(realpathSync(file));
+    chmodSync(join(base, "config"), 0o777);
+    expect(trustedPath(file, home)).toBeNull();
+  });
+
+  test("the folders a symlinked spec really lives in are checked too", () => {
+    const base = mkdtempSync(join(tmpdir(), "figxit-links-"));
+    const home = join(base, "home");
+    const shared = join(base, "shared");
+    mkdirSync(join(home, ".config"), { recursive: true, mode: 0o755 });
+    mkdirSync(join(shared, "figxit/specs"), { recursive: true, mode: 0o755 });
+    symlinkSync(join(shared, "figxit"), join(home, ".config/figxit"));
+    const file = join(home, ".config/figxit/specs/tool.js");
+    writeFileSync(file, "");
+    expect(trustedPath(file, home)).toBe(realpathSync(file));
+    chmodSync(shared, 0o777);
+    expect(trustedPath(file, home)).toBeNull();
+    chmodSync(shared, 0o755);
+    const open = join(base, "open");
+    mkdirSync(open);
+    chmodSync(open, 0o777);
+    writeFileSync(join(open, "linked.js"), "");
+    symlinkSync(join(open, "linked.js"), join(home, ".config/figxit/specs/linked.js"));
+    expect(trustedPath(join(home, ".config/figxit/specs/linked.js"), home)).toBeNull();
+  });
+
+  test("every link on the way to a spec is followed, and the folder each link sits in is checked", () => {
+    const home = mkdtempSync(join(tmpdir(), "figxit-hops-"));
+    for (const folder of [".config/r", "x", "p/q/specs", "p/r"]) mkdirSync(join(home, folder), { recursive: true, mode: 0o755 });
+    symlinkSync(join(home, "p/q"), join(home, "x/y"));
+    symlinkSync(join(home, "x/y"), join(home, ".config/figxit"));
+    const file = join(home, ".config/figxit/specs/tool.js");
+    writeFileSync(file, "");
+    expect(trustedPath(file, home)).toBe(realpathSync(file));
+    chmodSync(join(home, "x"), 0o777);
+    expect(trustedPath(file, home)).toBeNull();
+    chmodSync(join(home, "x"), 0o755);
+    for (const folder of [".config/r", "p/r"]) writeFileSync(join(home, folder, "up.js"), "");
+    symlinkSync("../../r/up.js", join(home, "p/q/specs/up.js"));
+    expect(trustedPath(join(home, ".config/figxit/specs/up.js"), home)).toBe(realpathSync(join(home, ".config/figxit/specs/up.js")));
+    chmodSync(join(home, "p/r"), 0o777);
+    expect(trustedPath(join(home, ".config/figxit/specs/up.js"), home)).toBeNull();
+    symlinkSync("loop-b.js", join(home, "p/q/specs/loop-a.js"));
+    symlinkSync("loop-a.js", join(home, "p/q/specs/loop-b.js"));
+    expect(trustedPath(join(home, ".config/figxit/specs/loop-a.js"), home)).toBeNull();
+  });
+
+  test("a .. in a link target climbs from where the link before it leads, as the OS does", () => {
+    const home = mkdtempSync(join(tmpdir(), "figxit-dots-"));
+    const specs = join(home, ".config/figxit/specs");
+    mkdirSync(specs, { recursive: true, mode: 0o755 });
+    mkdirSync(join(home, "open/deep"), { recursive: true, mode: 0o755 });
+    writeFileSync(join(specs, "tool-real.js"), "");
+    writeFileSync(join(home, "open/tool-real.js"), "");
+    symlinkSync(join(home, "open/deep"), join(specs, "deep"));
+    symlinkSync("deep/../tool-real.js", join(specs, "tool.js"));
+    expect(trustedPath(join(specs, "tool.js"), home)).toBe(realpathSync(join(home, "open/tool-real.js")));
+    chmodSync(join(home, "open"), 0o777);
+    expect(trustedPath(join(specs, "tool.js"), home)).toBeNull();
+  });
+
+  test("a link the OS can't follow is not followed either", () => {
+    const specs = mkdtempSync(join(tmpdir(), "figxit-notdir-"));
+    writeFileSync(join(specs, "plain.js"), "");
+    symlinkSync("plain.js", join(specs, "linked.js"));
+    symlinkSync("plain.js/", join(specs, "slash.js"));
+    symlinkSync("plain.js/../plain.js", join(specs, "dots.js"));
+    expect(trustedPath(join(specs, "linked.js"), specs)).toBe(realpathSync(join(specs, "plain.js")));
+    expect(trustedPath(join(specs, "slash.js"), specs)).toBeNull();
+    expect(trustedPath(join(specs, "dots.js"), specs)).toBeNull();
+  });
+
+  test.skipIf(!ownGroup(userInfo().gid))("a group-writable file in the user's own group loads", async () => {
+    await withUserSpecs(async (dir) => {
+      registerSpec("tool-g", { name: "tool-g", subcommands: [{ name: "bundled" }] });
+      const file = join(dir, "tool-g.js");
+      writeFileSync(file, spec('{ name: "tool-g", subcommands: [{ name: "planted" }] }'));
+      chmodSync(file, 0o664);
+      expect(await subcommands("tool-g")).toEqual(["planted"]);
+    });
+  });
+
+  const setfacl = Bun.which("setfacl");
+  test.skipIf(!setfacl || !ownGroup(userInfo().gid))("a file in the user's own group that an ACL lets someone else write is not trusted", () => {
+    const dir = mkdtempSync(join(tmpdir(), "figxit-acl-"));
+    const other = `u:${userInfo().uid + 1}:rw`;
+    const file = join(dir, "spec.js");
+    writeFileSync(file, "");
+    chmodSync(file, 0o664);
+    expect(trusted(statSync(file), file)).toBe(true);
+    expect(Bun.spawnSync([setfacl!, "-m", other, file]).exitCode).toBe(0);
+    expect(trusted(statSync(file), file)).toBe(false);
+    const folder = join(dir, "inherits");
+    mkdirSync(folder, { mode: 0o755 });
+    expect(Bun.spawnSync([setfacl!, "-d", "-m", other, folder]).exitCode).toBe(0);
+    const inherited = join(folder, "spec.js");
+    writeFileSync(inherited, "");
+    expect(trusted(statSync(inherited), inherited)).toBe(false);
+  });
+
+  test.skipIf(!ownGroup(userInfo().gid))("a file in the user's own group whose ACL can't be read is not trusted", () => {
+    const file = join(mkdtempSync(join(tmpdir(), "figxit-gone-")), "spec.js");
+    writeFileSync(file, "");
+    chmodSync(file, 0o664);
+    const stat = statSync(file);
+    expect(trusted(stat, file)).toBe(true);
+    rmSync(file);
+    expect(trusted(stat, file)).toBe(false);
+  });
+
+  test("a group-writable file is trusted only when the group is the user's own", () => {
+    const me = { username: "me", gid: 1000 };
+    const passwd = "root:x:0:0::/root:/bin/bash\nme:x:1000:1000::/home/me:/bin/bash\n";
+    expect(privateGroup(1000, me, "root:x:0:\nme:x:1000:\n", passwd)).toBe(true);
+    expect(privateGroup(1000, me, "me:x:1000:me\n", passwd)).toBe(true);
+    expect(privateGroup(1000, me, "me:x:1000:guest\n", passwd)).toBe(false);
+    expect(privateGroup(1000, me, "me:x:1000:\n", `${passwd}guest:x:1001:1000::/home/guest:/bin/sh\n`)).toBe(false);
+    expect(privateGroup(1000, me, "me:x:1000:\nshared:x:1000:alice\n", passwd)).toBe(false);
+    expect(privateGroup(1000, me, "me:x:1000:\nshared:x:01000:alice\n", passwd)).toBe(false);
+    expect(privateGroup(1000, me, "me:x:1000:\n", `${passwd}guest:x:1001:01000::/home/guest:/bin/sh\n`)).toBe(false);
+    expect(privateGroup(1000, me, "dev:x:1000:\n", passwd)).toBe(false);
+    expect(privateGroup(1000, me, "", passwd)).toBe(false);
+    expect(privateGroup(100, me, "users:x:100:\n", passwd)).toBe(false);
+    expect(privateGroup(20, { username: "me", gid: 20 }, "staff:*:20:root\n", "")).toBe(false);
+  });
+
+  test("the group is checked again when /etc/group or /etc/passwd changes", () => {
+    const dir = mkdtempSync(join(tmpdir(), "figxit-accounts-"));
+    const { username, uid, gid } = userInfo();
+    const group = join(dir, "group");
+    const passwd = join(dir, "passwd");
+    writeFileSync(group, `${username}:x:${gid}:\n`);
+    writeFileSync(passwd, `${username}:x:${uid}:${gid}::/home/${username}:/bin/sh\n`);
+    utimesSync(group, new Date(NOW), new Date(NOW));
+    expect(ownGroup(gid, group, passwd)).toBe(true);
+    writeFileSync(group, `${username}:x:${gid}:guest\n`);
+    utimesSync(group, new Date(NOW + DAY), new Date(NOW + DAY));
+    expect(ownGroup(gid, group, passwd)).toBe(false);
+    writeFileSync(group, `${username}:x:${gid}:\n`);
+    utimesSync(group, new Date(NOW), new Date(NOW));
+    expect(ownGroup(gid, group, passwd)).toBe(true);
+    writeFileSync(passwd, `${username}:x:${uid}:${gid}::/home/${username}:/bin/sh\nguest:x:${uid + 1}:${gid}::/:/bin/sh\n`);
+    expect(ownGroup(gid, group, passwd)).toBe(false);
+  });
+
+  test("a /etc/group replaced by one of the same size and mtime is read again", () => {
+    const dir = mkdtempSync(join(tmpdir(), "figxit-accounts-"));
+    const { username, uid, gid } = userInfo();
+    const group = join(dir, "group");
+    const passwd = join(dir, "passwd");
+    const next = join(dir, "group.next");
+    writeFileSync(group, `${username}:x:${gid}:${username}\n`);
+    writeFileSync(passwd, `${username}:x:${uid}:${gid}::/home/${username}:/bin/sh\n`);
+    utimesSync(group, new Date(NOW), new Date(NOW));
+    expect(ownGroup(gid, group, passwd)).toBe(true);
+    writeFileSync(next, `${username}:x:${gid}:${"g".repeat(username.length)}\n`);
+    utimesSync(next, new Date(NOW), new Date(NOW));
+    renameSync(next, group);
+    expect(ownGroup(gid, group, passwd)).toBe(false);
   });
 });
 

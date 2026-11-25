@@ -69,10 +69,10 @@ function owned(stat: Stats): boolean {
   return uid === undefined || stat.uid === uid;
 }
 
-function stampOf(path: string, allowed: (stat: Stats) => boolean): string | null {
+function stampOf(path: string, allowed: (stat: Stats, path: string) => boolean): string | null {
   try {
     const stat = statSync(path);
-    if (!stat.isFile() || stat.size > MAX_BYTES || !allowed(stat) || !trusted(statSync(dirname(path)))) return null;
+    if (!stat.isFile() || stat.size > MAX_BYTES || !allowed(stat, path) || !trusted(statSync(dirname(path)), dirname(path))) return null;
     return `${stat.mtimeMs}:${stat.size}`;
   } catch {
     return null;

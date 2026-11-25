@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, realpathSync, type Stats } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync, type Stats } from "node:fs";
+import { homedir, userInfo } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { dlopen, FFIType, ptr, read } from "bun:ffi";
 
 const STATE = join(homedir(), ".local/state/figxit");
 
@@ -42,9 +43,120 @@ export function userAliasesFile(): string {
   return process.env.FIGXIT_USER_ALIASES ?? join(configDir(), "aliases");
 }
 
-export function trusted(stat: Stats): boolean {
+export function trusted(stat: Stats, path: string): boolean {
   const uid = process.getuid?.();
-  return (uid === undefined || stat.uid === uid || stat.uid === 0) && (stat.mode & 0o022) === 0;
+  if (uid !== undefined && stat.uid !== uid && stat.uid !== 0) return false;
+  if (stat.mode & 0o002) return false;
+  return (stat.mode & 0o020) === 0 || (ownGroup(stat.gid) && !accessAcl(path));
+}
+
+const ACL = Buffer.from("system.posix_acl_access\0");
+const ENODATA = 61;
+let libc: ReturnType<typeof openLibc> | null | undefined;
+
+function openLibc() {
+  const getxattr = { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.u64], returns: FFIType.i64_fast } as const;
+  return dlopen("libc.so.6", { getxattr, __errno_location: { args: [], returns: FFIType.ptr } }).symbols;
+}
+
+function accessAcl(path: string): boolean {
+  if (libc === undefined) {
+    try {
+      libc = process.platform === "linux" ? openLibc() : null;
+    } catch {
+      libc = null;
+    }
+  }
+  if (!libc || libc.getxattr(ptr(Buffer.from(`${path}\0`)), ptr(ACL), null, 0) >= 0) return true;
+  const errno = libc.__errno_location();
+  return !errno || read.i32(errno) !== ENODATA;
+}
+
+export function trustedPath(file: string, home = homedir()): string | null {
+  const given = new Set(lineage(real(home)));
+  const parts = resolve(file).split("/").reverse();
+  let path = "/";
+  let links = 0;
+  try {
+    while (parts.length > 0) {
+      const part = parts.pop();
+      if (!part || part === ".") continue;
+      if (part === "..") {
+        path = dirname(path);
+        continue;
+      }
+      if (!given.has(path)) {
+        const folder = statSync(path);
+        if (!trusted(folder, path) && !(folder.uid === 0 && (folder.mode & 0o1000) !== 0)) return null;
+      }
+      const next = join(path, part);
+      if (!lstatSync(next).isSymbolicLink()) {
+        path = next;
+        continue;
+      }
+      if (++links > 40) return null;
+      const target = readlinkSync(next);
+      parts.push(...target.split("/").reverse());
+      if (target.startsWith("/")) path = "/";
+    }
+    return realpathSync(file) === path ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+function lineage(path: string): string[] {
+  const paths = [path];
+  while (dirname(path) !== path) paths.push((path = dirname(path)));
+  return paths;
+}
+
+function real(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+}
+
+let ownGroups = { stamp: "", gids: new Map<number, boolean>() };
+
+function fileStamp(path: string): string {
+  const stat = statSync(path);
+  return `${path}:${stat.ino}:${stat.ctimeMs}:${stat.mtimeMs}:${stat.size}`;
+}
+
+export function ownGroup(gid: number, group = "/etc/group", passwd = "/etc/passwd"): boolean {
+  let stamp: string;
+  try {
+    stamp = `${fileStamp(group)}\n${fileStamp(passwd)}`;
+  } catch {
+    return false;
+  }
+  if (ownGroups.stamp !== stamp) ownGroups = { stamp, gids: new Map() };
+  let own = ownGroups.gids.get(gid);
+  if (own === undefined) {
+    try {
+      own = privateGroup(gid, userInfo(), readFileSync(group, "utf8"), readFileSync(passwd, "utf8"));
+    } catch {
+      own = false;
+    }
+    ownGroups.gids.set(gid, own);
+  }
+  return own;
+}
+
+export function privateGroup(gid: number, user: { username: string; gid: number }, group: string, passwd: string): boolean {
+  if (gid !== user.gid) return false;
+  const rows = (text: string) => text.split("\n").map((line) => line.split(":"));
+  const id = (field = "") => (/^\d+$/.test(field) ? Number(field) : -1);
+  const entries = rows(group).filter((fields) => id(fields[2]) === gid);
+  if (entries.length === 0) return false;
+  for (const [name, , , members = ""] of entries) {
+    if (name !== user.username) return false;
+    if (members.split(",").some((member) => member && member !== user.username)) return false;
+  }
+  return !rows(passwd).some((fields) => id(fields[3]) === gid && fields[0] !== user.username);
 }
 
 export function specsDir(): string | null {
