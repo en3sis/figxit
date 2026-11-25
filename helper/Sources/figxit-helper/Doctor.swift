@@ -13,6 +13,8 @@ final class DoctorWindow: NSObject {
         "popup helper": ("sf:macwindow", "3A3A3C"),
         "engine": ("sf:bolt.fill", "3A3A3C"),
         "completion specs": ("sf:list.bullet", "64748B"),
+        "user specs": ("sf:curlybraces", "64748B"),
+        "user aliases": ("sf:doc.plaintext", "64748B"),
         "atuin history": ("sf:clock.arrow.circlepath", "8E8E93"),
         "shells connected": ("sf:terminal.fill", "3A3A3C"),
         "zsh": ("brand:zsh", "F15A24"),

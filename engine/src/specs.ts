@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { brandIcon, ICONS, type Icon } from "./brands";
 import { expandAlias } from "./generators";
@@ -82,7 +82,9 @@ async function versionedSpec(name: string, dir: string): Promise<Spec | null> {
 function userSpec(name: string): { file: string; stamp: string } | null {
   if (name.split("/").some((part) => /^\.+$/.test(part))) return null;
   const dir = userSpecsDir();
-  const file = trustedPath(join(dir, `${name}.js`));
+  const wanted = join(dir, `${name}.js`);
+  if (!existsSync(wanted)) return null;
+  const file = trustedPath(wanted);
   if (!file) return null;
   try {
     const stat = statSync(file);

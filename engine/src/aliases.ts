@@ -1,6 +1,6 @@
-import { readdirSync, readFileSync, rmSync, statSync, type Stats } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, statSync, type Stats } from "node:fs";
 import { dirname, join } from "node:path";
-import { SHELL_ALIASES, trusted, userAliasesFile } from "./paths";
+import { SHELL_ALIASES, trusted, trustedPath, userAliasesFile } from "./paths";
 import { commandWords, scan } from "./tokenize";
 
 export interface Aliases {
@@ -94,9 +94,10 @@ export function shellAliases(pid: string): ReadonlyMap<string, string> {
 }
 
 export function userAliases(): ReadonlyMap<string, string> {
-  const path = userAliasesFile();
-  const stamp = stampOf(path, trusted);
-  if (!stamp) {
+  const wanted = userAliasesFile();
+  const path = existsSync(wanted) ? trustedPath(wanted) : null;
+  const stamp = path ? stampOf(path, trusted) : null;
+  if (!path || !stamp) {
     user = null;
     return NONE;
   }

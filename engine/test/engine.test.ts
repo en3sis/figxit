@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { herdrUi, parseOrigin, parseShell, parseTmux, placeHerdr, placeInPane } from "../src/geometry";
 import { ICONS } from "../src/brands";
 import { History } from "../src/history";
-import { atuinDb, ownGroup, privateGroup, trusted, trustedPath } from "../src/paths";
+import { atuinDb, fileProblem, ownGroup, privateGroup, trusted, trustedPath } from "../src/paths";
 import { makeTargets, parseMakefile, parseScripts } from "../src/sources";
 import { matchScore, secretLike, suggest as suggestAsync } from "../src/suggest";
 import { expandAlias } from "../src/generators";
@@ -589,6 +589,24 @@ describe("shell command aliases", () => {
       writeFileSync(file, "k=kubectl -n dev\n");
       expect(aliasesFor(shell).get("k")).toBe("kubectl -n dev");
       chmodSync(file, 0o666);
+      expect(aliasesFor(shell).get("k")).toBe("kubectl");
+    } finally {
+      process.env.FIGXIT_USER_ALIASES = saved;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("the user alias file is ignored when a folder above it is writable by others", () => {
+    const dir = mkdtempSync(join(tmpdir(), "figxit-aliases-"));
+    mkdirSync(join(dir, "figxit"), { mode: 0o755 });
+    const file = join(dir, "figxit/aliases");
+    writeFileSync(file, "k=kubecolor\n", { mode: 0o644 });
+    const saved = process.env.FIGXIT_USER_ALIASES;
+    process.env.FIGXIT_USER_ALIASES = file;
+    try {
+      const shell = new Map([["k", "kubectl"]]);
+      expect(aliasesFor(shell).get("k")).toBe("kubecolor");
+      chmodSync(dir, 0o777);
       expect(aliasesFor(shell).get("k")).toBe("kubectl");
     } finally {
       process.env.FIGXIT_USER_ALIASES = saved;
@@ -1225,6 +1243,26 @@ describe("user specs in ~/.config/figxit/specs", () => {
       chmodSync(join(dir, "tool-h"), 0o777);
       expect(await subcommands("tool-h/plugin")).toEqual(["bundled"]);
     });
+  });
+
+  test("a skipped spec's reason names what others can write", () => {
+    const home = mkdtempSync(join(tmpdir(), "figxit-why-"));
+    const folder = join(home, ".config/figxit/specs/tool");
+    mkdirSync(folder, { recursive: true, mode: 0o755 });
+    const file = join(folder, "plugin.js");
+    writeFileSync(file, "", { mode: 0o644 });
+    try {
+      expect(fileProblem(file, home)).toBeNull();
+      chmodSync(folder, 0o777);
+      expect(fileProblem(file, home)).toBe(`${realpathSync(folder)} is writable by everyone`);
+      chmodSync(folder, 0o755);
+      chmodSync(file, 0o666);
+      expect(fileProblem(file, home)).toBe(`${realpathSync(file)} is writable by everyone`);
+      chmodSync(file, 0o664);
+      if (!ownGroup(statSync(file).gid)) expect(fileProblem(file, home)).toMatch(/ is writable by group \S+$/);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 
   test("every folder between a spec and $HOME is checked", () => {
