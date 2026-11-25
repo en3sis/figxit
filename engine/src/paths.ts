@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync, type Stats } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { dlopen, FFIType, ptr, read } from "bun:ffi";
+import { dlopen, FFIType, read } from "bun:ffi";
 
 const STATE = join(homedir(), ".local/state/figxit");
 
@@ -44,10 +44,18 @@ export function userAliasesFile(): string {
 }
 
 export function trusted(stat: Stats, path: string): boolean {
+  return trustProblem(stat, path) === null;
+}
+
+export function trustProblem(stat: Stats, path: string): string | null {
   const uid = process.getuid?.();
-  if (uid !== undefined && stat.uid !== uid && stat.uid !== 0) return false;
-  if (stat.mode & 0o002) return false;
-  return (stat.mode & 0o020) === 0 || (ownGroup(stat.gid) && !accessAcl(path));
+  if (uid !== undefined && stat.uid !== uid && stat.uid !== 0) return `${shown(path)} belongs to another user`;
+  if (stat.mode & 0o002) return `${shown(path)} is writable by everyone`;
+  if ((stat.mode & 0o020) === 0) return null;
+  if (!ownGroup(stat.gid)) return `${shown(path)} is writable by group ${groupName(stat.gid)}`;
+  const acl = aclState(path);
+  if (acl === "set") return `${shown(path)} has an ACL that can let others write to it`;
+  return acl === "unknown" ? `${shown(path)} is writable by its group, and its ACL can't be checked` : null;
 }
 
 const ACL = Buffer.from("system.posix_acl_access\0");
@@ -59,7 +67,7 @@ function openLibc() {
   return dlopen("libc.so.6", { getxattr, __errno_location: { args: [], returns: FFIType.ptr } }).symbols;
 }
 
-function accessAcl(path: string): boolean {
+function aclState(path: string): "none" | "set" | "unknown" {
   if (libc === undefined) {
     try {
       libc = process.platform === "linux" ? openLibc() : null;
@@ -67,12 +75,34 @@ function accessAcl(path: string): boolean {
       libc = null;
     }
   }
-  if (!libc || libc.getxattr(ptr(Buffer.from(`${path}\0`)), ptr(ACL), null, 0) >= 0) return true;
-  const errno = libc.__errno_location();
-  return !errno || read.i32(errno) !== ENODATA;
+  if (!libc) return "unknown";
+  try {
+    const name = Buffer.from(`${path}\0`);
+    if (libc.getxattr(name, ACL, null, 0) >= 0) return "set";
+    const errno = libc.__errno_location();
+    return errno && read.i32(errno) === ENODATA ? "none" : "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 export function trustedPath(file: string, home = homedir()): string | null {
+  const walked = walk(file, home);
+  return "path" in walked ? walked.path : null;
+}
+
+export function fileProblem(file: string, home = homedir()): string | null {
+  const walked = walk(file, home);
+  if (!("path" in walked)) return walked.problem;
+  try {
+    const stat = statSync(walked.path);
+    return stat.isFile() ? trustProblem(stat, walked.path) : `${shown(walked.path)} is not a file`;
+  } catch {
+    return `${shown(file)} can't be read`;
+  }
+}
+
+function walk(file: string, home: string): { path: string } | { problem: string } {
   const given = new Set(lineage(real(home)));
   const parts = resolve(file).split("/").reverse();
   let path = "/";
@@ -87,21 +117,39 @@ export function trustedPath(file: string, home = homedir()): string | null {
       }
       if (!given.has(path)) {
         const folder = statSync(path);
-        if (!trusted(folder, path) && !(folder.uid === 0 && (folder.mode & 0o1000) !== 0)) return null;
+        const problem = trustProblem(folder, path);
+        if (problem && !(folder.uid === 0 && (folder.mode & 0o1000) !== 0)) return { problem };
       }
       const next = join(path, part);
       if (!lstatSync(next).isSymbolicLink()) {
         path = next;
         continue;
       }
-      if (++links > 40) return null;
+      if (++links > 40) return { problem: `${shown(file)} goes through too many links` };
       const target = readlinkSync(next);
       parts.push(...target.split("/").reverse());
       if (target.startsWith("/")) path = "/";
     }
-    return realpathSync(file) === path ? path : null;
+    return realpathSync(file) === path ? { path } : { problem: `${shown(file)} changed while it was checked` };
   } catch {
-    return null;
+    return { problem: `${shown(file)} can't be read` };
+  }
+}
+
+function shown(path: string): string {
+  const home = homedir();
+  return path === home || path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
+}
+
+function groupName(gid: number): string {
+  try {
+    const entry = readFileSync("/etc/group", "utf8")
+      .split("\n")
+      .map((line) => line.split(":"))
+      .find((fields) => /^\d+$/.test(fields[2] ?? "") && Number(fields[2]) === gid);
+    return entry?.[0] || String(gid);
+  } catch {
+    return String(gid);
   }
 }
 
