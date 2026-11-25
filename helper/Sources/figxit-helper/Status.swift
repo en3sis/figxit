@@ -623,6 +623,13 @@ final class SetupWindow: NSObject {
         status.stringValue = "Copied the line for \(shell.rawValue). Add it to ~/\(shell.target)."
     }
 
+    static func append(_ text: String, to path: String) throws {
+        let fd = open(path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
+        guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+        try handle.write(contentsOf: Data(text.utf8))
+    }
+
     @objc private func addLine(_ sender: NSButton) {
         let shell = Shell.allCases[sender.tag]
         let name = shell.target
@@ -635,7 +642,7 @@ final class SetupWindow: NSObject {
         let addition = (current.isEmpty || current.hasSuffix("\n") ? "" : "\n") + (current.isEmpty ? "" : "\n") + "# Figxit\n" + shell.line + "\n"
         do {
             try FileManager.default.createDirectory(atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
-            try (current + addition).write(toFile: path, atomically: true, encoding: .utf8)
+            try Self.append(addition, to: path)
             reload()
             status.stringValue = "Added to ~/\(name). Open a new terminal."
         } catch {
