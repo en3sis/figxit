@@ -17,6 +17,7 @@ const VISIBLE = 8;
 const SETTLE_MS = 12;
 const FOCUS_MS = 250;
 const CURSOR_MS = 500;
+const LOADING_MS = 300;
 const ORIGIN_MS = 1000;
 const ENTER_INSERTS = join(dirname(SOCK), "enter-inserts");
 const FOCUS_FORMAT = "#{window_active} #{pane_active} #{pane_in_mode}";
@@ -260,9 +261,7 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
     if (!(await anchor(s, seq, result.now, cwd, buffer))) return;
     render(s);
   } else if (s.visible) {
-    s.items = [];
-    helper.send({ cmd: "hide" });
-    setVisible(s, false);
+    setTimeout(() => seq === s.seq && !s.fresh && hide(s), LOADING_MS);
   }
 
   if (!result.more) return;
@@ -303,13 +302,13 @@ function navigate(s: Session, direction: string) {
     if (s.visible) hide(s);
     return;
   }
-  if (!s.visible || s.items.length === 0) return;
+  if (!s.visible || !s.fresh || s.items.length === 0) return;
   const step = direction === "up" ? -1 : chosen(s, s.items[s.selected]) ? 1 : 0;
   s.selected = (s.selected + step + s.items.length) % s.items.length;
   s.navigated = true;
   const scroll = s.scroll;
   follow(s);
-  if (s.fresh && s.anchor && s.scroll === scroll) helper.send({ cmd: "select", selected: s.selected - s.scroll });
+  if (s.anchor && s.scroll === scroll) helper.send({ cmd: "select", selected: s.selected - s.scroll });
   else render(s);
 }
 
