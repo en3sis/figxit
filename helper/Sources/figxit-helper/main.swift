@@ -7,6 +7,8 @@ final class EngineSupervisor {
     private var failures = 0
     private var stopping = false
     var paused: Bool { stopping }
+    var running: Bool { process != nil }
+    var onChange: (() -> Void)?
 
     init?() {
         guard ProcessInfo.processInfo.environment["FIGXIT_NO_ENGINE"] == nil,
@@ -31,6 +33,7 @@ final class EngineSupervisor {
         do {
             try process.run()
             self.process = process
+            onChange?()
         } catch {
             exited(after: 0)
         }
@@ -38,6 +41,7 @@ final class EngineSupervisor {
 
     private func exited(after seconds: TimeInterval) {
         process = nil
+        onChange?()
         guard !stopping else { return }
         failures = seconds < 5 ? failures + 1 : 0
         guard failures < 5 else { return }
@@ -339,7 +343,7 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "snapshot-docto
     exit(DoctorWindow().render(to: CommandLine.arguments[2]) ? 0 : 1)
 }
 if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "select-input" {
-    exit(Caret.select() ? 0 : 1)
+    exit(Caret.select(enable: CommandLine.arguments.count > 2 && CommandLine.arguments[2] == "enable") ? 0 : 1)
 }
 let delegate = AppDelegate()
 app.delegate = delegate

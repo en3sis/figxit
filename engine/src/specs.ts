@@ -1,10 +1,10 @@
-import { statSync, type Stats } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { brandIcon, ICONS, type Icon } from "./brands";
 import { expandAlias } from "./generators";
 import { FIGXIT_ICONS, FIGXIT_SPECS, PATCHES } from "./figxit";
 import { extraRoot, extraSource } from "./extras";
-import { specsDir, userSpecsDir } from "./paths";
+import { specsDir, trusted, trustedPath, userSpecsDir } from "./paths";
 import { loadVersioned } from "./versioned";
 import type { Candidate } from "./sources";
 
@@ -82,19 +82,17 @@ async function versionedSpec(name: string, dir: string): Promise<Spec | null> {
 function userSpec(name: string): { file: string; stamp: string } | null {
   if (name.split("/").some((part) => /^\.+$/.test(part))) return null;
   const dir = userSpecsDir();
-  const file = join(dir, `${name}.js`);
+  const wanted = join(dir, `${name}.js`);
+  if (!existsSync(wanted)) return null;
+  const file = trustedPath(wanted);
+  if (!file) return null;
   try {
     const stat = statSync(file);
-    if (!stat.isFile() || !trusted(stat) || !trusted(statSync(dir))) return null;
+    if (!stat.isFile() || !trusted(stat, file)) return null;
     return { file, stamp: `${stat.mtimeMs}:${stat.size}` };
   } catch {
     return null;
   }
-}
-
-function trusted(stat: Stats): boolean {
-  const uid = process.getuid?.();
-  return (uid === undefined || stat.uid === uid || stat.uid === 0) && (stat.mode & 0o022) === 0;
 }
 
 const userModules = new Map<string, { stamp: string; spec: Promise<Spec | null> }>();

@@ -1,3 +1,15 @@
+_figxit_aliases() {
+  [[ -n $_figxit_out ]] || return 0
+  local name value list= file=${_figxit_sock%/*}/aliases/$$
+  for name in "${!BASH_ALIASES[@]}"; do
+    value=${BASH_ALIASES[$name]}
+    [[ $name$value == *$'\n'* ]] || list+=${list:+$'\n'}$name=$value
+  done
+  [[ $list == "$_figxit_alias_state" || ! -d ${file%/*} ]] && return 0
+  { printf '%s\n' "$list" >|"$file"; } 2>/dev/null || return 0
+  _figxit_send U && _figxit_alias_state=$list
+}
+
 _figxit_close() {
   [[ -n $_figxit_out ]] || return 0
   exec {_figxit_out}>&- {_figxit_in}<&-

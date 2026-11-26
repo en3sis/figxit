@@ -5,7 +5,8 @@ import { herdrGrid, parseShell, placeInPane, termPad, tmuxGrid, tmuxOrigin, tmux
 import { Helper } from "./helper";
 import { History } from "./history";
 import { addExtra, downloadable, updateExtras } from "./extras";
-import { ENGINE_SOCK } from "./paths";
+import { aliasesFor, shellAliases, sweepAliases } from "./aliases";
+import { ENGINE_SOCK, SHELL_ALIASES } from "./paths";
 import type { Candidate } from "./sources";
 import { suggest, type Suggestion } from "./suggest";
 import { CAUTION } from "./verbs";
@@ -16,6 +17,7 @@ const VISIBLE = 8;
 const SETTLE_MS = 12;
 const FOCUS_MS = 250;
 const CURSOR_MS = 500;
+const LOADING_MS = 300;
 const ORIGIN_MS = 1000;
 const ENTER_INSERTS = join(dirname(SOCK), "enter-inserts");
 const FOCUS_FORMAT = "#{window_active} #{pane_active} #{pane_in_mode}";
@@ -51,6 +53,8 @@ interface Session {
   cwd: string;
   point: number;
   prompted: string | null;
+  pid: string;
+  aliases: ReadonlyMap<string, string>;
 }
 
 const history = new History();
@@ -246,7 +250,7 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
   const seq = ++s.seq;
   s.fresh = false;
   s.navigated = false;
-  const result = await suggest(buffer, cursor, cwd, history);
+  const result = await suggest(buffer, cursor, cwd, history, Date.now(), aliasesFor(s.aliases));
   if (seq !== s.seq) return;
   const row = downloadRow(s, buffer, cursor);
   if (row) result.now = withRow(result.now, row, cursor);
@@ -257,9 +261,7 @@ async function edit(s: Session, cursor: number, cwd: string, buffer: string) {
     if (!(await anchor(s, seq, result.now, cwd, buffer))) return;
     render(s);
   } else if (s.visible) {
-    s.items = [];
-    helper.send({ cmd: "hide" });
-    setVisible(s, false);
+    setTimeout(() => seq === s.seq && !s.fresh && hide(s), LOADING_MS);
   }
 
   if (!result.more) return;
@@ -300,13 +302,13 @@ function navigate(s: Session, direction: string) {
     if (s.visible) hide(s);
     return;
   }
-  if (!s.visible || s.items.length === 0) return;
+  if (!s.visible || !s.fresh || s.items.length === 0) return;
   const step = direction === "up" ? -1 : chosen(s, s.items[s.selected]) ? 1 : 0;
   s.selected = (s.selected + step + s.items.length) % s.items.length;
   s.navigated = true;
   const scroll = s.scroll;
   follow(s);
-  if (s.fresh && s.anchor && s.scroll === scroll) helper.send({ cmd: "select", selected: s.selected - s.scroll });
+  if (s.anchor && s.scroll === scroll) helper.send({ cmd: "select", selected: s.selected - s.scroll });
   else render(s);
 }
 
@@ -344,6 +346,11 @@ function onLine(s: Session, line: string) {
       if (f[4]) process.env.PATH = f[4];
       s.term = f[5] ?? "";
       s.herdr = s.term === "herdr" && f[6] && f[7] ? { pane: f[6], socket: f[7], bin: f[8] || "herdr" } : null;
+      s.pid = f[1] ?? "";
+      s.aliases = shellAliases(s.pid);
+      break;
+    case "U":
+      s.aliases = shellAliases(s.pid);
       break;
     case "C":
       if (Number(f[1]) === s.seq) s.cursor?.(parseShell(f.slice(2), termPad(s.term)));
@@ -396,6 +403,9 @@ export async function daemon() {
     unlinkSync(SOCK);
   } catch {}
 
+  mkdirSync(SHELL_ALIASES, { recursive: true, mode: 0o700 });
+  chmodSync(SHELL_ALIASES, 0o700);
+  sweepAliases();
   history.refresh(0);
   count(0);
   helper.notify({ cmd: "hide" });
@@ -432,6 +442,8 @@ export async function daemon() {
           cwd: "",
           point: 0,
           prompted: null,
+          pid: "",
+          aliases: new Map(),
         };
       },
       data(socket, chunk) {
@@ -449,6 +461,7 @@ export async function daemon() {
         s.seq++;
         s.cursor?.(null);
         if (s.counted) count(-1);
+        sweepAliases();
         if (active === s) {
           active = null;
           helper.send({ cmd: "hide" });

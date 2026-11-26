@@ -136,7 +136,7 @@ function keyOf(generator: Spec, ctx: GenContext): string {
     generator.trigger?.on === "change"
       ? ctx.prefix
       : generator.trigger
-        ? ctx.prefix.slice(0, ctx.prefix.lastIndexOf("/") + 1)
+        ? ctx.prefix.slice(0, ctx.prefix.lastIndexOf(typeof generator.trigger === "string" ? generator.trigger : "/") + 1)
         : "";
   return [id, ctx.cwd, ctx.plain, scope, ...ctx.tokens.slice(0, -1)].join("\0");
 }

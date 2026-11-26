@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Socket } from "bun";
 import { utf16Index } from "../src/daemon";
@@ -56,6 +56,8 @@ describe("daemon", () => {
     for (const name of ["日本", "🎉x", "👨‍👩‍👧x", "🇪🇸x", "e\u0301t"]) mkdirSync(join(cwd, name));
     writeFileSync(join(cwd, "Makefile"), "build:\ndeploy:\ndev:\n");
     writeFileSync(join(work, "stopped"), "");
+    mkdirSync(join(work, "bin"));
+    writeFileSync(join(work, "bin", "zoxide"), "#!/bin/sh\nsleep 0.1\necho /tmp/alpha\necho /tmp/alps\n", { mode: 0o755 });
     const fromEngine = lines((reply) => shown.push(JSON.parse(reply)));
     helper = Bun.listen({ unix: join(work, "h.sock"), socket: { data: (_socket, chunk) => fromEngine(chunk) } });
     const env: Record<string, string | undefined> = {
@@ -64,6 +66,7 @@ describe("daemon", () => {
       FIGXIT_HELPER_SOCK: join(work, "h.sock"),
       FIGXIT_ATUIN_DB: join(work, "none.db"),
       FIGXIT_EXTRAS_DIR: join(work, "extras"),
+      FIGXIT_USER_ALIASES: join(work, "user-aliases"),
     };
     delete env.FIGXIT_SPECS;
     delete env.FIGXIT_APP;
@@ -76,7 +79,7 @@ describe("daemon", () => {
     for (const stop = Date.now() + 15000; !shell && Date.now() < stop; await Bun.sleep(50)) {
       shell = await Bun.connect({ unix: join(work, "e.sock"), socket: { data: (_socket, chunk) => toShell(chunk) } }).catch(() => undefined);
     }
-    shell?.write(line("H", process.pid, "", "", process.env.PATH ?? "", "") + "\n");
+    shell?.write(line("H", process.pid, "", "", `${join(work, "bin")}:${process.env.PATH ?? ""}`, "") + "\n");
   }, 20000);
 
   afterAll(() => {
@@ -144,6 +147,41 @@ describe("daemon", () => {
     const message = await show(type("make"));
     expect(message?.items[0]?.label).toBe("make");
     expect([message?.grid.col, message?.caret]).toEqual([COL, -1]);
+  }, 20000);
+
+  test("the shell's alias file completes an alias like its command", async () => {
+    const file = join(work, "aliases", String(process.pid));
+    writeFileSync(file, "m=make\nll=ls -l\n");
+    chmodSync(file, 0o664);
+    shell?.write("U\n");
+    const message = await show(type("m "));
+    expect(message?.items.map((item: any) => item.label)).toEqual(["build", "deploy", "dev"]);
+    expect(await accept()).toBe(line("A", 0, "build "));
+  }, 20000);
+
+  test("removes the alias file of a shell that has exited, and keeps the others", async () => {
+    const exited = Bun.spawn(["true"]);
+    await exited.exited;
+    const gone = join(work, "aliases", String(exited.pid));
+    writeFileSync(gone, "x=y\n");
+    const other = await Bun.connect({ unix: join(work, "e.sock"), socket: { data() {} } });
+    other.end();
+    expect(await until(() => (existsSync(gone) ? undefined : true))).toBe(true);
+    expect(existsSync(join(work, "aliases", String(process.pid)))).toBe(true);
+  }, 20000);
+
+  test("the popup stays open while the next list of folders loads", async () => {
+    expect((await show(type("z al")))?.items.map((item: any) => item.label)).toEqual(["/tmp/alpha", "/tmp/alps"]);
+    const from = edit("z alp");
+    const next = await until(() => shown.slice(from).find((message) => message.cmd === "show" || message.cmd === "hide"));
+    expect(next?.cmd).toBe("show");
+  }, 20000);
+
+  test("arrows and Tab do nothing while the next list of folders loads", async () => {
+    await show(type("z be"));
+    edit("z bet");
+    shell?.write(line("K", "down") + "\n");
+    expect(await accept()).toBe(line("A", -1, ""));
   }, 20000);
 
   test("a cursor past the end of the line is read as the end", async () => {

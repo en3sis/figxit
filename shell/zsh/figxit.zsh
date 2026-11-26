@@ -18,7 +18,7 @@ typeset -g _figxit_sock=${FIGXIT_SOCK:-$HOME/.local/state/figxit/engine.sock}
 typeset -g _figxit_sep=$'\x1f'
 (( $+functions[_figxit_close] )) && _figxit_close
 typeset -g _figxit_fd=
-typeset -g _figxit_last= _figxit_size= _figxit_cell= _figxit_asked= _figxit_typed=
+typeset -g _figxit_last= _figxit_size= _figxit_cell= _figxit_asked= _figxit_typed= _figxit_alias_state=
 typeset -gF _figxit_asked_at=0 _figxit_wait=1
 typeset -gi _figxit_visible=0 _figxit_retry=0 _figxit_depth=0 _figxit_reports=1 _figxit_timed=0 _figxit_seen=0 _figxit_ends=0 _figxit_held=0 _figxit_stalled=0
 typeset -gA _figxit_orig _figxit_base
@@ -29,6 +29,7 @@ typeset -gA _figxit_keys=(
   '"^[OA"' figxit-up
   '"^[[B"' figxit-down
   '"^[OB"' figxit-down
+  '"^[^["' figxit-esc-esc
 )
 
 () {
@@ -46,6 +47,7 @@ zle -N figxit-enter
 zle -N figxit-up
 zle -N figxit-down
 zle -N figxit-esc
+zle -N figxit-esc-esc
 _figxit_hook line-init _figxit_line_init
 _figxit_hook line-pre-redraw _figxit_redraw
 add-zsh-hook preexec _figxit_preexec

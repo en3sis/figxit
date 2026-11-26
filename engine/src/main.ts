@@ -1,9 +1,9 @@
-import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { accessSync, constants, existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { version } from "../package.json";
 import { launchApp } from "./launch";
-import { appPath, atuinDb, atuinPaths, bundlePath, ENGINE_SOCK, HELPER_SOCK, specsDir } from "./paths";
+import { appPath, atuinDb, atuinPaths, bundlePath, ENGINE_SOCK, fileProblem, HELPER_SOCK, specsDir, userAliasesFile, userSpecsDir } from "./paths";
 
 const HELP = `figxit ${version}
 
@@ -242,6 +242,29 @@ async function stop(): Promise<number> {
   return 0;
 }
 
+function userFileRows(): [boolean, string, string][] {
+  const rows: [boolean, string, string][] = [];
+  const dir = userSpecsDir();
+  let files: string[] = [];
+  try {
+    files = readdirSync(dir, { recursive: true }).map(String).filter((name) => name.endsWith(".js")).sort().slice(0, 500);
+  } catch {}
+  if (files.length > 0) {
+    const skipped = files.flatMap((name) => {
+      const problem = fileProblem(join(dir, name));
+      return problem ? [`${name} skipped: ${problem}`] : [];
+    });
+    const more = skipped.length > 1 ? `, and ${skipped.length - 1} more` : "";
+    rows.push(skipped[0] ? [false, "user specs", skipped[0] + more] : [true, "user specs", `${files.length} in ${dir.replace(homedir(), "~")}`]);
+  }
+  const aliases = userAliasesFile();
+  if (existsSync(aliases)) {
+    const problem = fileProblem(aliases);
+    rows.push(problem ? [false, "user aliases", `skipped: ${problem}`] : [true, "user aliases", aliases.replace(homedir(), "~")]);
+  }
+  return rows;
+}
+
 async function doctor(fromApp: boolean, json: boolean): Promise<number> {
   const app = appPath();
   const specs = specsDir();
@@ -263,6 +286,7 @@ async function doctor(fromApp: boolean, json: boolean): Promise<number> {
     [await reachable(HELPER_SOCK), "popup helper", HELPER_SOCK],
     [await reachable(ENGINE_SOCK), "engine", ENGINE_SOCK],
     [specCount > 0, "completion specs", specs ? `${specCount} in ${specs}` : "not found"],
+    ...userFileRows(),
     [atuin !== null, "atuin history", atuin ?? `not found in ${looked}, ranking is off`],
     [shells > 0, "shells connected", shells > 0 ? String(shells) : `none, run ${login.reload} in each open terminal`],
   ];

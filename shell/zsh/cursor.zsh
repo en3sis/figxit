@@ -35,13 +35,18 @@ _figxit_ask() {
 _figxit_report() {
   emulate -L zsh
   setopt extendedglob
-  local got= c row= col= seq= done= int=
+  local got= c row= col= seq= done= int= tty=
   local -a match mbegin mend
   local -A size
   local -F stop=$(( EPOCHREALTIME + _figxit_wait ))
   [[ $1 == ask ]] && trap 'int+=.; (( $#int == 2 )) && stop=$(( EPOCHREALTIME + _figxit_wait )); print -n -- "\e[5n" >/dev/tty' INT
+  # Inside _figxit_recv, a read through zle runs every fd handler, and zle then runs the others,
+  # like zsh-autosuggestions', a second time for the same event. Read the terminal directly
+  # instead, and take new queries from the engine by hand.
+  [[ $1 == ask && -n $_figxit_from && -r $TTY ]] && exec {tty}<$TTY
   while (( EPOCHREALTIME < stop )) || [[ $1 == ask && -n $got$int && $#int -lt 2 ]]; do
-    read -s -k 1 -t 0.02 c || continue
+    [[ -n $tty ]] && _figxit_queued
+    read -s -k 1 -t 0.02 ${tty:+-u} $tty c || continue
     got+=$c
     if [[ $got == *$'\e[0n' ]]; then
       done=1
@@ -56,7 +61,7 @@ _figxit_report() {
   else
     got=${got#($'\e[?'|)[0-9\;]#c}
   fi
-  [[ -n $done ]] || got=${got%%$'\e'(\[[0-9\;\?]#|)}
+  [[ -n $done ]] || got=${got%%$'\e['[0-9\;\?]#}
   if [[ $got == (#b)(*)$'\e['(<->)';'(<->)R(*) ]]; then
     row=$match[2] col=$match[3] got=$match[1]$match[4]
   fi
@@ -73,7 +78,8 @@ _figxit_report() {
   if [[ $1 == ask ]]; then
     if [[ -n $row && -z $REPLY$int ]]; then
       while { (( EPOCHREALTIME < stop )) || [[ -n $REPLY ]] } && (( $#int < 2 )); do
-        read -s -k 1 -t 0.02 c && REPLY+=$c
+        [[ -n $tty ]] && _figxit_queued
+        read -s -k 1 -t 0.02 ${tty:+-u} $tty c && REPLY+=$c
         [[ $REPLY == *$'\e[0n' ]] && break
       done
       if [[ $REPLY == *$'\e[0n' ]]; then
@@ -85,6 +91,7 @@ _figxit_report() {
     [[ -n $REPLY$int ]] && [[ -n $done || -z $row ]] && print -n -- $'\e[5n' >/dev/tty
     _figxit_typed+=$REPLY REPLY=
   fi
+  [[ -n $tty ]] && exec {tty}<&-
   seq=$_figxit_asked
   _figxit_asked=
   if [[ -z $row ]]; then
@@ -99,6 +106,17 @@ _figxit_report() {
     [[ -n $seq ]] && _figxit_send "C${_figxit_sep}${seq}${_figxit_sep}${row}${_figxit_sep}${col}${_figxit_sep}${COLUMNS}${_figxit_sep}${LINES}${_figxit_sep}${_figxit_cell}"
   fi
   [[ -z $int ]]
+}
+
+_figxit_queued() {
+  local line
+  while IFS= read -r -t 0 -u $_figxit_from line; do
+    if [[ $line == Q$_figxit_sep* ]]; then
+      _figxit_asked=${line#*$_figxit_sep}
+    else
+      _figxit_apply $line
+    fi
+  done
 }
 
 _figxit_release() {

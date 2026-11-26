@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Socket } from "bun";
+import { parseAliases } from "../src/aliases";
 
 const root = join(import.meta.dir, "../..");
 const work = mkdtempSync(join(tmpdir(), "figxit-shell-"));
@@ -22,10 +23,11 @@ function result(out: string): { sent: string; left: string } {
   return { sent: /SENT ([^\r\n]*)/.exec(out)?.[1] ?? "", left: /LEFT \[([^\]]*)\]/.exec(out)?.[1] ?? "" };
 }
 
+const fish = Bun.which("fish");
 const bash = ["/opt/homebrew/bin/bash", "/usr/local/bin/bash", Bun.which("bash") ?? ""].find((path) => {
   if (!path) return false;
   try {
-    return Number(/version (\d+)/.exec(Bun.spawnSync([path, "--version"]).stdout.toString())?.[1]) >= 5;
+    return Number(Bun.spawnSync([path, "-c", "echo ${BASH_VERSINFO[0]}"]).stdout.toString()) >= 5;
   } catch {
     return false;
   }
@@ -134,6 +136,12 @@ describe("zsh reply reader", () => {
     expect(left).toEqual([" paused"]);
   });
 
+  test("keeps a lone Esc at the end of a reply cut off by the time limit, and drops a cut-off sequence", async () => {
+    const esc = await read([`62cx${ESC}`], { FX_WAIT: "0.2" });
+    const cut = await read([`62cx${ESC}[5;1`], { FX_WAIT: "0.2" });
+    expect([esc.left, cut.left]).toEqual([[`x${ESC} paused`], ["x paused"]]);
+  });
+
   test("turns reports off when the terminal answers without a cursor position", async () => {
     const { sent, left } = await read([`62cxy${END}`]);
     expect({ sent, left }).toEqual({ sent: ["C|7"], left: ["xy off"] });
@@ -157,6 +165,11 @@ describe("zsh reply reader", () => {
   test("right after asking, keeps the keys typed before and inside the reply until the end marker comes", async () => {
     const { sent, left, rest, typed } = await read([`cd${ESC}[?62c${PLAIN}e${ESC}[5;12R${END}`], { FX_MODE: "ask" });
     expect({ sent, left, rest, typed }).toEqual({ sent: ["C|7|5|12|120|35|20|8|600|960"], left: [" on"], rest: END, typed: "cde" });
+  });
+
+  test("right after asking, keeps a lone Esc typed before or inside the reply", async () => {
+    const { sent, rest, typed } = await read([`${ESC}${ESC}[?62c${ESC}${ESC}[5;12R${END}`], { FX_MODE: "ask" });
+    expect({ sent, rest, typed }).toEqual({ sent: ["C|7|5|12|120|35|"], rest: END, typed: `${ESC}${ESC}` });
   });
 
   test("right after asking, holds keys typed just before the end marker and asks for a new marker", async () => {
@@ -205,10 +218,13 @@ describe("zsh reply reader", () => {
 describe("zsh cursor query", () => {
   const dir = join(work, "query");
   const fifo = join(dir, "engine");
+  const other = join(dir, "other");
   const rc = join(dir, "rc.zsh");
+  const figxit = readFileSync(join(root, "shell/zsh/figxit.zsh"), "utf8");
   mkdirSync(dir);
   for (const name of ["a1", "a2", "a3"]) writeFileSync(join(dir, name), "");
   Bun.spawnSync(["mkfifo", fifo]);
+  Bun.spawnSync(["mkfifo", other]);
   writeFileSync(
     rc,
     [
@@ -228,6 +244,18 @@ describe("zsh cursor query", () => {
       `source ${root}/shell/zsh/keys.zsh`,
       "_figxit_connect() { return 0 }",
       "_figxit_bind() { }",
+      "if [[ -n $FX_KEYS ]]; then",
+      `  source ${root}/shell/zsh/bind.zsh`,
+      /^typeset -gA _figxit_keys=\([\s\S]*?^\)$/m.exec(figxit)![0],
+      ...figxit.match(/^zle -N .*$/gm)!,
+      "  _fx_esc() { print -r -- ESC >> $FX_OUT }",
+      '  _fx_sudo() { if [[ $BUFFER == "sudo "* ]]; then LBUFFER=${LBUFFER#sudo }; else LBUFFER="sudo $LBUFFER"; fi }',
+      "  zle -N _fx_esc",
+      "  zle -N _fx_sudo",
+      "  bindkey '\\e' _fx_esc",
+      "  bindkey '\\e\\e' _fx_sudo",
+      "  KEYTIMEOUT=100",
+      "fi",
       '_figxit_send() { [[ $1 == C* ]] && print -r -- "SENT ${1//$_figxit_sep/|}" >> $FX_OUT }',
       'preexec() { print -r -- "RAN $1" >> $FX_OUT }',
       '_fx_line() { print -r -- "LINE [$BUFFER] REPORTS $_figxit_reports" >> $FX_OUT }',
@@ -243,6 +271,13 @@ describe("zsh cursor query", () => {
       "zle -N zle-line-pre-redraw _figxit_redraw",
       `exec {fd}<>${fifo}`,
       "zle -F -w $fd _figxit_recv",
+      `exec {other}<>${other}`,
+      '_fx_other() { local line; IFS= read -r -t 0 -u $1 line; print -r -- "OTHER [$line]" >> $FX_OUT }',
+      "_fx_busy() { sleep 0.5 }",
+      "zle -N _fx_other",
+      "zle -N _fx_busy",
+      "zle -F -w $other _fx_other",
+      "bindkey '^[[23~' _fx_busy",
       "print -r -- READY >> $FX_OUT",
       "",
     ].join("\n"),
@@ -290,6 +325,7 @@ describe("zsh cursor query", () => {
         await until(`echo of ${text}`, () => screen.slice(from).includes(text));
       },
       engine: (...lines: string[]) => appendFileSync(fifo, lines.map((line) => `${line}\n`).join("")),
+      other: (line: string) => appendFileSync(other, `${line}\n`),
       async query(seq: number, answer?: (string | number)[]) {
         const asked = queries();
         z.engine(`Q\x1f${seq}`);
@@ -453,6 +489,28 @@ describe("zsh cursor query", () => {
           queries: 2,
           sent: ["SENT C|6|5|12|120|35|20|8|600|960", "SENT C|8|5|12|120|35|20|8|600|960"],
         });
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "another plugin's fd handler runs once when its data comes with a query",
+    async () => {
+      const z = await start();
+      try {
+        await z.query(6);
+        z.type(`${ESC}[23~`);
+        await Bun.sleep(150);
+        z.other("suggestion");
+        z.engine("Q\x1f7");
+        await z.until("query", () => z.queries() > 1);
+        z.type(reply(""));
+        await z.until("answer", () => z.sent().length > 1);
+        await z.line();
+        expect(z.lines().filter((line) => line.startsWith("OTHER "))).toEqual(["OTHER [suggestion]"]);
       } finally {
         await z.close();
       }
@@ -721,6 +779,114 @@ describe("zsh cursor query", () => {
     },
     30000,
   );
+
+  test(
+    "with Esc Esc bound, an Esc typed right before the first reply of a shell stays an Esc",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        await z.typed("wc ");
+        await z.query(6, [ESC, 50, reply("")]);
+        await z.until("Esc", () => z.lines().includes("ESC"));
+        expect(await z.line()).toEqual(["LINE [wc ] REPORTS 1"]);
+        expect(z.sent()).toEqual(["SENT C|6|5|12|120|35|"]);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "Esc Esc with the first reply of a shell between the two presses runs the Esc Esc binding",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        await z.typed("wc ");
+        await z.query(6, [ESC, 50, reply(""), 50, ESC]);
+        await Bun.sleep(200);
+        expect(await z.line()).toEqual(["LINE [sudo wc ] REPORTS 1"]);
+        expect(z.lines().includes("ESC")).toBe(false);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "with Esc Esc bound, an Esc typed between the cursor position and the end marker stays an Esc behind the held keys",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        await z.typed("wc ");
+        await z.query(6);
+        await z.query(7, ["a", 30, `${ESC}[?62;22c${ESC}[5;12R`, 30, ESC, 30, END]);
+        await z.until("Esc", () => z.lines().includes("ESC"));
+        expect(await z.line()).toEqual(["LINE [wc a] REPORTS 1"]);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "Esc Esc still runs its binding without a reply, and right before one",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        await z.typed("wc ");
+        z.type(`${ESC}${ESC}`);
+        await Bun.sleep(200);
+        expect(await z.line()).toEqual(["LINE [sudo wc ] REPORTS 1"]);
+        await z.query(6, [`${ESC}${ESC}${reply("")}`]);
+        await Bun.sleep(200);
+        expect(await z.line()).toEqual(["LINE [wc ] REPORTS 1"]);
+        expect({ sent: z.sent(), escs: z.lines().includes("ESC") }).toEqual({ sent: ["SENT C|6|5|12|120|35|"], escs: false });
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "with shwordsplit set, a space typed right after Esc Esc stays a space",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        z.type("setopt shwordsplit\r");
+        await z.until("setopt", () => z.lines().some((line) => line.startsWith("RAN setopt")));
+        await z.typed("wc");
+        z.type(`${ESC}${ESC} x`);
+        await Bun.sleep(200);
+        expect(await z.line()).toEqual(["LINE [sudo wc x] REPORTS 1"]);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
+
+  test(
+    "an Esc Esc string bound with bindkey -s still runs",
+    async () => {
+      const z = await start({ FX_KEYS: "1" });
+      try {
+        z.type("bindkey -s '\\e\\e' '^Asudo ^E'\r");
+        await z.until("bindkey", () => z.lines().some((line) => line.startsWith("RAN bindkey")));
+        await z.typed("wc ");
+        z.type(`${ESC}${ESC}`);
+        await Bun.sleep(200);
+        expect(await z.line()).toEqual(["LINE [sudo wc ] REPORTS 1"]);
+        expect(z.lines().includes("ESC")).toBe(false);
+      } finally {
+        await z.close();
+      }
+    },
+    30000,
+  );
 });
 
 describe("zsh with an engine that stops reading", () => {
@@ -894,7 +1060,7 @@ describe("zsh with an engine that stops reading", () => {
       expect(await until(() => /\nL\nE\x1f12\x1f[^\x1f\n]*\x1fecho pending\x1f120 35\n$/.test(shell.received()))).toBe(true);
       await shell.type("x");
       expect(await until(() => /\nE\x1f13\x1f[^\x1f\n]*\x1fecho pendingx\x1f120 35\n$/.test(shell.received()))).toBe(true);
-      expect(shell.lines().filter((l) => !/^([HLXN]|E(\x1f[^\x1f]*){4})(\x1f|$)/.test(l))).toEqual([]);
+      expect(shell.lines().filter((l) => !/^([HLXNU]|E(\x1f[^\x1f]*){4})(\x1f|$)/.test(l))).toEqual([]);
     } finally {
       shell.stop();
     }
@@ -986,5 +1152,113 @@ describe.skipIf(!bash)("bash reply reader", () => {
 
   test("sends no position without a cursor reply", () => {
     expect(read(`${ESC}[?62cxy`)).toEqual({ sent: "c", left: "xy" });
+  });
+});
+
+const ALIASES = new Map([
+  ["k", "kubectl"],
+  ["ll", "ls -la"],
+  ["q", "echo 'hi'"],
+]);
+
+function aliasRun(command: string[], script: (sock: string) => string[], folder = true) {
+  const dir = mkdtempSync(join(work, "aliases-"));
+  if (folder) mkdirSync(join(dir, "aliases"));
+  const run = Bun.spawnSync([...command, script(join(dir, "e.sock")).join("\n")]);
+  const files = folder ? readdirSync(join(dir, "aliases")) : [];
+  return {
+    sent: run.stdout.toString().split("\n").filter(Boolean),
+    errors: run.stderr.toString(),
+    aliases: files.length === 1 ? parseAliases(readFileSync(join(dir, "aliases", files[0]!), "utf8")) : null,
+  };
+}
+
+const zshAliases = (aliases: string, calls: string, fails = 0) => (sock: string) => [
+  `_figxit_fd=1 _figxit_sock=${sock} _figxit_alias_state= fails=${fails}`,
+  '_figxit_send() { (( fails-- > 0 )) && return 1; print -r -- "$1" }',
+  `unalias -m '*'; ${aliases}`,
+  body("shell/zsh/connect.zsh", "_figxit_aliases"),
+  calls,
+];
+
+describe("zsh alias list", () => {
+  test("writes the aliases to the shell's alias file, and tells the engine only when one changes", () => {
+    const got = aliasRun(
+      ["zsh", "-f", "-c"],
+      zshAliases(`alias k=kubectl ll='ls -l' q="echo 'hi'" bad=$'a\\nb'`, "_figxit_aliases; _figxit_aliases; alias ll='ls -la'; _figxit_aliases"),
+    );
+    expect(got.sent).toEqual(["U", "U"]);
+    expect(got.aliases).toEqual(ALIASES);
+  });
+
+  test("tells the engine again at the next prompt when a send fails", () => {
+    const got = aliasRun(["zsh", "-f", "-c"], zshAliases("alias k=kubectl", "_figxit_aliases; _figxit_aliases; _figxit_aliases", 1));
+    expect(got.sent).toEqual(["U"]);
+  });
+
+  test("prints no error before the engine has made the alias folder", () => {
+    const got = aliasRun(["zsh", "-f", "-c"], zshAliases("alias k=kubectl", "_figxit_aliases"), false);
+    expect({ sent: got.sent, errors: got.errors }).toEqual({ sent: [], errors: "" });
+  });
+});
+
+describe.skipIf(!bash)("bash alias list", () => {
+  const bashAliases = (calls: string, fails = 0) => (sock: string) => [
+    `_figxit_out=1 _figxit_sock=${sock} _figxit_alias_state= fails=${fails}`,
+    "_figxit_send() { (( fails-- > 0 )) && return 1; printf '%s\\n' \"$1\"; }",
+    `alias k=kubectl ll='ls -l' q="echo 'hi'" bad=$'a\\nb'`,
+    body("shell/bash/connect.bash", "_figxit_aliases"),
+    calls,
+  ];
+
+  test("writes the aliases to the shell's alias file, and tells the engine only when one changes", () => {
+    const got = aliasRun([bash!, "--norc", "-c"], bashAliases("_figxit_aliases; _figxit_aliases; alias ll='ls -la'; _figxit_aliases"));
+    expect(got.sent).toEqual(["U", "U"]);
+    expect(got.aliases).toEqual(ALIASES);
+  });
+
+  test("tells the engine again at the next prompt when a send fails", () => {
+    const got = aliasRun([bash!, "--norc", "-c"], bashAliases("_figxit_aliases; _figxit_aliases; _figxit_aliases", 1));
+    expect(got.sent).toEqual(["U"]);
+  });
+});
+
+describe.skipIf(!fish)("fish abbreviation list", () => {
+  test("writes the abbreviations that expand a command, and tells the engine only when one changes", () => {
+    const got = aliasRun([fish!, "--no-config", "-c"], (sock) => [
+      `set -g _figxit_pid 1; set -g _figxit_lost 0; set -g _figxit_sock ${sock}; set -g _figxit_alias_state`,
+      "function _figxit_send; printf '%s\\n' $argv[1]; end",
+      "abbr -a -- k kubectl; abbr -a -- gco 'git checkout'; abbr -a --position anywhere -- L '| less'",
+      readFileSync(join(root, "shell/fish/connect.fish"), "utf8").match(/^function _figxit_aliases\n[\s\S]*?\nend$/m)![0],
+      "_figxit_aliases; _figxit_aliases; abbr -a -- d docker; _figxit_aliases",
+    ]);
+    expect(got.sent).toEqual(["U", "U"]);
+    expect(got.aliases).toEqual(
+      new Map([
+        ["k", "kubectl"],
+        ["gco", "git checkout"],
+        ["d", "docker"],
+      ]),
+    );
+  });
+});
+
+describe.skipIf(!fish)("fish key bindings", () => {
+  test("a preset key that fish can't read back doesn't replace the binding for typed letters", () => {
+    const script = [
+      "function bind",
+      "  switch \"$argv\"",
+      "    case --preset",
+      "      printf '%s\\n' \"bind --preset '' self-insert\" 'bind --preset \"$nothing\" fish_clipboard_paste' 'bind --preset ctrl-v fish_clipboard_paste'",
+      "    case --user",
+      "    case '*'",
+      "      echo BIND (string join ' ' -- (string escape -- $argv))",
+      "  end",
+      "end",
+      readFileSync(join(root, "shell/fish/bind.fish"), "utf8"),
+      "_figxit_bind",
+    ].join("\n");
+    const out = Bun.spawnSync([fish!, "--no-config", "-c", script]).stdout.toString().trim().split("\n");
+    expect(out).toEqual(["BIND '' self-insert _figxit_hook", "BIND ctrl-v fish_clipboard_paste _figxit_hook"]);
   });
 });
