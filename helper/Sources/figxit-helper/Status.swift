@@ -663,7 +663,6 @@ final class StatusController: NSObject, NSMenuDelegate {
     private let restartItem = NSMenuItem(title: "Restart Engine", action: #selector(restart), keyEquivalent: "")
     private let accessItem = NSMenuItem(title: "Allow Accessibility for Panes and Editors…", action: #selector(allowAccess), keyEquivalent: "")
     private let dot = CALayer()
-    private var timer: Timer?
     private var updater: SPUStandardUpdaterController?
 
     init(engine: EngineSupervisor?) {
@@ -721,7 +720,10 @@ final class StatusController: NSObject, NSMenuDelegate {
         item.menu = menu
 
         refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.refresh() }
+        engine?.onChange = { [weak self] in self?.refresh() }
+        DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name("com.apple.accessibility.api"), object: nil, queue: .main) { [weak self] _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.refresh() }
+        }
     }
 
     func showIconAndSettings() {
@@ -743,7 +745,7 @@ final class StatusController: NSObject, NSMenuDelegate {
     }
 
     private func refresh() {
-        let running = Install.engineRunning
+        let running = engine?.running == true || Install.engineRunning
         item.button?.appearsDisabled = !running
         let shells = Install.shellCount
         stateItem.title = running ? (shells > 0 ? "Running, \(shells) \(shells == 1 ? "terminal" : "terminals") connected" : "Running, no terminal connected") : (engine?.paused == true ? "Suggestions are paused" : "Engine is not running")
@@ -753,7 +755,8 @@ final class StatusController: NSObject, NSMenuDelegate {
         accessItem.isHidden = !attention
         dot.isHidden = !attention
         if let button = item.button {
-            button.toolTip = attention ? "Figxit: allow Accessibility for panes and editors" : "Figxit"
+            let tip = attention ? "Figxit: allow Accessibility for panes and editors" : "Figxit"
+            if button.toolTip != tip { button.toolTip = tip }
             dot.frame = CGRect(x: button.bounds.width - 8, y: button.isFlipped ? button.bounds.height - 9 : 2, width: 7, height: 7)
         }
     }
