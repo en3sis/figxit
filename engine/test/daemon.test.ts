@@ -56,6 +56,8 @@ describe("daemon", () => {
     for (const name of ["日本", "🎉x", "👨‍👩‍👧x", "🇪🇸x", "e\u0301t"]) mkdirSync(join(cwd, name));
     writeFileSync(join(cwd, "Makefile"), "build:\ndeploy:\ndev:\n");
     writeFileSync(join(work, "stopped"), "");
+    mkdirSync(join(work, "bin"));
+    writeFileSync(join(work, "bin", "zoxide"), "#!/bin/sh\nsleep 0.1\necho /tmp/alpha\necho /tmp/alps\n", { mode: 0o755 });
     const fromEngine = lines((reply) => shown.push(JSON.parse(reply)));
     helper = Bun.listen({ unix: join(work, "h.sock"), socket: { data: (_socket, chunk) => fromEngine(chunk) } });
     const env: Record<string, string | undefined> = {
@@ -77,7 +79,7 @@ describe("daemon", () => {
     for (const stop = Date.now() + 15000; !shell && Date.now() < stop; await Bun.sleep(50)) {
       shell = await Bun.connect({ unix: join(work, "e.sock"), socket: { data: (_socket, chunk) => toShell(chunk) } }).catch(() => undefined);
     }
-    shell?.write(line("H", process.pid, "", "", process.env.PATH ?? "", "") + "\n");
+    shell?.write(line("H", process.pid, "", "", `${join(work, "bin")}:${process.env.PATH ?? ""}`, "") + "\n");
   }, 20000);
 
   afterAll(() => {
@@ -166,6 +168,20 @@ describe("daemon", () => {
     other.end();
     expect(await until(() => (existsSync(gone) ? undefined : true))).toBe(true);
     expect(existsSync(join(work, "aliases", String(process.pid)))).toBe(true);
+  }, 20000);
+
+  test("the popup stays open while the next list of folders loads", async () => {
+    expect((await show(type("z al")))?.items.map((item: any) => item.label)).toEqual(["/tmp/alpha", "/tmp/alps"]);
+    const from = edit("z alp");
+    const next = await until(() => shown.slice(from).find((message) => message.cmd === "show" || message.cmd === "hide"));
+    expect(next?.cmd).toBe("show");
+  }, 20000);
+
+  test("arrows and Tab do nothing while the next list of folders loads", async () => {
+    await show(type("z be"));
+    edit("z bet");
+    shell?.write(line("K", "down") + "\n");
+    expect(await accept()).toBe(line("A", -1, ""));
   }, 20000);
 
   test("a cursor past the end of the line is read as the end", async () => {
