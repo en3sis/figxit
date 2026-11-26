@@ -14,17 +14,25 @@ _figxit_send() {
   print -r -u $_figxit_fd -- $1 2>/dev/null || { _figxit_close; return 1 }
 }
 
+_figxit_launch() {
+  if [[ $OSTYPE == darwin* ]]; then
+    open -g $1 &>/dev/null
+  else
+    $1/Contents/MacOS/figxit-engine start &>/dev/null &!
+  fi
+}
+
 _figxit_start() {
   [[ -e ${_figxit_sock:h}/stopped ]] && return 0
   if [[ -n $FIGXIT_APP ]]; then
-    open -g $FIGXIT_APP &>/dev/null
+    _figxit_launch $FIGXIT_APP
     return 0
   fi
   [[ -n $FIGXIT_AUTOSTART ]] || return 0
   if [[ -n $FIGXIT_ENGINE ]]; then
     ${=FIGXIT_ENGINE} &>/dev/null &!
   elif [[ -d $FIGXIT_HOME/dist/Figxit.app ]]; then
-    open -g $FIGXIT_HOME/dist/Figxit.app &>/dev/null
+    _figxit_launch $FIGXIT_HOME/dist/Figxit.app
   fi
 }
 
