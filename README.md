@@ -18,7 +18,7 @@ Free and open source. No account, no AI chat, no telemetry.
 - **Red icons for production**: Enter inserts those rows without running them
 - **Your aliases**: `k get ` completes like `kubectl get `, and `git co ` like `git checkout `
 - **zoxide**: `z rack` lists the folders `z` would jump to
-- **zsh, bash, and fish**, in Ghostty, iTerm2, Terminal, tmux, and the terminals of VS Code, Cursor, and Zed (experimental)
+- **zsh, bash, and fish**, in Ghostty, iTerm2, Terminal, tmux, and the terminals of VS Code, Cursor, Zed (experimental), and Herdr.app (experimental)
 
 ## Why it exists
 
@@ -145,12 +145,12 @@ After Esc, the shell waits to tell it apart from arrow keys: 400 ms in zsh, 500 
 | | Supported |
 |---|---|
 | Shells | zsh, bash 5 or later, fish 4 or later |
-| Terminals | Ghostty, iTerm2, Terminal |
+| Terminals | Ghostty, iTerm2, Terminal. Herdr.app, experimental, with the same setting as Zed |
 | Editors | VS Code and Cursor, with Accessibility. Zed, experimental, with a setting |
 | Multiplexers | tmux and herdr, in any terminal app |
 | Not tested yet | WezTerm, Alacritty, and kitty without tmux, other editors built on VS Code, JetBrains IDEs |
 
-Split panes and the terminal in VS Code or Cursor need Accessibility. Zed needs a setting. See below.
+Split panes and the terminal in VS Code or Cursor need Accessibility. Zed and Herdr.app need a setting. See below.
 
 ## Extra completions
 
@@ -186,13 +186,13 @@ Figxit uses Accessibility to read the position and size of the focused text area
 
 Splits are tested in iTerm2 and Ghostty, and editor terminals in VS Code and Cursor. Other editors built on VS Code use the same terminal but are not tested yet.
 
-### Zed (experimental)
+### Zed and Herdr.app (experimental)
 
-Zed reports only its window to Accessibility, not its terminal panel. To place the list in Zed's terminal, turn on **Settings > Experimental > Zed terminal**, then quit and reopen Zed.
+Zed and Herdr.app report only their window to Accessibility, not their terminal panes. To place the list in their terminals, turn on **Settings > Experimental > Zed and Herdr terminals**, then quit and reopen the app. If macOS asks whether to allow Figxit Input, click Allow.
 
-The setting adds a hidden input method, the macOS component that also places the window of Chinese and Japanese input next to the text cursor. Figxit uses it only to ask Zed where its text cursor is. It does not read or change what you type, and your keyboard layout stays as it is. Fig and Amazon Q used the same method.
+The setting adds a hidden input method, the macOS component that also places the window of Chinese and Japanese input next to the text cursor. Figxit uses it only to ask the app where its text cursor is. It does not read or change what you type, and your keyboard layout stays as it is. Fig and Amazon Q used the same method.
 
-Turning the setting off removes the input method. Accessibility is not needed for Zed. Tested in Zed 1.27 on macOS 27.
+Turning the setting off removes the input method. Accessibility is not needed for these apps. Tested in Zed 1.27 on macOS 27. Herdr.app is not tested yet.
 
 ## How it works
 
@@ -215,7 +215,7 @@ Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/s
 
 - macOS only.
 - Without Accessibility, the list stays hidden in split panes of the terminal app and in editor terminals.
-- The terminal in Zed needs the experimental Zed terminal setting.
+- The terminals in Zed and Herdr.app need the experimental Zed and Herdr terminals setting.
 - fish: the list is off in vi mode.
 - Outside tmux, the terminal must report its cursor position.
 - Values that need a live service, like `kubectl get`, show nothing if the service does not answer in 1.5 seconds.

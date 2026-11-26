@@ -6,7 +6,7 @@ enum Caret {
     static let inputBundleID = "dev.figxit.inputmethod.caret"
     static let request = Notification.Name("dev.figxit.caret.request")
     static let reply = Notification.Name("dev.figxit.caret.reply")
-    static let apps: Set<String> = ["dev.zed.Zed", "dev.zed.Zed-Preview"]
+    static let apps: Set<String> = ["dev.zed.Zed", "dev.zed.Zed-Preview", "dev.herdr.app"]
 
     static var bundled: URL {
         Bundle.main.bundleURL.appendingPathComponent("Contents/Library/Input Methods/FigxitInput.app")
