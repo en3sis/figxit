@@ -6,7 +6,7 @@ enum Caret {
     static let inputBundleID = "dev.figxit.inputmethod.caret"
     static let request = Notification.Name("dev.figxit.caret.request")
     static let reply = Notification.Name("dev.figxit.caret.reply")
-    static let apps: Set<String> = ["dev.zed.Zed", "dev.zed.Zed-Preview"]
+    static let apps: Set<String> = ["dev.zed.Zed", "dev.zed.Zed-Preview", "dev.herdr.app"]
 
     static var bundled: URL {
         Bundle.main.bundleURL.appendingPathComponent("Contents/Library/Input Methods/FigxitInput.app")
@@ -49,30 +49,30 @@ enum Caret {
             return done("macOS did not accept the input method.")
         }
         TISEnableInputSource(source)
-        finish(attempts: 10) { ok in
+        finish(attempts: 60, enable: true) { ok in
             if ok { manager.createFile(atPath: flag, contents: nil) }
-            done(ok ? nil : "macOS did not turn on the input method.")
+            done(ok ? nil : "macOS did not turn on the input method. If macOS asked to allow Figxit Input, click Allow, then turn the setting on again.")
         }
     }
 
-    private static func finish(attempts: Int, _ done: @escaping (Bool) -> Void) {
+    private static func finish(attempts: Int, enable: Bool, _ done: @escaping (Bool) -> Void) {
         guard attempts > 0, let executable = Bundle.main.executableURL else { return done(false) }
         let process = Process()
         process.executableURL = executable
-        process.arguments = ["select-input"]
+        process.arguments = enable ? ["select-input", "enable"] : ["select-input"]
         process.terminationHandler = { process in
             DispatchQueue.main.async {
                 if process.terminationStatus == 0 { return done(true) }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { finish(attempts: attempts - 1, done) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { finish(attempts: attempts - 1, enable: false, done) }
             }
         }
         do { try process.run() } catch { done(false) }
     }
 
-    static func select() -> Bool {
+    static func select(enable: Bool) -> Bool {
         guard let source = sources().first else { return false }
         guard property(source, kTISPropertyInputSourceIsEnabled) else {
-            TISEnableInputSource(source)
+            if enable { TISEnableInputSource(source) }
             return false
         }
         return property(source, kTISPropertyInputSourceIsSelected) || TISSelectInputSource(source) == noErr

@@ -178,9 +178,9 @@ final class SettingsWindow: NSObject {
             Panel.row(
                 icon: "sf:text.cursor",
                 tint: "FF9F0A",
-                title: "Zed terminal",
+                title: "Zed and Herdr terminals",
                 tag: nil,
-                detail: "Finds Zed's cursor with a hidden input method. Reopen Zed after.",
+                detail: "Finds the cursor in Zed and Herdr.app with a hidden input method. Reopen the app after.",
                 trailing: [zed]
             ),
         ])
@@ -322,7 +322,7 @@ final class SettingsWindow: NSObject {
             if let error = error {
                 Caret.turnOff()
                 let alert = NSAlert()
-                alert.messageText = "The Zed terminal option could not be turned on"
+                alert.messageText = "The Zed and Herdr terminals option could not be turned on"
                 alert.informativeText = error
                 NSApp.activate(ignoringOtherApps: true)
                 alert.runModal()
