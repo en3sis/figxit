@@ -13,6 +13,8 @@ function _figxit_bind
             set -g _figxit_orig_(string escape --style=var -- $key) $rest
             bind $key "_figxit_$handler[1] $key $handler[2]"
         else if not string match -q -r -- '(^| )execute( |$)' $rest
+            set -l name (eval "string join -- '' $key" 2>/dev/null)
+            test -n "$name" -o "$key" = "''"; or continue
             eval "bind $key $rest _figxit_hook"
         end
     end
