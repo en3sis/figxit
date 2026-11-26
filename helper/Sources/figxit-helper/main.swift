@@ -343,7 +343,7 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "snapshot-docto
     exit(DoctorWindow().render(to: CommandLine.arguments[2]) ? 0 : 1)
 }
 if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "select-input" {
-    exit(Caret.select() ? 0 : 1)
+    exit(Caret.select(enable: CommandLine.arguments.count > 2 && CommandLine.arguments[2] == "enable") ? 0 : 1)
 }
 let delegate = AppDelegate()
 app.delegate = delegate
