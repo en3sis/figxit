@@ -1242,3 +1242,23 @@ describe.skipIf(!fish)("fish abbreviation list", () => {
     );
   });
 });
+
+describe.skipIf(!fish)("fish key bindings", () => {
+  test("a preset key that fish can't read back doesn't replace the binding for typed letters", () => {
+    const script = [
+      "function bind",
+      "  switch \"$argv\"",
+      "    case --preset",
+      "      printf '%s\\n' \"bind --preset '' self-insert\" 'bind --preset \"$nothing\" fish_clipboard_paste' 'bind --preset ctrl-v fish_clipboard_paste'",
+      "    case --user",
+      "    case '*'",
+      "      echo BIND (string join ' ' -- (string escape -- $argv))",
+      "  end",
+      "end",
+      readFileSync(join(root, "shell/fish/bind.fish"), "utf8"),
+      "_figxit_bind",
+    ].join("\n");
+    const out = Bun.spawnSync([fish!, "--no-config", "-c", script]).stdout.toString().trim().split("\n");
+    expect(out).toEqual(["BIND '' self-insert _figxit_hook", "BIND ctrl-v fish_clipboard_paste _figxit_hook"]);
+  });
+});
