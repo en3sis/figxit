@@ -129,7 +129,7 @@ To hide the menu bar icon, turn off **Show in menu bar** in Settings. Run `figxi
 
 ### Linux (experimental)
 
-On KDE Plasma 6 with Wayland, a helper written with Qt draws the list. There is no download for it yet: build and install it from source with `helper-linux/install.sh`, see [helper-linux/README.md](helper-linux/README.md). Tested on Kubuntu 26.04 with bash, in Konsole and in the VS Code terminal.
+On KDE Plasma 6.6 or later with Wayland, a helper written with Qt draws the list. There is no download for it yet: build and install it from source with `helper-linux/install.sh`, see [helper-linux/README.md](helper-linux/README.md). Tested on Kubuntu 26.04 with bash, in Konsole and in the VS Code terminal.
 
 ## Keys
 
@@ -217,7 +217,7 @@ Specs maintained by Figxit, for tools Fig does not cover well, live in `engine/s
 
 ## Limits
 
-- macOS, and KDE Plasma on Wayland on Linux.
+- macOS, and KDE Plasma 6.6 or later on Wayland on Linux.
 - Without Accessibility, the list stays hidden in split panes of the terminal app and in editor terminals.
 - The terminals in Zed and Herdr.app need the experimental Zed and Herdr terminals setting.
 - fish: the list is off in vi mode.

@@ -3,9 +3,7 @@
 #include "locator.h"
 #include "locator/kwin.h"
 #include "surface.h"
-#ifdef FIGXIT_LAYER_SHELL
 #include "surface/layershell.h"
-#endif
 
 #include <QGuiApplication>
 #include <cstdio>
@@ -50,11 +48,7 @@ std::unique_ptr<WindowLocator> startLocator(const QString &name)
 std::unique_ptr<PopupSurface> makeSurface(QWindow *window)
 {
     const QString platform = QGuiApplication::platformName();
-#ifdef FIGXIT_LAYER_SHELL
     if (platform.startsWith(QLatin1String("wayland"))) return std::make_unique<LayerShellSurface>(window);
-#else
-    Q_UNUSED(window);
-#endif
     std::fprintf(stderr, "figxit-helper: no way to place the list on %s\n", qPrintable(platform));
     return nullptr;
 }

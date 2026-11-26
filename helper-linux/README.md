@@ -2,11 +2,11 @@
 
 The engine and the shell scripts run on Linux as they are. What is new is the helper that draws the list under the cursor. It is written with Qt 6 and speaks the same socket protocol as the Swift helper in `helper/`.
 
-It is experimental and works on KDE Plasma 6 on Wayland only. Tested on Kubuntu 26.04 (Plasma 6.6) with bash 5.3, in Konsole and in the VS Code terminal.
+It is experimental and works on KDE Plasma 6.6 or later on Wayland only. Tested on Kubuntu 26.04 (Plasma 6.6) with bash 5.3, in Konsole and in the VS Code terminal.
 
 ## Install
 
-You need [Bun](https://bun.sh), CMake, a C++20 compiler, rsync, and Qt 6.5 or later with LayerShellQt. On Kubuntu:
+You need [Bun](https://bun.sh), CMake, a C++20 compiler, rsync, Qt 6.5 or later, and LayerShellQt 6.6 or later, which comes with Plasma 6.6. CMake stops when LayerShellQt is missing or older. On Kubuntu:
 
 ```bash
 sudo apt install cmake g++ rsync qt6-base-dev liblayershellqtinterface-dev
@@ -86,7 +86,7 @@ ctest --test-dir helper-linux/build
 
 ## Limits
 
-- KDE Plasma 6 on Wayland only. GNOME has no layer-shell, and X11 is not done.
+- KDE Plasma 6.6 or later on Wayland only. GNOME has no layer-shell, and X11 is not done.
 - Tested with bash in Konsole and VS Code. zsh, fish, tmux, and other terminals are not tried yet.
 - Figxit starts with the first shell prompt, not at login.
 - No tray icon, Settings, or updates. `figxit open` does nothing.

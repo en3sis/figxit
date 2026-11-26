@@ -9,7 +9,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Gui Network DBus Test)
-find_package(LayerShellQt QUIET)
+find_package(LayerShellQt 6.6 REQUIRED)
 
 add_library(figxit-core STATIC
   src/helper.cpp
@@ -31,18 +31,12 @@ add_executable(figxit-helper
   src/backends.cpp
   src/accessibility.cpp
   src/locator/kwin.cpp
+  src/surface/layershell.cpp
   src/resources.qrc
 )
 set_target_properties(figxit-helper PROPERTIES AUTORCC ON)
 target_compile_options(figxit-helper PRIVATE -Wall -Wextra)
-target_link_libraries(figxit-helper PRIVATE figxit-core Qt6::Network Qt6::DBus)
-if(LayerShellQt_FOUND)
-  target_sources(figxit-helper PRIVATE src/surface/layershell.cpp)
-  target_compile_definitions(figxit-helper PRIVATE FIGXIT_LAYER_SHELL)
-  target_link_libraries(figxit-helper PRIVATE LayerShellQt::Interface)
-else()
-  message(WARNING "LayerShellQt was not found (liblayershellqtinterface-dev): the helper builds, but cannot show the list on Wayland")
-endif()
+target_link_libraries(figxit-helper PRIVATE figxit-core Qt6::Network Qt6::DBus LayerShellQt::Interface)
 
 enable_testing()
 add_executable(placement_test tests/placement_test.cpp)
