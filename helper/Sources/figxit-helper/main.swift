@@ -7,6 +7,8 @@ final class EngineSupervisor {
     private var failures = 0
     private var stopping = false
     var paused: Bool { stopping }
+    var running: Bool { process != nil }
+    var onChange: (() -> Void)?
 
     init?() {
         guard ProcessInfo.processInfo.environment["FIGXIT_NO_ENGINE"] == nil,
@@ -31,6 +33,7 @@ final class EngineSupervisor {
         do {
             try process.run()
             self.process = process
+            onChange?()
         } catch {
             exited(after: 0)
         }
@@ -38,6 +41,7 @@ final class EngineSupervisor {
 
     private func exited(after seconds: TimeInterval) {
         process = nil
+        onChange?()
         guard !stopping else { return }
         failures = seconds < 5 ? failures + 1 : 0
         guard failures < 5 else { return }
